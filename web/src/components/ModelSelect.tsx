@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { AiModelList } from '../api/types';
-import { Badge } from '../ds/inyeon';
+import { Badge } from '../ds';
 
 /** 고를 수 있는 모델 하나 */
 type ModelItem = AiModelList['models'][number];
@@ -124,7 +124,7 @@ export function ModelSelect({
         ref={button}
         id={id}
         type="button"
-        className="iy-input rd-select rd-ms-trigger"
+        className="dk-input rd-select rd-ms-trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}

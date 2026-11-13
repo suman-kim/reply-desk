@@ -2,8 +2,8 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
-/** 디자인 시스템 원본 폴더. 복사하지 않고 그대로 불러와, 고칠 곳을 한 곳으로 둔다 */
-const INYEON_DIR = fileURLToPath(new URL('../design/inyeon-design-system', import.meta.url));
+/** 디자인 폴더 (글꼴 파일을 여기서 그대로 읽는다. 디자인 시스템 Desk는 src/ds) */
+const DESIGN_DIR = fileURLToPath(new URL('../design', import.meta.url));
 
 /** reply-desk 서버 주소 (server/ 의 PORT) */
 const API_TARGET = process.env.API_TARGET ?? 'http://127.0.0.1:4100';
@@ -16,14 +16,14 @@ const API_TARGET = process.env.API_TARGET ?? 'http://127.0.0.1:4100';
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@inyeon': INYEON_DIR },
+    alias: { '@design': DESIGN_DIR },
   },
   server: {
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
     proxy: { '/api': { target: API_TARGET, changeOrigin: false } },
-    // 앱 폴더 밖(../design)의 디자인 시스템 파일을 읽을 수 있게 한다
+    // 앱 폴더 밖(../design)의 글꼴 파일을 읽을 수 있게 한다
     fs: { allow: ['..'] },
   },
   test: {

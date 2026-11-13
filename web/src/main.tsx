@@ -1,4 +1,4 @@
-import './ds/inyeon';
+import './ds';
 import './styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

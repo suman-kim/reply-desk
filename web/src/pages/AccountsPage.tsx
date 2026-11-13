@@ -3,7 +3,7 @@ import { useActions, useProfiles } from '../api/queries';
 import type { LoginCheckView, OpenLoginView, Profile } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, BrowserFrame, Button, CheckList, Field, Panel, ReasonBox, StatPill, StepList, type StepItem } from '../ds/inyeon';
+import { Badge, BrowserFrame, Button, CheckList, Field, Panel, ReasonBox, StatPill, StepList, type StepItem } from '../ds';
 import { relativeTime } from '../lib/format';
 
 /** 로그인 상태 → 배지 */

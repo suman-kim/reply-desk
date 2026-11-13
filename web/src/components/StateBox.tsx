@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Button, Spinner } from '../ds/inyeon';
+import { Button, Spinner } from '../ds';
 
 /**
  * 불러오는 중 상자

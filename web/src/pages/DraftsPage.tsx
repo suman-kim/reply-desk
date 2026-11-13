@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useDrafts } from '../api/queries';
 import type { DraftListRow, DraftListStatus } from '../api/types';
-import { STATUS_LABELS, STATUS_TONE, topicMatchBadge } from '../components/badges';
+import { STATUS_LABELS, topicMatchBadge } from '../components/badges';
+import { StatusBadge } from '../components/StatusBadge';
 import { DraftDetailModal, type TaskRef } from '../components/DraftDetailModal';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, Field, Segmented, StatPill } from '../ds/inyeon';
+import { Badge, Field, Segmented, StatPill } from '../ds';
 import { countChars, formatDuration, formatLogTime, formatViews, relativeTime, shortWatchUrl } from '../lib/format';
 import { paths } from '../nav/paths';
 import { useRouteTopic } from '../nav/route-topic';
@@ -120,7 +121,7 @@ function DraftRow({ row: r, selected, onOpen }: { row: DraftListRow; selected: b
   return (
     <div className="rd-grid-row rd-row-click" data-selected={selected || undefined} onClick={onOpen}>
       <span className="rd-row-tight">
-        <Badge tone={STATUS_TONE[r.status]}>{r.statusLabel}</Badge>
+        <StatusBadge status={r.status} label={r.statusLabel} />
         {/* 주제와 매칭 (가장 중요한 판단) */}
         {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
         {r.video.isMine ? <Badge tone="rose">내 채널</Badge> : null}

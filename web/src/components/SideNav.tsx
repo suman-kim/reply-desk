@@ -8,10 +8,11 @@ import { useSelectedTopic } from '../nav/selected-topic';
 import { Icon } from './Icon';
 import { CountBubble } from './MenuCounts';
 import { ErrorBand } from './StateBox';
+import { topicTone } from '../lib/topic-tone';
 
 /**
  * 왼쪽 사이드 메뉴 (모든 화면 공통): 앱 이름 · 주제 목록 · 고른 주제 메뉴 · 공통 메뉴.
- * 고른 주제 메뉴(대시보드·작업 목록·댓글 게시 목록·주제 설정)는 주제를 고른 뒤에만 보인다.
+ * 고른 주제 메뉴(대시보드·작업 목록·댓글 게시 목록·주제 설정)는 주제를 고른 뒤에만, 고른 주제 바로 아래에 달린다.
  * 화면 너비에 따라 모양이 바뀐다(styles.css '사이드 메뉴')
  * - 1280px 이상: 펼친 채로 붙어 있다
  * - 768~1279px: 아이콘만 보이게 접힌다. 위쪽 막대 ☰로 펼친 메뉴를 덮어 연다
@@ -27,7 +28,6 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
   const section = sectionFromPath(pathname);
   const closeRef = useRef<HTMLButtonElement>(null);
   const topicsHeadId = useId();
-  const topicMenuHeadId = useId();
   const commonHeadId = useId();
 
   // 덮개로 열면 닫기 버튼에 초점을 두고, Esc로 닫는다. 닫으면 연 버튼(☰)으로 초점을 돌려준다
@@ -51,9 +51,12 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
         <div className="rd-snav-top">
           <Link to={paths.home} className="rd-snav-brand" title="유튜브 댓글 에이전트 · 주제 고르기">
             <span className="rd-snav-logo" aria-hidden="true">
-              댓
+              <Icon name="chat" size={16} />
             </span>
-            <span className="rd-snav-text text-body-strong">유튜브 댓글 에이전트</span>
+            <span className="rd-snav-text rd-snav-brand-text">
+              <b>reply-desk</b>
+              <span>유튜브 댓글 에이전트</span>
+            </span>
           </Link>
           {open ? (
             <button ref={closeRef} type="button" className="rd-icon-button" aria-label="메뉴 닫기" onClick={onClose}>
@@ -64,10 +67,16 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
 
         <div className="rd-snav-group" role="group" aria-labelledby={topicsHeadId}>
           <div className="rd-snav-head">
-            <span id={topicsHeadId} className="text-label">
-              주제
-            </span>
-            {topics.data ? <span className="text-caption rd-muted">{topics.data.length}개</span> : null}
+            <span id={topicsHeadId}>주제</span>
+            <Link
+              to={paths.newTopic}
+              className="rd-icon-button rd-snav-add"
+              aria-label="새 주제 만들기"
+              title="새 주제 만들기"
+              aria-current={pathname === paths.newTopic ? 'page' : undefined}
+            >
+              <Icon name="plus" size={16} />
+            </Link>
           </div>
           {topics.isPending ? <span className="rd-snav-text text-caption rd-muted rd-snav-note">주제를 불러오는 중…</span> : null}
           {topics.error ? (
@@ -75,40 +84,43 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
               <ErrorBand error={topics.error} onRetry={() => void topics.refetch()} />
             </div>
           ) : null}
-          {topics.data?.map((t) => (
-            <SideTopic key={t.id} topic={t} selected={t.id === selected?.id} href={paths.topic(t.id, section ?? 'dashboard')} />
-          ))}
-          <Link to={paths.newTopic} className="rd-snav-item rd-snav-new" title="새 주제 만들기" aria-current={pathname === paths.newTopic ? 'page' : undefined}>
-            <Icon name="plus" />
-            <span className="rd-snav-text">새 주제</span>
-          </Link>
+          {topics.data?.length === 0 ? (
+            <Link to={paths.newTopic} className="rd-snav-item rd-snav-new">
+              <Icon name="plus" />
+              <span className="rd-snav-text">첫 주제 만들기</span>
+            </Link>
+          ) : null}
+          {topics.data?.map((t) => {
+            const isSel = t.id === selected?.id;
+            return (
+              <div key={t.id} className="rd-snav-topic-wrap">
+                <SideTopic topic={t} selected={isSel} href={paths.topic(t.id, section ?? 'dashboard')} />
+                {isSel ? (
+                  <div className="rd-snav-sub" role="group" aria-label={t.name}>
+                    {TOPIC_MENU.map((m) => {
+                      const on = section === m.section;
+                      return (
+                        <Link
+                          key={m.section}
+                          to={paths.topic(t.id, m.section)}
+                          className={`rd-snav-item${on ? ' is-on' : ''}`}
+                          aria-current={on ? 'page' : undefined}
+                          title={m.label}
+                        >
+                          <Icon name={m.icon} size={18} />
+                          <span className="rd-snav-text">{m.label}</span>
+                          {m.Count ? <m.Count topic={t} /> : null}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
 
-        {selected ? (
-          <div className="rd-snav-group" role="group" aria-labelledby={topicMenuHeadId}>
-            <div className="rd-snav-head">
-              <span id={topicMenuHeadId} className="text-label rd-clamp-1" title={`${selected.name} 메뉴`}>
-                {selected.name}
-              </span>
-            </div>
-            {TOPIC_MENU.map((m) => {
-              const on = section === m.section;
-              return (
-                <Link
-                  key={m.section}
-                  to={paths.topic(selected.id, m.section)}
-                  className={`rd-snav-item${on ? ' is-on' : ''}`}
-                  aria-current={on ? 'page' : undefined}
-                  title={m.label}
-                >
-                  <Icon name={m.icon} />
-                  <span className="rd-snav-text">{m.label}</span>
-                  {m.Count ? <m.Count topic={selected} /> : null}
-                </Link>
-              );
-            })}
-          </div>
-        ) : (
+        {selected ? null : (
           <p className="rd-snav-text rd-snav-note text-caption rd-muted">
             주제를 고르면 그 주제의 대시보드 · 작업 목록 · 댓글 게시 목록 · 주제 설정이 여기 보여요
           </p>
@@ -116,15 +128,13 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
 
         <div className="rd-snav-group rd-snav-common" role="group" aria-labelledby={commonHeadId}>
           <div className="rd-snav-head">
-            <span id={commonHeadId} className="text-label">
-              공통
-            </span>
+            <span id={commonHeadId}>공통</span>
           </div>
           {COMMON_MENU.map((m) => {
             const on = pathname.replace(/\/+$/, '') === m.path;
             return (
               <Link key={m.path} to={m.path} className={`rd-snav-item${on ? ' is-on' : ''}`} aria-current={on ? 'page' : undefined} title={m.label}>
-                <Icon name={m.icon} />
+                <Icon name={m.icon} size={18} />
                 <span className="rd-snav-text">{m.label}</span>
                 {m.Count ? <m.Count /> : null}
               </Link>
@@ -139,14 +149,15 @@ export function SideNav({ open, onClose }: { open: boolean; onClose: () => void 
 }
 
 /**
- * 주제 목록 한 칸: 상태 점 · 이름 · 오늘 n/상한 · 게시 대기 수. 접힌 메뉴에서는 이름 첫 글자 동그라미로 보인다.
+ * 주제 목록 한 칸: 첫 글자 칸(상태 점) · 이름 · 오늘 n/상한 · 게시 대기 수. 접힌 메뉴에서는 첫 글자 칸만 보인다.
+ * 고른 주제는 아래 메뉴의 '작업 목록'에 숫자가 있으므로 여기서는 숫자를 숨긴다.
  * @param props.topic 주제
  * @param props.selected 고른 주제인지
  * @param props.href 누르면 갈 주소 (보던 화면을 그대로 연다)
  */
 function SideTopic({ topic: t, selected, href }: { topic: Topic; selected: boolean; href: string }) {
   const active = t.status === 'active';
-  const meta = active ? `오늘 ${t.postedToday}/${t.dailyCap}` : `일시정지 · 오늘 ${t.postedToday}/${t.dailyCap}`;
+  const meta = active ? `오늘 ${t.postedToday}/${t.dailyCap} 게시` : `일시정지 · 오늘 ${t.postedToday}/${t.dailyCap}`;
   return (
     <Link
       to={href}
@@ -154,18 +165,15 @@ function SideTopic({ topic: t, selected, href }: { topic: Topic; selected: boole
       aria-current={selected ? 'true' : undefined}
       title={`${t.name} · ${meta} · 게시 대기 ${t.pendingDrafts}개`}
     >
-      {/* 접힌 메뉴: 이름 첫 글자 + 상태 점 */}
-      <span className="rd-snav-avatar" aria-hidden="true">
+      <span className="rd-snav-avatar" style={topicTone(t.id)} aria-hidden="true">
         {Array.from(t.name)[0] ?? '?'}
         <span className={`rd-snav-dot${active ? ' is-active' : ''}`} />
       </span>
-      {/* 펼친 메뉴: 상태 점 · 이름 · 숫자 */}
-      <span className={`rd-snav-dot rd-snav-text${active ? ' is-active' : ''}`} aria-hidden="true" />
       <span className="rd-snav-topic-body rd-snav-text">
         <span className="rd-snav-topic-name">{t.name}</span>
         <span className="rd-snav-topic-meta">{meta}</span>
       </span>
-      <CountBubble n={t.pendingDrafts} title={`게시 대기 초안 ${t.pendingDrafts}개`} />
+      {selected ? null : <CountBubble n={t.pendingDrafts} soft title={`게시 대기 초안 ${t.pendingDrafts}개`} />}
     </Link>
   );
 }

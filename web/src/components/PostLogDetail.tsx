@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import type { PostLogRow } from '../api/types';
-import { Badge } from '../ds/inyeon';
+import { Badge } from '../ds';
 import { formatDateTime, formatElapsed } from '../lib/format';
 import { paths } from '../nav/paths';
 import { POST_RESULT, POST_STEP_LABELS } from './badges';

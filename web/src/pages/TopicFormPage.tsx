@@ -6,7 +6,7 @@ import type { Topic, TopicInput } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
 import { TagInput } from '../components/TagInput';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
-import { Button, Field, Panel, Segmented } from '../ds/inyeon';
+import { Button, Field, Panel, Segmented } from '../ds';
 import { paths } from '../nav/paths';
 import { useSelectedTopic } from '../nav/selected-topic';
 
@@ -147,7 +147,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
         description="홍보할 대상 하나가 주제 하나예요. 이 설정으로 영상을 찾고 댓글 초안을 써요."
         right={
           <>
-            <Link to={cancelTo} className="iy-btn iy-btn-secondary iy-btn-md">
+            <Link to={cancelTo} className="dk-btn dk-btn-secondary dk-btn-md">
               취소
             </Link>
             <Button variant="primary" loading={save.isPending} onClick={onSave}>

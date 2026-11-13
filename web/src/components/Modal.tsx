@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { Button } from '../ds/inyeon';
+import { Button } from '../ds';
 
 /** 창 너비: wide(영상 보기, 플레이어+댓글) · medium(작업·댓글 게시 상세, 한 단) */
 export type ModalWidth = 'wide' | 'medium';
