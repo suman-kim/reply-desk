@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+# 환경 파일 (비밀 값). 개발은 .env.development, 운영은 .env.production
 .env
+.env.*
 *.tsbuildinfo
 .DS_Store
