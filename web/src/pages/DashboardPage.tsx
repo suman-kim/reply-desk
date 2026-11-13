@@ -5,7 +5,6 @@ import {
   useDraftDetail,
   useDraftProgress,
   useLogs,
-  useProfiles,
   useToday,
   useTopics,
   useVideos,
@@ -17,14 +16,12 @@ import { PostControl } from '../components/PostControl';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, LogTable, Panel, Segmented, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
 import { formatDuration, formatLogTime, formatViews, relativeTime } from '../lib/format';
-import type { LiveStatus } from '../live/useLiveEvents';
 
 /**
  * 대시보드: 헤더 · 주제 사이드바 · ①②③ 세 칸 · 게시 기록 (계획서 '화면 구조')
  * 고른 주제와 영상은 주소(?topic=&video=)에 담아, 새로 고쳐도 같은 화면이 열린다.
- * @param props.live 실시간 연결 상태
  */
-export function DashboardPage({ live }: { live: LiveStatus }) {
+export function DashboardPage() {
   const [params, setParams] = useSearchParams();
   const topics = useTopics();
   const topicId = Number(params.get('topic')) || topics.data?.[0]?.id || null;
@@ -47,7 +44,6 @@ export function DashboardPage({ live }: { live: LiveStatus }) {
 
   return (
     <div className="rd-page">
-      <DashboardHeader live={live} />
       <div className="rd-layout">
         <aside aria-label="주제 목록" className="rd-sidebar">
           <div className="rd-sidebar-head">
@@ -84,41 +80,6 @@ export function DashboardPage({ live }: { live: LiveStatus }) {
         </main>
       </div>
     </div>
-  );
-}
-
-/**
- * 대시보드 머리: 화면 이름, 오늘 전체 게시 n/10, 프로필 상태, 다른 화면으로 가는 버튼
- * @param props.live 실시간 연결 상태
- */
-function DashboardHeader({ live }: { live: LiveStatus }) {
-  const today = useToday();
-  const profiles = useProfiles();
-  return (
-    <header className="rd-header">
-      <div className="rd-header-title">
-        <h1 className="text-display">유튜브 댓글 에이전트</h1>
-        <p className="text-body-sm">주제별로 영상을 고르고, 이유와 함께 초안을 확인한 뒤 게시해요</p>
-      </div>
-      <div className="rd-header-actions">
-        {live === 'reconnecting' ? <span className="text-caption rd-live">실시간 연결이 끊겨 다시 잇는 중…</span> : null}
-        <StatPill label="오늘 전체 게시" value={today.data?.posted ?? 0} max={today.data?.cap ?? 10} />
-        {profiles.data?.map((p) => (
-          <Badge key={p.id} dot tone={p.loginStatus === 'ok' ? 'success' : p.loginStatus === 'needs_login' ? 'warning' : 'neutral'}>
-            {p.loginStatus === 'needs_login' ? `${p.name} 로그인 필요` : p.loginStatus === 'unknown' ? `${p.name} 확인 전` : p.name}
-          </Badge>
-        ))}
-        <Link to="/drafts" className="iy-btn iy-btn-secondary iy-btn-md">
-          초안 목록
-        </Link>
-        <Link to="/accounts" className="iy-btn iy-btn-secondary iy-btn-md">
-          계정 관리
-        </Link>
-        <Link to="/settings" className="iy-btn iy-btn-ghost iy-btn-md">
-          설정
-        </Link>
-      </div>
-    </header>
   );
 }
 

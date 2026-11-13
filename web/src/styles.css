@@ -11,6 +11,39 @@ body {
 a { color: var(--accent-ink); }
 a:hover { color: var(--ink); }
 
+/* 위쪽 메뉴: 앱 이름 · 탭 · 오늘 게시 (모든 화면 공통) */
+.rd-nav {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--ground); border-bottom: 1px solid var(--line);
+}
+.rd-nav-inner {
+  max-width: 1440px; margin: 0 auto; box-sizing: border-box; padding: 12px var(--space-8);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px;
+}
+.rd-nav-brand { color: var(--ink); text-decoration: none; font-size: 16px; letter-spacing: -0.02em; white-space: nowrap; }
+.rd-nav-brand:hover { color: var(--ink); }
+/* 탭: 디자인 시스템 Segmented와 같은 모양 (회색 판 위 흰 칸) */
+.rd-tabs {
+  display: inline-flex; gap: 2px; padding: 4px; border-radius: var(--radius-md);
+  background: var(--surface-sunken); overflow-x: auto; max-width: 100%;
+}
+.rd-tab {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 16px;
+  border-radius: calc(var(--radius-md) - 3px); color: var(--ink-2); font-weight: 600; font-size: 14px;
+  text-decoration: none; white-space: nowrap;
+}
+.rd-tab:hover { color: var(--ink); background: var(--surface-hover); }
+.rd-tab.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
+.rd-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rd-tab-count {
+  min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: var(--radius-pill);
+  background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
+}
+.rd-tab-count.is-warn { background: var(--warning-soft); color: var(--warning-ink); }
+.rd-nav-status { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rd-nav-alert { text-decoration: none; }
+
 /* 페이지 틀: 녹화 화면 1440px 기준 */
 .rd-page {
   max-width: 1440px;
@@ -173,6 +206,8 @@ button.rd-grid-row:focus-visible { outline: 2px solid var(--accent); outline-off
 
 @media (max-width: 720px) {
   .rd-page { padding: 20px 16px 40px; }
+  .rd-nav-inner { padding: 10px 16px; }
+  .rd-nav-status { margin-left: 0; }
   .rd-dl { grid-template-columns: 1fr; }
   .rd-drafts-detail { position: static; }
 }
