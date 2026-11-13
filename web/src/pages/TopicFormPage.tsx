@@ -4,15 +4,16 @@ import { useActions, useProfiles, useToday, useTopic } from '../api/queries';
 import { ApiError } from '../api/http';
 import type { Topic, TopicInput } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
+import { TagInput } from '../components/TagInput';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
 import { Button, Field, Panel, Segmented } from '../ds/inyeon';
 
 /** 입력 칸 값 (입력 중에는 글자로 들고, 저장할 때 숫자·목록으로 바꾼다) */
 interface FormState {
   name: string;
-  brandWord: string;
   brandTarget: string;
-  keywords: string;
+  /** 검색 키워드 (배지로 하나씩 넣는다) */
+  keywords: string[];
   videoWindowDays: string;
   videoSortBy: Topic['videoSortBy'];
   fetchLimit: string;
@@ -29,9 +30,8 @@ interface FormState {
 /** 새 주제 기본값 (계획서 예시) */
 const EMPTY: FormState = {
   name: '',
-  brandWord: '',
   brandTarget: '',
-  keywords: '',
+  keywords: [],
   videoWindowDays: '7',
   videoSortBy: 'view_count',
   fetchLimit: '5',
@@ -59,9 +59,8 @@ const splitList = (s: string) =>
 function fromTopic(t: Topic): FormState {
   return {
     name: t.name,
-    brandWord: t.brandWord,
     brandTarget: t.brandTarget,
-    keywords: t.keywords.join(', '),
+    keywords: t.keywords,
     videoWindowDays: String(t.videoWindowDays),
     videoSortBy: t.videoSortBy,
     fetchLimit: String(t.fetchLimit),
@@ -111,9 +110,8 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
   const onSave = () => {
     const input: TopicInput = {
       name: f.name,
-      brandWord: f.brandWord,
       brandTarget: f.brandTarget,
-      keywords: splitList(f.keywords),
+      keywords: f.keywords,
       videoWindowDays: Number(f.videoWindowDays),
       videoSortBy: f.videoSortBy,
       fetchLimit: Number(f.fetchLimit),
@@ -156,34 +154,27 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
       <div className="rd-form">
         <Panel title="홍보 대상" hint="댓글에서 자연스럽게 떠올리게 할 대상이에요">
           <Field label="주제 이름" value={f.name} onChange={set('name')} placeholder="예: 운명원 연애 사주" error={err.name} />
-          <div className="rd-two">
-            <Field
-              label="브랜드 이름"
-              value={f.brandWord}
-              onChange={set('brandWord')}
-              placeholder="예: 운명원"
-              hint="자동 검사에서 이 이름이 댓글에 한 번 있는지 봐요"
-              error={err.brandWord}
-            />
-            <Field
-              label="한 줄 설명"
-              value={f.brandTarget}
-              onChange={set('brandTarget')}
-              placeholder="예: 운명원 · 연애 사주 잘 보는 곳"
-              hint="AI가 댓글을 쓸 때 참고해요"
-              error={err.brandTarget}
-            />
-          </div>
+          <Field
+            label="한 줄 설명"
+            value={f.brandTarget}
+            onChange={set('brandTarget')}
+            placeholder="예: 운명원 · 연애 사주 잘 보는 곳"
+            hint="AI가 댓글을 쓸 때 참고해요"
+            error={err.brandTarget}
+          />
         </Panel>
 
         <Panel title="영상 찾기" hint="① 불러오기에서 이 조건으로 영상을 모아 정렬해요">
-          <Field
+          <TagInput
             label="검색 키워드"
-            value={f.keywords}
-            onChange={set('keywords')}
-            placeholder="예: 연애, 썸, 재회"
-            hint="쉼표로 나눠 여러 개 넣을 수 있어요"
+            values={f.keywords}
+            onChange={(keywords) => setF((s) => ({ ...s, keywords }))}
+            placeholder="예: 연애"
+            hint="하나 적고 Enter나 [추가]를 눌러요 · 키워드 중 하나라도 들어간 영상을 찾아요"
             error={err.keywords}
+            max={10}
+            maxLength={40}
+            emptyText="아직 키워드가 없어요 · 하나 이상 넣어 주세요"
           />
           <div className="rd-stack-8">
             <span className="text-label rd-label">기간</span>
@@ -197,6 +188,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
                 { value: '3', label: '3일' },
                 { value: '7', label: '7일' },
                 { value: '30', label: '30일' },
+                { value: '0', label: '무제한' },
               ]}
             />
           </div>

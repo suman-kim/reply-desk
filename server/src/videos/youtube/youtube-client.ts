@@ -27,8 +27,8 @@ export interface YoutubeVideoInfo {
 export interface YoutubeSearchParams {
   /** 검색 키워드 (OR로 묶는다) */
   keywords: string[];
-  /** 이 시각 이후에 올라온 영상만 */
-  publishedAfter: Date;
+  /** 이 시각 이후에 올라온 영상만. null이면 기간 제한 없음 */
+  publishedAfter: Date | null;
   /** API 쪽 정렬 (후보를 고르는 데만 쓰고, 최종 정렬은 코드가 한다) */
   order: 'viewCount' | 'date';
   /** 받을 후보 수 (최대 50) */

@@ -97,9 +97,11 @@ export class VideosService {
     now: Date = new Date(),
   ): Promise<VideoItem[]> {
     const topic = await this.topics.findOrFail(topicId);
-    const publishedAfter = new Date(
-      now.getTime() - topic.videoWindowDays * 24 * 60 * 60 * 1000,
-    );
+    // 0일이면 기간 제한 없음
+    const publishedAfter =
+      topic.videoWindowDays > 0
+        ? new Date(now.getTime() - topic.videoWindowDays * 24 * 60 * 60 * 1000)
+        : null;
 
     const ids = await this.youtube.searchVideoIds({
       keywords: topic.keywords,
@@ -295,16 +297,16 @@ export class VideosService {
  * 후보 영상을 주제 조건으로 거르고 정렬해서 상위 fetchLimit개를 고른다 (코드가 하는 일).
  * @param infos API에서 읽은 영상
  * @param topic 주제 (정렬 기준·개수)
- * @param publishedAfter 이 시각 이후 영상만
+ * @param publishedAfter 이 시각 이후 영상만 (null이면 기간 제한 없음)
  */
 export function rankVideos(
   infos: YoutubeVideoInfo[],
   topic: Pick<Topic, 'videoSortBy' | 'fetchLimit'>,
-  publishedAfter: Date,
+  publishedAfter: Date | null,
 ): YoutubeVideoInfo[] {
   const unique = [...new Map(infos.map((i) => [i.youtubeId, i])).values()];
   return unique
-    .filter((i) => i.publishedAt >= publishedAfter)
+    .filter((i) => !publishedAfter || i.publishedAt >= publishedAfter)
     .sort((a, b) =>
       topic.videoSortBy === VideoSortBy.Date
         ? b.publishedAt.getTime() - a.publishedAt.getTime()

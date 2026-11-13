@@ -211,3 +211,12 @@ button.rd-grid-row:focus-visible { outline: 2px solid var(--accent); outline-off
   .rd-dl { grid-template-columns: 1fr; }
   .rd-drafts-detail { position: static; }
 }
+
+/* 하나씩 넣는 목록 (검색 키워드 배지) */
+.rd-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 24px; }
+.rd-tag-x {
+  border: 0; background: transparent; color: inherit; cursor: pointer;
+  margin-left: 4px; padding: 0 2px; font-size: 14px; line-height: 1; border-radius: 4px;
+}
+.rd-tag-x:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+.rd-tag-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

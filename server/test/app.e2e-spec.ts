@@ -266,6 +266,19 @@ describe('reply-desk API (e2e)', () => {
       'dailyCap: 주제 하루 상한은 전체 하루 상한(10)보다 클 수 없어요',
     ]);
 
+    // 브랜드 이름 없이 만들 수 있고(빈 값), 기간 0은 무제한이다
+    const noBrand = await http()
+      .post('/api/topics')
+      .send({
+        name: '브랜드 없는 주제',
+        brandTarget: '운명원 · 연애 사주 잘 보는 곳',
+        keywords: ['연애'],
+        videoWindowDays: 0,
+      })
+      .expect(201);
+    expect(noBrand.body).toMatchObject({ brandWord: '', videoWindowDays: 0 });
+    await http().delete(`/api/topics/${noBrand.body.id}`).expect(200);
+
     await http().get('/api/topics/abc').expect(400);
     await http().get('/api/topics/9999').expect(404);
 

@@ -60,7 +60,8 @@ export class Topic {
     name: 'brand_word',
     type: 'varchar',
     length: 40,
-    comment: '브랜드 언급 자동 검사에 쓰는 단어 (예: 운명원)',
+    comment:
+      '브랜드 언급 자동 검사에 쓰는 단어 (예: 운명원). 비어 있으면 브랜드 언급 검사와 AI 지시를 건너뛴다',
   })
   brandWord: string;
 
@@ -77,7 +78,7 @@ export class Topic {
     name: 'video_window_days',
     type: 'int',
     default: 7,
-    comment: '최근 며칠 안에 올라온 영상만 불러올지 (일)',
+    comment: '최근 며칠 안에 올라온 영상만 불러올지 (일). 0이면 기간 제한 없음',
   })
   videoWindowDays: number;
 

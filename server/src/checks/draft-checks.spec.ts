@@ -115,6 +115,20 @@ describe('시점 표현', () => {
   });
 });
 
+/** 등록 화면에서 브랜드 이름을 받지 않으면 비어 있다 */
+describe('브랜드 이름이 비어 있을 때', () => {
+  it('브랜드 언급 검사를 건너뛰고 나머지는 그대로 본다', () => {
+    const report = runner.run(ctx(GOOD, { brandWord: '' }));
+    expect(report.results.map((r) => r.code)).toEqual([
+      'length',
+      'scene_mention',
+      'no_link_hashtag',
+      'no_fake_review',
+    ]);
+    expect(report.passed).toBe(true);
+  });
+});
+
 /** 다른 채널 영상: 맨 앞 광고 표시 */
 describe('광고 표시 검사', () => {
   const topic = {

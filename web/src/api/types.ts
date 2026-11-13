@@ -51,7 +51,6 @@ export type TopicInput = Pick<
   Topic,
   | 'name'
   | 'brandTarget'
-  | 'brandWord'
   | 'keywords'
   | 'videoWindowDays'
   | 'videoSortBy'

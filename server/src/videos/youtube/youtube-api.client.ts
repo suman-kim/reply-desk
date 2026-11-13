@@ -70,7 +70,9 @@ export class YoutubeApiClient implements YoutubeClient {
       type: 'video',
       q: params.keywords.join('|'),
       order: params.order,
-      publishedAfter: params.publishedAfter.toISOString(),
+      ...(params.publishedAfter
+        ? { publishedAfter: params.publishedAfter.toISOString() }
+        : {}),
       maxResults: String(Math.min(50, params.maxResults)),
       regionCode: 'KR',
       relevanceLanguage: 'ko',
