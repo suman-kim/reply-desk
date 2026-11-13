@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrowserModule } from '../browser/browser.module.js';
 import { Draft } from '../drafts/draft.entity.js';
 import { PostAttempt } from '../posting/post-attempt.entity.js';
+import { PostingModule } from '../posting/posting.module.js';
 import { ProfilesModule } from '../profiles/profiles.module.js';
 import { RulesModule } from '../rules/rules.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
@@ -19,6 +20,7 @@ import { PublishService } from './publish.service.js';
     VideosModule,
     ProfilesModule,
     SettingsModule,
+    PostingModule,
   ],
   controllers: [PublishController],
   providers: [PublishService],

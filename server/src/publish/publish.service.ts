@@ -19,11 +19,14 @@ import {
 } from '../browser/youtube-browser.js';
 import type { Env } from '../config/env.schema.js';
 import { Draft, DraftState } from '../drafts/draft.entity.js';
+import type { StepView } from '../events/app-events.js';
+import { EventsService } from '../events/events.service.js';
 import {
   PostAttempt,
   PostStatus,
   PostStep,
 } from '../posting/post-attempt.entity.js';
+import { PostQuotaService } from '../posting/post-quota.service.js';
 import { ProfileLoginService } from '../profiles/profile-login.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { PostGuardService } from '../rules/post-guard.service.js';
@@ -31,8 +34,7 @@ import { POSTING_HEADLESS } from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { VideosService } from '../videos/videos.service.js';
 import {
-  POST_STEP_LABELS,
-  POST_STEP_ORDER,
+  buildStepViews,
   runPostSteps,
   type PostContext,
   type PostStepHandler,
@@ -40,6 +42,10 @@ import {
 
 /** 게시 중인 일의 지금 상태 (메모리) */
 interface LiveRun {
+  /** 주제 ID (이벤트를 그 주제 화면에만 보낸다) */
+  topicId: number;
+  /** 영상 ID */
+  videoId: number;
   /** 지금 단계 */
   step: PostStep;
   /** 친 글자 수 */
@@ -48,19 +54,15 @@ interface LiveRun {
   total: number;
   /** 끝났는지 */
   finished: boolean;
-  /** 크롬 화면 미리보기 (jpeg) */
+  /** 크롬 화면 미리보기 (jpeg, 마지막은 png) */
   preview: Buffer | null;
+  /** 미리보기 번호 (새로 찍을 때마다 1씩) */
+  previewSeq: number;
+  /** 입력 진행을 마지막으로 알린 시각 (너무 자주 보내지 않게) */
+  typingEmittedAt: number;
 }
 
-/** 진행 단계 한 줄 (③ 칸의 체크리스트) */
-export interface StepView {
-  /** 단계 */
-  step: PostStep;
-  /** 이름 */
-  label: string;
-  /** 상태 (done: 끝남, running: 하는 중, failed: 실패, waiting: 기다림) */
-  state: 'done' | 'running' | 'failed' | 'waiting';
-}
+export type { StepView };
 
 /** 게시 상태 (③ 칸) */
 export interface AttemptView {
@@ -90,6 +92,8 @@ export interface AttemptView {
 
 /** 미리보기를 찍는 간격 */
 const PREVIEW_INTERVAL_MS = 1_500;
+/** 입력 진행을 알리는 최소 간격 (글자마다 보내면 너무 잦다) */
+const TYPING_EMIT_MS = 150;
 /** 끝난 일의 상태·미리보기를 메모리에 두는 시간 */
 const LIVE_KEEP_MS = 10 * 60 * 1000;
 
@@ -121,6 +125,8 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
    * @param lock 프로필 잠금
    * @param browser 크롬 조작
    * @param config 환경 변수 (캡처 폴더)
+   * @param events 실시간 이벤트 (③ 칸 진행·미리보기, 헤더 카운터)
+   * @param quota 오늘 게시 수 (게시가 끝나면 헤더에 알린다)
    */
   constructor(
     @InjectRepository(PostAttempt)
@@ -134,6 +140,8 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
     private readonly lock: ProfileLockService,
     @Inject(YOUTUBE_BROWSER) private readonly browser: YoutubeBrowser,
     private readonly config: ConfigService<Env, true>,
+    private readonly events: EventsService,
+    private readonly quota: PostQuotaService,
   ) {}
 
   /** 서버가 뜰 때: 지난번에 게시하다 멈춘 행을 실패로 바꾼다 */
@@ -276,11 +284,15 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
     }
 
     const live: LiveRun = {
+      topicId,
+      videoId,
       step: PostStep.OpenProfile,
       typed: 0,
       total: [...draft.text].length,
       finished: false,
       preview: null,
+      previewSeq: 0,
+      typingEmittedAt: 0,
     };
     this.live.set(attempt.id, live);
     const headless = await this.settings.get(POSTING_HEADLESS);
@@ -292,7 +304,14 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
       text: draft.text,
       page: null,
       commentUrl: null,
-      onTyped: (typed, total) => Object.assign(live, { typed, total }),
+      onTyped: (typed, total) => {
+        Object.assign(live, { typed, total });
+        const now = Date.now();
+        if (typed === total || now - live.typingEmittedAt >= TYPING_EMIT_MS) {
+          live.typingEmittedAt = now;
+          this.emitProgress(attempt.id);
+        }
+      },
     }).finally(() => this.running.delete(run));
     this.running.add(run);
 
@@ -314,25 +333,40 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
     const timer = setInterval(() => {
       ctx.page
         ?.screenshot('jpeg')
-        .then((img) => (live.preview = img))
+        .then((img) => this.setPreview(attemptId, img))
         .catch(() => undefined);
     }, PREVIEW_INTERVAL_MS);
 
     try {
       const outcome = await runPostSteps(
         ctx,
-        (step) => (live.step = step),
+        (step) => {
+          live.step = step;
+          this.emitProgress(attemptId);
+        },
         this.steps,
       );
       clearInterval(timer);
       const lastImage = await ctx.page?.screenshot('png').catch(() => null);
-      if (lastImage) live.preview = lastImage;
+      if (lastImage) this.setPreview(attemptId, lastImage);
 
       if (outcome.ok) {
         await this.attempts.update(attemptId, {
           status: PostStatus.Success,
           commentUrl: outcome.commentUrl,
           finishedAt: new Date(),
+        });
+        this.emitFinished(
+          attemptId,
+          PostStatus.Success,
+          null,
+          null,
+          false,
+          outcome.commentUrl,
+        );
+        this.events.emit({
+          type: 'quota.updated',
+          ...(await this.quota.today()),
         });
       } else {
         const screenshotPath = lastImage
@@ -345,18 +379,35 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
           screenshotPath,
           finishedAt: new Date(),
         });
+        this.emitFinished(
+          attemptId,
+          PostStatus.Failed,
+          outcome.step,
+          outcome.reason,
+          !!screenshotPath,
+          null,
+        );
         if (outcome.loginLost) await this.profileLogin.markLoginLost(profileId);
       }
     } catch (err) {
       this.logger.error(`게시 #${attemptId} 기록 실패`, err as Error);
+      const reason =
+        '게시 결과를 남기지 못했어요 · 유튜브에서 직접 확인해 주세요';
       await this.attempts
         .update(attemptId, {
           status: PostStatus.Failed,
-          failureReason:
-            '게시 결과를 남기지 못했어요 · 유튜브에서 직접 확인해 주세요',
+          failureReason: reason,
           finishedAt: new Date(),
         })
         .catch(() => undefined);
+      this.emitFinished(
+        attemptId,
+        PostStatus.Failed,
+        live.step,
+        reason,
+        false,
+        null,
+      );
     } finally {
       clearInterval(timer);
       await ctx.page?.close().catch(() => undefined);
@@ -364,6 +415,66 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
       live.finished = true;
       setTimeout(() => this.live.delete(attemptId), LIVE_KEEP_MS).unref();
     }
+  }
+
+  /** 새 미리보기를 두고 화면에 알린다 */
+  private setPreview(attemptId: number, image: Buffer): void {
+    const live = this.live.get(attemptId);
+    if (!live) return;
+    live.preview = image;
+    live.previewSeq += 1;
+    this.events.emit({
+      type: 'post.preview',
+      attemptId,
+      topicId: live.topicId,
+      seq: live.previewSeq,
+    });
+  }
+
+  /** 진행 단계·입력 글자 수를 화면에 알린다 */
+  private emitProgress(attemptId: number): void {
+    const live = this.live.get(attemptId);
+    if (!live) return;
+    this.events.emit({
+      type: 'post.progress',
+      attemptId,
+      topicId: live.topicId,
+      videoId: live.videoId,
+      steps: buildStepViews(PostStatus.Running, live.step),
+      typing: { typed: live.typed, total: live.total },
+    });
+  }
+
+  /**
+   * 게시가 끝났음을 화면에 알린다
+   * @param attemptId 게시 시도 ID
+   * @param status 결과
+   * @param failedStep 실패한 단계
+   * @param failureReason 실패 원인
+   * @param hasCapture 실패 캡처가 있는지
+   * @param commentUrl 댓글 주소
+   */
+  private emitFinished(
+    attemptId: number,
+    status: PostStatus,
+    failedStep: PostStep | null,
+    failureReason: string | null,
+    hasCapture: boolean,
+    commentUrl: string | null,
+  ): void {
+    const live = this.live.get(attemptId);
+    if (!live) return;
+    this.events.emit({
+      type: 'post.finished',
+      attemptId,
+      topicId: live.topicId,
+      videoId: live.videoId,
+      status,
+      steps: buildStepViews(status, failedStep),
+      failureReason,
+      hasCapture,
+      commentUrl,
+    });
   }
 
   /** 실패 캡처를 파일로 남긴다 */
@@ -387,16 +498,9 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
   /** 화면용 값으로 바꾼다 */
   private toView(a: PostAttempt): AttemptView {
     const live = this.live.get(a.id);
-    const current = a.status === PostStatus.Failed ? a.failedStep : live?.step;
-    const currentIndex = current ? POST_STEP_ORDER.indexOf(current) : -1;
-    const steps: StepView[] = POST_STEP_ORDER.map((step, i) => {
-      let state: StepView['state'] = 'waiting';
-      if (a.status === PostStatus.Success) state = 'done';
-      else if (i < currentIndex) state = 'done';
-      else if (i === currentIndex)
-        state = a.status === PostStatus.Failed ? 'failed' : 'running';
-      return { step, label: POST_STEP_LABELS[step], state };
-    });
+    const current =
+      a.status === PostStatus.Failed ? a.failedStep : (live?.step ?? null);
+    const steps = buildStepViews(a.status, current);
     return {
       id: a.id,
       status: a.status,

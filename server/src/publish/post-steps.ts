@@ -3,7 +3,8 @@ import {
   type YoutubeBrowser,
   type YoutubePage,
 } from '../browser/youtube-browser.js';
-import { PostStep } from '../posting/post-attempt.entity.js';
+import type { StepView } from '../events/app-events.js';
+import { PostStatus, PostStep } from '../posting/post-attempt.entity.js';
 
 /** 단계 이름 (③ 칸의 진행 5단계) */
 export const POST_STEP_LABELS: Record<PostStep, string> = {
@@ -201,4 +202,24 @@ export async function runPostSteps(
     }
   }
   return { ok: true, commentUrl: ctx.commentUrl };
+}
+
+/**
+ * 진행 5단계의 상태를 계산한다 (조회 API와 실시간 이벤트가 같은 값을 쓴다).
+ * @param status 게시 결과
+ * @param current 지금 단계 (실패면 실패한 단계, 모르면 null)
+ */
+export function buildStepViews(
+  status: PostStatus,
+  current: PostStep | null,
+): StepView[] {
+  const currentIndex = current ? POST_STEP_ORDER.indexOf(current) : -1;
+  return POST_STEP_ORDER.map((step, i) => {
+    let state: StepView['state'] = 'waiting';
+    if (status === PostStatus.Success) state = 'done';
+    else if (i < currentIndex) state = 'done';
+    else if (i === currentIndex)
+      state = status === PostStatus.Failed ? 'failed' : 'running';
+    return { step, label: POST_STEP_LABELS[step], state };
+  });
 }

@@ -7,6 +7,7 @@ import {
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { CheckRunnerService } from '../checks/check-runner.service.js';
+import { EventsService } from '../events/events.service.js';
 import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
@@ -103,6 +104,7 @@ export class DraftsService {
    * @param topics 주제 서비스
    * @param videos 영상 서비스
    * @param profiles 프로필 서비스 (내 채널)
+   * @param events 실시간 이벤트 (고친 초안을 다른 화면에 알린다)
    */
   constructor(
     @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
@@ -115,6 +117,7 @@ export class DraftsService {
     private readonly topics: TopicsService,
     private readonly videos: VideosService,
     private readonly profiles: ProfilesService,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -255,7 +258,18 @@ export class DraftsService {
       checkResults: report.results,
       checkPassed: report.passed,
     });
-    return (await this.drafts.findOneBy({ id: draftId }))!;
+    const saved = (await this.drafts.findOneBy({ id: draftId }))!;
+    // 다른 화면(초안 목록·대시보드)도 고친 결과를 바로 반영하게 알린다
+    this.events.emit({
+      type: 'draft.updated',
+      topicId: saved.topicId,
+      videoId: saved.videoId,
+      draftId: saved.id,
+      state: saved.state,
+      checkPassed: saved.checkPassed,
+      errorMessage: saved.errorMessage,
+    });
+    return saved;
   }
 
   /**
