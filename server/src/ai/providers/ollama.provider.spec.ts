@@ -66,4 +66,22 @@ describe('OllamaAiProvider', () => {
       new OllamaAiProvider(settings, fn).generateJson(req),
     ).rejects.toThrow('SSH 터널');
   });
+
+  it('상태: 실제로 연결해 보고, 안 되면 터널 안내와 함께 쓸 수 없다고 한다', async () => {
+    const up = new OllamaAiProvider(
+      async () => ({ baseUrl: 'http://x', numCtx: 1 }),
+      (async () => new Response('{"models":[]}')) as unknown as typeof fetch,
+    );
+    expect((await up.status()).ready).toBe(true);
+    const down = new OllamaAiProvider(
+      async () => ({ baseUrl: 'http://x', numCtx: 1 }),
+      (async () => {
+        throw new Error('ECONNREFUSED');
+      }) as unknown as typeof fetch,
+    );
+    expect(await down.status()).toMatchObject({
+      ready: false,
+      note: expect.stringContaining('SSH 터널'),
+    });
+  });
 });

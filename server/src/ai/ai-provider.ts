@@ -47,6 +47,29 @@ export interface AiProviderInfo {
   modelExamples: string[];
 }
 
+/** 고를 수 있는 모델 하나 (제공자 API에서 받은 것) */
+export interface AiModelOption {
+  /** 모델 ID (설정에 저장하는 값. 예: gemini-3.8-flash) */
+  id: string;
+  /** 화면에 보일 이름 (제공자가 주는 이름, 없으면 ID) */
+  label: string;
+}
+
+/** 제공자의 모델 목록 (설정 화면의 모델 고르기) */
+export interface AiModelList {
+  /** 제공자 ID */
+  provider: AiProviderId;
+  /** 어디서 받았는지: live = 제공자 API에서 받음, recommended = 키가 없거나 받지 못해 추천 목록 */
+  source: 'live' | 'recommended';
+  /** 모델 목록 (추천 모델이 앞) */
+  models: (AiModelOption & {
+    /** 추천 모델인지 (이 앱에서 써 본 것) */
+    recommended: boolean;
+  })[];
+  /** 추천 목록을 보이는 이유 같은 안내 한 줄. 없으면 null */
+  note: string | null;
+}
+
 /** AI에 보내는 요청 */
 export interface AiRequest<T> {
   /** 모델 이름 */
@@ -80,6 +103,11 @@ export interface AiProvider {
    * @param req 요청
    */
   generateJson<T>(req: AiRequest<T>): Promise<T>;
+  /**
+   * 지금 쓸 수 있는 글쓰기 모델 목록을 제공자 API에서 받는다.
+   * 키가 없거나 받지 못하면 AiError를 던진다(설정 화면은 추천 목록으로 대신한다).
+   */
+  listModels(): Promise<AiModelOption[]>;
 }
 
 /** DI 토큰: 등록된 제공자 목록 */

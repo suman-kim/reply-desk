@@ -1,13 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './http';
 import type {
+  AiModelList,
+  AiProviderId,
   AiProviderInfo,
   AttemptView,
+  Draft,
   DraftDetail,
   DraftListRow,
   DraftListStatus,
   DraftProgress,
-  Draft,
   LoginCheckView,
   OpenLoginView,
   PostCheck,
@@ -53,6 +55,8 @@ export const keys = {
   settings: ['settings'] as const,
   /** AI 제공자 */
   providers: ['providers'] as const,
+  /** 제공자의 모델 고르기 목록 */
+  aiModels: (provider: AiProviderId) => ['aiModels', provider] as const,
 };
 
 /** 주제 목록 */
@@ -179,6 +183,17 @@ export const useAiProviders = () =>
   useQuery({ queryKey: keys.providers, queryFn: () => api<AiProviderInfo[]>('GET', '/settings/ai/providers') });
 
 /**
+ * 제공자의 모델 고르기 목록 (서버가 10분 동안 받아 둔다)
+ * @param provider 제공자
+ */
+export const useAiModels = (provider: AiProviderId) =>
+  useQuery({
+    queryKey: keys.aiModels(provider),
+    queryFn: () => api<AiModelList>('GET', `/settings/ai/providers/${provider}/models`),
+    staleTime: 10 * 60_000,
+  });
+
+/**
  * 바꾸는 요청 모음. 성공하면 관련 데이터를 다시 읽는다.
  */
 export function useActions() {
@@ -188,6 +203,14 @@ export function useActions() {
     Promise.all(prefixes.map((p) => qc.invalidateQueries({ queryKey: [p] })));
 
   return {
+    /** 모델 목록 새로 받기 (키를 넣었거나 모델을 새로 받았을 때) */
+    refreshAiModels: useMutation({
+      mutationFn: (provider: AiProviderId) => api<AiModelList>('GET', `/settings/ai/providers/${provider}/models?refresh=1`),
+      onSuccess: (list) => {
+        qc.setQueryData(keys.aiModels(list.provider), list);
+        void refresh('providers');
+      },
+    }),
     /** 주제 만들기 */
     createTopic: useMutation({
       mutationFn: (input: TopicInput) => api<Topic>('POST', '/topics', input),

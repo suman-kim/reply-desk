@@ -10,6 +10,7 @@ import { DataSource } from 'typeorm';
 import {
   AI_PROVIDERS,
   AiError,
+  type AiModelOption,
   type AiProvider,
   type AiRequest,
 } from '../../src/ai/ai-provider.js';
@@ -140,6 +141,21 @@ export class FakeAi implements AiProvider {
 
   async status() {
     return { ready: true, note: '테스트용' };
+  }
+
+  /** 모델 목록: claude는 키가 없는 것처럼 실패하고, 나머지는 새 모델 + 추천 모델 하나 */
+  async listModels(): Promise<AiModelOption[]> {
+    if (this.id === 'claude')
+      throw new AiError(
+        'ANTHROPIC_API_KEY가 없어 추천 목록을 보여 드려요 · 키를 넣으면 쓸 수 있는 모델이 모두 보여요',
+        false,
+      );
+    if (this.id === 'gemini')
+      return [
+        { id: 'gemini-9-new', label: 'Gemini 9 New' },
+        { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+      ];
+    return [{ id: `${this.id}-model`, label: `${this.id}-model` }];
   }
 
   async generateJson<T>(req: AiRequest<T>): Promise<T> {

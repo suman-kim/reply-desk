@@ -142,6 +142,7 @@
 | `PUT /settings/:key` `{ value }` | 설정 | 값 바꾸기 |
 | `DELETE /settings/:key` | 설정 | 기본값으로 |
 | `GET /settings/ai/providers` | 설정 | AI 제공자별 사용 가능 여부, 안내, 영상 직접 보기 여부, 모델 예시 |
+| `GET /settings/ai/providers/:id/models?refresh=1` | 설정 | 모델 고르기 목록. 제공자 API(Gemini `v1beta/models`, Claude `v1/models`, OpenAI `v1/models`, Ollama `api/tags`)에서 받아 글쓰기 모델만 남기고(임베딩·음성·이미지·실시간 제외) 추천 모델을 앞에 둔다. 10분 동안 받아 둔다. 키가 없거나 못 받으면 추천 목록과 이유(`source: recommended`). Ollama 상태는 실제로 `/api/tags`에 연결해 본다 |
 | `GET /profiles` | 계정 관리 | 프로필 카드 목록 (오늘 게시, 쓰는 주제) |
 | `POST /profiles` `{ name, slug? }` | 계정 관리 | 만들기 + 폴더 만들기 (`유튜브4` → `youtube4`) |
 | `PATCH /profiles/:id` `{ name }` | 계정 관리 | 이름 바꾸기 |
