@@ -228,8 +228,14 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
         this.logger.log(`열려 있는 크롬에 붙음: ${profileDir}`);
       return session;
     } catch (err) {
+      // 화면 안내 뒤에 원래 오류(원인)도 남겨 둔다
+      const cause = (err as Error)?.cause as Error | undefined;
       this.logger.warn(
-        `크롬 열기 실패: ${String((err as Error)?.message ?? err).split('\n')[0]}`,
+        `크롬 열기 실패: ${String((err as Error)?.message ?? err).split('\n')[0]}${
+          cause
+            ? ` · 원인: ${String(cause.message ?? cause).split('\n')[0]}`
+            : ''
+        }`,
       );
       throw err;
     }

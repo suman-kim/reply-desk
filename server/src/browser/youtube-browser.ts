@@ -111,10 +111,15 @@ export const YOUTUBE_BROWSER = Symbol('YOUTUBE_BROWSER');
  * (대시보드 밖에서 직접 열었거나, 이 기능 전에 [크롬 열기]로 연 크롬)
  */
 export class ProfileInUseError extends Error {
-  constructor() {
-    super(
-      '이 프로필의 크롬이 이어 쓸 수 없는 상태로 열려 있어요 · 계정 관리에서 [크롬 열기]를 누르면 다시 열려 이어 쓸 수 있어요',
-    );
+  /**
+   * @param message 화면에 보일 한 줄 (원인과 다음 할 일). 없으면 기본 안내
+   * @param cause 원래 오류 (서버 로그에 남긴다)
+   */
+  constructor(
+    message = '이 프로필의 크롬이 이어 쓸 수 없는 상태로 열려 있어요 · 계정 관리에서 [크롬 열기]를 누르면 다시 열려 이어 쓸 수 있어요',
+    cause?: unknown,
+  ) {
+    super(message, { cause });
     this.name = 'ProfileInUseError';
   }
 }
