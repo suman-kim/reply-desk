@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { useActions } from '../api/queries';
 import type { DraftDetail, Topic } from '../api/types';
 import { Badge, Button, CheckList, Spinner } from '../ds';
-import { countChars } from '../lib/format';
+import { bodyChars } from '../lib/format';
 import { Icon } from './Icon';
 import { ErrorBand } from './StateBox';
 import { StatusBadge } from './StatusBadge';
@@ -115,7 +115,9 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
     }, SAVE_DELAY_MS);
   };
 
-  const n = countChars(text);
+  const disclosure = topic.adDisclosure?.trim();
+  // 길이 검사처럼 광고 표시는 세지 않는다
+  const n = bodyChars(text, video.isMine ? null : disclosure || null);
   const bad = n < topic.minLength || n > topic.maxLength;
   const failed = draft.checkResults.filter((r) => !r.passed).length;
   const saveNote = locked
@@ -125,12 +127,11 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
       : editDraft.error
         ? editDraft.error.message
         : '고치면 바로 저장하고 다시 검사해요';
-  const disclosure = topic.adDisclosure?.trim();
   const adNote = video.isMine ? (
     '내 채널 영상이라 광고 표시 없이 달아요'
   ) : (
     <>
-      다른 채널 영상이라 맨 앞에 <b className="rd-ink">{disclosure || '[광고]'}</b>가 있어야 게시돼요
+      다른 채널 영상이라 맨 앞에 <b className="rd-ink">{disclosure || '[광고]'}</b>가 있어야 게시돼요 · 글자 수에는 넣지 않아요
     </>
   );
 
