@@ -49,7 +49,7 @@ describe('PostLogDetail (댓글 게시 상세)', () => {
     expect(screen.getByRole('img', { name: /실패한 순간 화면/ })).toBeInTheDocument();
     expect(screen.getByText('댓글 창 찾는 중')).toBeInTheDocument();
     expect(screen.getByText(/로그인이 풀렸어요/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '작업 목록에서 다시 게시' })).toHaveAttribute('href', '/t/4/drafts?video=2014');
+    expect(screen.getByRole('link', { name: '작업 상세에서 다시 게시' })).toHaveAttribute('href', '/t/4/videos/2014');
   });
 
   it('캡처가 없으면 없다고 알린다', () => {

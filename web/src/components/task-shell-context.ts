@@ -1,6 +1,13 @@
 import { createContext, useContext } from 'react';
 import type { LiveEvent } from '../live/apply-event';
-import type { TaskRef } from './DraftDetailModal';
+
+/** 작업 하나 (주제·영상) */
+export interface TaskRef {
+  /** 주제 ID */
+  topicId: number;
+  /** 영상 ID */
+  videoId: number;
+}
 
 /** 브라우저 알림 상태 */
 export interface BrowserNotify {
@@ -22,7 +29,7 @@ export interface TaskShellValue {
   panelOpen: boolean;
   /** 패널 열기·닫기 */
   togglePanel: () => void;
-  /** 작업 창 열기 (어느 화면에서나) */
+  /** 작업 상세 열기 (어느 화면에서나) */
   openTask: (task: TaskRef) => void;
   /** 실시간 이벤트 받기 (알림으로 바꾼다) */
   onLiveEvent: (e: LiveEvent) => void;

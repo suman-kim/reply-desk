@@ -13,6 +13,7 @@ describe('메뉴 목록', () => {
     expect(placeOf('/settings/')).toEqual({ label: '설정', section: null });
     expect(placeOf('/accounts').label).toBe('계정 관리');
     expect(placeOf('/nothing').label).toBe('없는 화면');
+    expect(placeOf('/t/3/videos/12')).toEqual({ label: '작업 상세', section: 'dashboard', parent: { label: '대시보드', section: 'dashboard' } });
   });
 
   it('주제 메뉴는 주제 안의 화면을 하나씩 모두 가진다', () => {
