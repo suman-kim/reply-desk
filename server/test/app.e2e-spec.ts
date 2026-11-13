@@ -329,17 +329,24 @@ describe('reply-desk API (e2e)', () => {
     const gemini = await http()
       .get('/api/settings/ai/providers/gemini/models')
       .expect(200);
-    expect(gemini.body).toEqual({
+    expect(gemini.body).toMatchObject({
       provider: 'gemini',
       source: 'live',
       note: null,
+      pricingSource: {
+        url: 'https://aistudio.google.com/docs/pricing',
+        checkedAt: '2026-11-13',
+      },
       models: [
         {
           id: 'gemini-3.8-flash',
           label: 'Gemini 3.8 Flash',
           recommended: true,
+          // 가격표에서: 무료 등급 있음, 입력 $0.75 · 출력 $3.75
+          pricing: { free: true, inputPerM: 0.75, outputPerM: 3.75 },
         },
-        { id: 'gemini-9-new', label: 'Gemini 9 New', recommended: false },
+        // 가격표에 없는 모델은 가격을 지어내지 않는다
+        { id: 'gemini-9-new', recommended: false, pricing: null },
       ],
     });
     // 키가 없으면 추천 목록과 이유
@@ -350,10 +357,12 @@ describe('reply-desk API (e2e)', () => {
       source: 'recommended',
       note: expect.stringContaining('ANTHROPIC_API_KEY'),
     });
-    expect(claude.body.models[0]).toEqual({
+    expect(claude.body.models[0]).toMatchObject({
       id: 'claude-sonnet-5-5',
       label: 'claude-sonnet-5-5',
       recommended: true,
+      // 추천 목록에도 가격을 붙인다 (Claude는 무료 없음)
+      pricing: { free: false, inputPerM: 2, outputPerM: 10 },
     });
     await http().get('/api/settings/ai/providers/nope/models').expect(400);
   });

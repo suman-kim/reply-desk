@@ -12,6 +12,11 @@ import {
   type AiRequest,
   type AiRole,
 } from './ai-provider.js';
+import {
+  PRICING_CHECKED_AT,
+  PRICING_SOURCES,
+  pricingOf,
+} from './providers/model-pricing.js';
 
 /** 제공자 API에서 받은 모델 목록을 다시 받기 전까지 쓰는 시간 (10분) */
 const MODEL_LIST_TTL_MS = 10 * 60 * 1000;
@@ -23,6 +28,17 @@ const MODEL_EXAMPLES: Record<string, string[]> = {
   openai: ['gpt-6-luna', 'gpt-5.5', 'gpt-5.4-mini'],
   ollama: ['gemma4:12b', 'qwen3.5:9b'],
 };
+
+/**
+ * 가격표 출처 (Ollama는 없음)
+ * @param providerId 제공자
+ */
+function pricingSourceOf(
+  providerId: AiProviderId,
+): AiModelList['pricingSource'] {
+  const url = PRICING_SOURCES[providerId];
+  return url ? { url, checkedAt: PRICING_CHECKED_AT } : null;
+}
 
 /** 역할별로 지금 쓸 AI */
 export interface ResolvedAi {
@@ -149,11 +165,15 @@ export class AiService {
       const models = live
         .map((m, i) => ({ ...m, recommended: recommended.includes(m.id), i }))
         .sort((a, b) => rank(a.id) - rank(b.id) || a.i - b.i)
-        .map(({ i: _i, ...m }) => m);
+        .map(({ i: _i, ...m }) => ({
+          ...m,
+          pricing: pricingOf(providerId, m.id),
+        }));
       const list: AiModelList = {
         provider: providerId,
         source: 'live',
         models,
+        pricingSource: pricingSourceOf(providerId),
         note:
           models.length === 0
             ? `${provider.label}에서 쓸 수 있는 글쓰기 모델이 없어요${providerId === 'ollama' ? ' · AI PC에서 ollama pull로 받아 주세요' : ''}`
@@ -172,7 +192,13 @@ export class AiService {
       return {
         provider: providerId,
         source: 'recommended',
-        models: recommended.map((id) => ({ id, label: id, recommended: true })),
+        models: recommended.map((id) => ({
+          id,
+          label: id,
+          recommended: true,
+          pricing: pricingOf(providerId, id),
+        })),
+        pricingSource: pricingSourceOf(providerId),
         note,
       };
     }

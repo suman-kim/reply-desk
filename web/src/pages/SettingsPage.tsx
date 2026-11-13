@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { keys, useActions, useAiModels, useAiProviders, useSettings } from '../api/queries';
 import type { AiModelList, AiProviderId, AiProviderInfo, SettingView } from '../api/types';
+import { CUSTOM_MODEL, ModelSelect } from '../components/ModelSelect';
 import { PageHeader } from '../components/PageHeader';
 import { PromptSettings } from '../components/PromptSettings';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
@@ -99,7 +100,7 @@ function portOf(url: string): string {
 }
 
 /** 모델 고르기에서 "직접 입력"을 뜻하는 값 */
-const CUSTOM = '__custom__';
+const CUSTOM = CUSTOM_MODEL;
 
 /**
  * 모델 고르기: 제공자 API에서 받은 목록(추천이 앞) + 직접 입력.
@@ -147,31 +148,24 @@ function ModelPicker({
             {refreshAiModels.isPending ? '받는 중…' : '목록 새로 받기'}
           </button>
         </div>
-        <select
+        <ModelSelect
           id={id}
-          className="iy-input rd-select"
-          value={custom ? CUSTOM : value}
+          models={list}
+          value={value}
+          custom={custom}
           disabled={models.isPending}
-          aria-invalid={error ? true : undefined}
-          onChange={(e) => {
-            if (e.target.value === CUSTOM) {
+          placeholder={models.isPending ? '모델 목록을 불러오는 중…' : '모델을 골라 주세요'}
+          invalid={!!error}
+          pricingSource={models.data?.pricingSource ?? null}
+          onPick={(v) => {
+            if (v === CUSTOM) {
               setTyping(true);
               return;
             }
             setTyping(false);
-            onChange(e.target.value);
+            onChange(v);
           }}
-        >
-          {models.isPending ? <option value={value}>모델 목록을 불러오는 중…</option> : null}
-          {!models.isPending && !value && !custom ? <option value="">모델을 골라 주세요</option> : null}
-          {list.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label !== m.id ? `${m.label} · ${m.id}` : m.id}
-              {m.recommended ? ' (추천)' : ''}
-            </option>
-          ))}
-          <option value={CUSTOM}>직접 입력…</option>
-        </select>
+        />
         {models.data?.source === 'recommended' && !ready ? (
           <span className="iy-field-hint">
             추천 목록이에요 · {provider === 'ollama' ? '연결되면 받아 둔 모델이 모두 보여요' : '키를 넣으면 쓸 수 있는 모델이 모두 보여요'}

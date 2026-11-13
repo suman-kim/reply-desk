@@ -49,9 +49,9 @@ async function getJson(
   return res.json();
 }
 
-/** Gemini 모델 중 글쓰기가 아닌 것 (임베딩·음성·받아쓰기·이미지 생성(nano-banana)·실시간 등) */
+/** Gemini 모델 중 글쓰기가 아닌 것 (임베딩·음성·받아쓰기·이미지 생성(nano-banana)·영상 생성(omni)·실시간 등) */
 const GEMINI_SKIP =
-  /embedding|tts|transcribe|image|banana|live|audio|aqa|robotics|computer-use/i;
+  /embedding|tts|transcribe|image|banana|omni|live|audio|aqa|robotics|computer-use/i;
 
 /**
  * Gemini 목록 응답에서 글쓰기 모델만 고른다 (generateContent를 받는 gemini-*)
