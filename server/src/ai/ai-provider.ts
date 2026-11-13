@@ -3,11 +3,16 @@ import { z } from 'zod';
 /**
  * AI 제공자 공통 정의.
  * 영상 분석과 댓글 작성은 각각 설정에서 제공자와 모델을 고른다(settings: ai.analysis, ai.drafting).
- * 실제 호출 구현은 제공자마다 AiProvider를 구현하는 어댑터로 둔다(다음 작업: 분석·작성).
+ * 제공자마다 AiProvider를 구현하는 어댑터를 두고(어댑터 패턴), AiService가 설정을 읽어 골라 쓴다(전략 패턴).
  */
 
 /** 쓸 수 있는 AI 제공자 */
-export const AI_PROVIDER_IDS = ['gemini', 'claude', 'ollama'] as const;
+export const AI_PROVIDER_IDS = [
+  'gemini',
+  'claude',
+  'openai',
+  'ollama',
+] as const;
 
 /** AI 제공자 ID */
 export type AiProviderId = (typeof AI_PROVIDER_IDS)[number];
@@ -19,7 +24,7 @@ export type AiRole = 'analysis' | 'drafting';
 export const aiChoiceSchema = z.object({
   /** 제공자 */
   provider: z.enum(AI_PROVIDER_IDS),
-  /** 모델 이름 (예: claude-sonnet-5-5, gemini-2.5-flash, qwen3:14b) */
+  /** 모델 이름 (예: claude-sonnet-5-5, gemini-3.8-flash, gpt-6-luna, gemma4:12b) */
   model: z.string().trim().min(1, '모델 이름을 적어 주세요').max(100),
 });
 
@@ -38,25 +43,63 @@ export interface AiProviderInfo {
   note: string;
   /** 영상을 직접 볼 수 있는지 (유튜브 주소로 영상 분석) */
   canWatchVideo: boolean;
+  /** 모델 이름 예시 (설정 화면의 자리 표시) */
+  modelExamples: string[];
 }
 
-/** 모든 제공자가 구현할 기능 (어댑터 패턴). 분석·작성 작업에서 구현한다 */
+/** AI에 보내는 요청 */
+export interface AiRequest<T> {
+  /** 모델 이름 */
+  model: string;
+  /** 시스템 지시 (역할·규칙) */
+  system: string;
+  /** 사용자 프롬프트 (이번 일의 자료) */
+  prompt: string;
+  /** 답의 모양. 어댑터가 이 모양으로 받고 검증까지 한다 */
+  schema: z.ZodType<T>;
+  /** 영상을 직접 볼 수 있는 제공자에게 넘길 유튜브 주소 */
+  videoUrl?: string;
+  /** 제한 시간 (밀리초) */
+  timeoutMs: number;
+}
+
+/** 모든 제공자가 구현할 기능 */
 export interface AiProvider {
   /** 제공자 ID */
   readonly id: AiProviderId;
+  /** 화면에 보일 이름 */
+  readonly label: string;
+  /** 유튜브 주소를 받아 영상을 직접 볼 수 있는지 */
+  readonly canWatchVideo: boolean;
   /**
-   * JSON 모양이 정해진 답을 받는다.
-   * @param args.model 모델 이름
-   * @param args.system 시스템 지시
-   * @param args.prompt 사용자 프롬프트
-   * @param args.schema 답의 모양 (zod). 어댑터가 검증까지 한다
-   * @param args.videoUrl 영상을 직접 볼 수 있는 제공자에게 넘길 유튜브 주소
+   * 지금 쓸 수 있는지와 안내 문구
    */
-  generateJson<T>(args: {
-    model: string;
-    system: string;
-    prompt: string;
-    schema: z.ZodType<T>;
-    videoUrl?: string;
-  }): Promise<T>;
+  status(): Promise<{ ready: boolean; note: string }>;
+  /**
+   * JSON 모양이 정해진 답을 받는다. 실패하면 AiError를 던진다.
+   * @param req 요청
+   */
+  generateJson<T>(req: AiRequest<T>): Promise<T>;
+}
+
+/** DI 토큰: 등록된 제공자 목록 */
+export const AI_PROVIDERS = Symbol('AI_PROVIDERS');
+
+/**
+ * AI 호출 실패. message는 화면에 그대로 보일 한 줄(원인 · 할 일)이다.
+ */
+export class AiError extends Error {
+  /**
+   * @param message 화면에 보일 한 줄
+   * @param retryable 잠시 뒤 다시 하면 될 수 있는지
+   * @param cause 원래 오류 (로그용)
+   */
+  constructor(
+    message: string,
+    readonly retryable: boolean,
+    readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'AiError';
+  }
 }

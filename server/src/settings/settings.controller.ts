@@ -13,7 +13,7 @@ const updateSettingSchema = z.object({
  * - GET    /api/settings                  모든 설정 (이름·도움말·지금 값·기본값)
  * - PUT    /api/settings/:key             값 바꾸기 { value }
  * - DELETE /api/settings/:key             기본값으로 되돌리기
- * - GET    /api/settings/ai/providers     AI 제공자별 사용 가능 여부
+ * (AI 제공자 안내 GET /api/settings/ai/providers는 ai 모듈에 있다)
  */
 @Controller('settings')
 export class SettingsController {
@@ -23,12 +23,6 @@ export class SettingsController {
   @Get()
   list() {
     return this.settings.list();
-  }
-
-  /** AI 제공자별 사용 가능 여부 */
-  @Get('ai/providers')
-  aiProviders() {
-    return this.settings.aiProviders();
   }
 
   /**

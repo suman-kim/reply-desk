@@ -22,6 +22,6 @@ import { YOUTUBE_CLIENT } from './youtube/youtube-client.js';
     VideosService,
     { provide: YOUTUBE_CLIENT, useClass: YoutubeApiClient },
   ],
-  exports: [VideosService],
+  exports: [VideosService, YOUTUBE_CLIENT],
 })
 export class VideosModule {}

@@ -47,6 +47,24 @@ export interface YoutubeClient {
    * @param ids 유튜브 영상 ID 목록 (최대 50)
    */
   getVideos(ids: string[]): Promise<YoutubeVideoInfo[]>;
+  /**
+   * 분석 재료: 영상 설명과 인기 댓글 (videos.list 1 + commentThreads.list 1).
+   * 댓글이 막힌 영상은 댓글이 빈 목록이다.
+   * @param youtubeId 유튜브 영상 ID
+   * @param maxComments 가져올 인기 댓글 수 (최대 100)
+   */
+  getVideoContext(
+    youtubeId: string,
+    maxComments: number,
+  ): Promise<YoutubeVideoContext>;
+}
+
+/** 분석 재료 */
+export interface YoutubeVideoContext {
+  /** 영상 설명 */
+  description: string;
+  /** 인기 댓글 (관련성 순) */
+  comments: { text: string; likeCount: number }[];
 }
 
 /** DI 토큰 */

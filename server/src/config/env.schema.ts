@@ -37,6 +37,8 @@ export const envSchema = z.object({
   GEMINI_API_KEY: z.string().default(''),
   /** Anthropic(Claude) API 키 */
   ANTHROPIC_API_KEY: z.string().default(''),
+  /** OpenAI API 키 */
+  OPENAI_API_KEY: z.string().default(''),
 });
 
 /** 검증을 통과한 환경 변수 타입 */

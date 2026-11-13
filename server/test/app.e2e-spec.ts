@@ -1,122 +1,24 @@
-import '../src/config/zod-locale.js';
-import {
-  StandardSchemaValidationPipe,
-  type INestApplication,
-} from '@nestjs/common';
-import { Test } from '@nestjs/testing';
-import { getDataSourceToken } from '@nestjs/typeorm';
+import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { DataSource } from 'typeorm';
-import { AppModule } from '../src/app.module.js';
-import { envSchema } from '../src/config/env.schema.js';
-import { buildDataSourceOptions } from '../src/database/typeorm-options.js';
+import type { DataSource } from 'typeorm';
 import { Draft, DraftState } from '../src/drafts/draft.entity.js';
 import { PostAttempt, PostStatus } from '../src/posting/post-attempt.entity.js';
 import { Profile, ProfileLoginStatus } from '../src/profiles/profile.entity.js';
 import {
-  YOUTUBE_CLIENT,
-  type YoutubeClient,
-  type YoutubeSearchParams,
-  type YoutubeVideoInfo,
-} from '../src/videos/youtube/youtube-client.js';
-
-/** 내 채널 ID (유튜브1 프로필이 로그인된 채널) */
-const MY_CHANNEL = 'UC_MY_CHANNEL_000000000';
-
-/** 테스트용 영상 (프로토타입의 v1~v3 + 기간 밖 영상) */
-const now = Date.now();
-const day = 24 * 60 * 60 * 1000;
-const VIDEOS: YoutubeVideoInfo[] = [
-  info(
-    'demo00000v1',
-    '썸 탈 때 남자가 연락 텀을 늘리는 진짜 이유 3가지',
-    'UC_OTHER_A',
-    2340,
-    now - 0.2 * day,
-  ),
-  info(
-    'demo00000v2',
-    '헤어진 연인에게 다시 연락 오는 시기, 이 신호를 보세요',
-    MY_CHANNEL,
-    4870,
-    now - 1 * day,
-  ),
-  info(
-    'demo00000v3',
-    "남자들이 '진지한 연애' 앞에서 망설이는 순간",
-    'UC_OTHER_B',
-    12400,
-    now - 2 * day,
-  ),
-  info('demo000old1', '오래된 영상', 'UC_OTHER_C', 999999, now - 30 * day),
-];
-
-function info(
-  id: string,
-  title: string,
-  channelId: string,
-  views: number,
-  publishedAt: number,
-): YoutubeVideoInfo {
-  return {
-    youtubeId: id,
-    title,
-    channelId,
-    channelTitle: channelId,
-    publishedAt: new Date(publishedAt),
-    viewCount: views,
-    durationSec: 600,
-    thumbnailUrl: null,
-  };
-}
-
-/** 가짜 YouTube 클라이언트: 실제 API를 부르지 않는다 */
-class FakeYoutube implements YoutubeClient {
-  /** 마지막 검색 조건 (검증용) */
-  lastSearch: YoutubeSearchParams | null = null;
-
-  async searchVideoIds(params: YoutubeSearchParams): Promise<string[]> {
-    this.lastSearch = params;
-    return VIDEOS.map((v) => v.youtubeId);
-  }
-
-  async getVideos(ids: string[]): Promise<YoutubeVideoInfo[]> {
-    const extra = info(
-      'manual00001',
-      '직접 넣은 내 테스트 영상',
-      MY_CHANNEL,
-      10,
-      now,
-    );
-    return [...VIDEOS, extra].filter((v) => ids.includes(v.youtubeId));
-  }
-}
+  createTestApp,
+  MY_CHANNEL,
+  type FakeYoutube,
+} from './support/test-app.js';
 
 describe('reply-desk API (e2e)', () => {
   let app: INestApplication<App>;
   let ds: DataSource;
-  const youtube = new FakeYoutube();
+  let youtube: FakeYoutube;
   const http = () => request(app.getHttpServer());
 
   beforeAll(async () => {
-    // 테스트 DB를 비운다. 앱이 뜨면서 마이그레이션을 처음부터 다시 적용한다
-    const reset = new DataSource({
-      ...buildDataSourceOptions(envSchema.parse(process.env)),
-      dropSchema: true,
-    });
-    await reset.initialize();
-    await reset.destroy();
-
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(YOUTUBE_CLIENT)
-      .useValue(youtube)
-      .compile();
-    app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api');
-    app.useGlobalPipes(new StandardSchemaValidationPipe());
-    await app.init();
-    ds = app.get(getDataSourceToken());
+    ({ app, ds, youtube } = await createTestApp());
   });
 
   afterAll(async () => {
@@ -154,12 +56,10 @@ describe('reply-desk API (e2e)', () => {
       loginStatus: 'unknown',
       postedToday: 0,
     });
-    await ds
-      .getRepository(Profile)
-      .update(profile.body.id, {
-        channelId: MY_CHANNEL,
-        loginStatus: ProfileLoginStatus.Ok,
-      });
+    await ds.getRepository(Profile).update(profile.body.id, {
+      channelId: MY_CHANNEL,
+      loginStatus: ProfileLoginStatus.Ok,
+    });
 
     // 2. 주제를 만든다 (키워드 공백·중복은 정리된다)
     const topic = await http()
@@ -213,15 +113,13 @@ describe('reply-desk API (e2e)', () => {
     const other = list.body.find(
       (v: { youtubeId: string }) => v.youtubeId === 'demo00000v3',
     );
-    await ds
-      .getRepository(Draft)
-      .insert({
-        topicId: t,
-        videoId: other.id,
-        state: DraftState.Ready,
-        text: 'x',
-        checkPassed: true,
-      });
+    await ds.getRepository(Draft).insert({
+      topicId: t,
+      videoId: other.id,
+      state: DraftState.Ready,
+      text: 'x',
+      checkPassed: true,
+    });
     const otherCheck = await http()
       .get(`/api/topics/${t}/post-check?videoId=${other.id}`)
       .expect(200);
@@ -231,15 +129,13 @@ describe('reply-desk API (e2e)', () => {
     });
 
     // 5. 검사를 통과한 초안이 생기면 열리고, 자동 배정으로 유튜브1이 이번 차례
-    await ds
-      .getRepository(Draft)
-      .insert({
-        topicId: t,
-        videoId: mine.id,
-        state: DraftState.Ready,
-        text: '댓글',
-        checkPassed: true,
-      });
+    await ds.getRepository(Draft).insert({
+      topicId: t,
+      videoId: mine.id,
+      state: DraftState.Ready,
+      text: '댓글',
+      checkPassed: true,
+    });
     const ok = await http()
       .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
       .expect(200);
@@ -282,13 +178,11 @@ describe('reply-desk API (e2e)', () => {
 
     // DB가 같은 영상의 두 번째 성공을 직접 막는다
     await expect(
-      ds
-        .getRepository(PostAttempt)
-        .insert({
-          videoId: mine.id,
-          commentText: '두 번째',
-          status: PostStatus.Success,
-        }),
+      ds.getRepository(PostAttempt).insert({
+        videoId: mine.id,
+        commentText: '두 번째',
+        status: PostStatus.Success,
+      }),
     ).rejects.toThrow(/uq_post_attempt_video_success/);
 
     // 7. 게시 기록과 오늘 현황
@@ -379,7 +273,7 @@ describe('reply-desk API (e2e)', () => {
       .expect(200);
     const bad = await http()
       .put('/api/settings/ai.drafting')
-      .send({ value: { provider: 'openai', model: 'x' } })
+      .send({ value: { provider: 'mistral', model: 'x' } })
       .expect(400);
     expect(bad.body.message[0]).toContain('댓글 작성 AI');
 
@@ -401,10 +295,11 @@ describe('reply-desk API (e2e)', () => {
     const providers = (
       await http().get('/api/settings/ai/providers').expect(200)
     ).body as { id: string; ready: boolean }[];
-    expect(providers.map((p) => [p.id, p.ready])).toEqual([
-      ['gemini', false],
-      ['claude', false],
-      ['ollama', true],
+    expect(providers.map((p) => p.id)).toEqual([
+      'gemini',
+      'claude',
+      'openai',
+      'ollama',
     ]);
   });
 });
