@@ -35,6 +35,14 @@ describe('모델 목록 고르기', () => {
           supportedGenerationMethods: ['generateContent'],
         },
         {
+          name: 'models/gemini-nano-banana-2.1',
+          supportedGenerationMethods: ['generateContent'],
+        },
+        {
+          name: 'models/gemini-3.5-transcribe',
+          supportedGenerationMethods: ['generateContent'],
+        },
+        {
           name: 'models/gemma-3-27b-it',
           supportedGenerationMethods: ['generateContent'],
         },
@@ -71,9 +79,18 @@ describe('모델 목록 고르기', () => {
         { id: 'gpt-image-1', created: 500 },
         { id: 'gpt-4o-mini-tts', created: 500 },
         { id: 'whisper-1', created: 50 },
+        { id: 'gpt-live-1', created: 600 },
+        { id: 'gpt-5.5-2026-04-23', created: 210 },
+        { id: 'gpt-4.1-2025-04-14', created: 10 },
       ],
     });
-    expect(r.map((m) => m.id)).toEqual(['gpt-6-luna', 'gpt-5.5', 'o4-mini']);
+    // 대표 이름이 있는 날짜판(gpt-5.5-2026-04-23)은 빼고, 대표가 없으면(gpt-4.1-…) 남긴다
+    expect(r.map((m) => m.id)).toEqual([
+      'gpt-6-luna',
+      'gpt-5.5',
+      'o4-mini',
+      'gpt-4.1-2025-04-14',
+    ]);
   });
 
   it('Ollama: 받아 둔 모델 중 임베딩은 빼고, 크기를 이름에 붙인다', () => {

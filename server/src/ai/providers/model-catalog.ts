@@ -49,8 +49,9 @@ async function getJson(
   return res.json();
 }
 
-/** Gemini 모델 중 글쓰기가 아닌 것 (임베딩·음성·이미지 생성·실시간 등) */
-const GEMINI_SKIP = /embedding|tts|image|live|audio|aqa|robotics|computer-use/i;
+/** Gemini 모델 중 글쓰기가 아닌 것 (임베딩·음성·받아쓰기·이미지 생성(nano-banana)·실시간 등) */
+const GEMINI_SKIP =
+  /embedding|tts|transcribe|image|banana|live|audio|aqa|robotics|computer-use/i;
 
 /**
  * Gemini 목록 응답에서 글쓰기 모델만 고른다 (generateContent를 받는 gemini-*)
@@ -91,19 +92,25 @@ export function claudeModelsFrom(body: unknown): AiModelOption[] {
     .map((m) => ({ id: m.id, label: m.display_name || m.id }));
 }
 
-/** OpenAI 모델 중 글쓰기가 아닌 것 (임베딩·음성·이미지·실시간·검색 등) */
+/** OpenAI 모델 중 글쓰기가 아닌 것 (임베딩·음성·이미지·실시간(live)·검색 등) */
 const OPENAI_SKIP =
-  /embedding|tts|whisper|dall-e|image|audio|realtime|transcribe|search|moderation|instruct|davinci|babbage/i;
+  /embedding|tts|whisper|dall-e|image|audio|realtime|live|transcribe|search|moderation|instruct|davinci|babbage/i;
+
+/** 날짜가 붙은 고정판 이름 (예: gpt-5.5-2026-04-23) */
+const DATED = /-\d{4}-\d{2}-\d{2}$/;
 
 /**
- * OpenAI 목록 응답에서 글쓰기 모델만 고른다 (gpt-*, o1·o3 같은 추론 모델). 최신이 앞
+ * OpenAI 목록 응답에서 글쓰기 모델만 고른다 (gpt-*, o1·o3 같은 추론 모델). 최신이 앞.
+ * 날짜가 붙은 고정판은 같은 이름의 대표 모델이 있으면 뺀다 (목록이 두 배로 길어지지 않게).
  * @param body GET /v1/models 응답
  */
 export function openAiModelsFrom(body: unknown): AiModelOption[] {
   const data =
     (body as { data?: { id: string; created?: number }[] }).data ?? [];
+  const ids = new Set(data.map((m) => m.id));
   return data
     .filter((m) => /^(gpt-|o\d|chatgpt-)/.test(m.id) && !OPENAI_SKIP.test(m.id))
+    .filter((m) => !(DATED.test(m.id) && ids.has(m.id.replace(DATED, ''))))
     .sort((a, b) => (b.created ?? 0) - (a.created ?? 0))
     .map((m) => ({ id: m.id, label: m.id }));
 }
