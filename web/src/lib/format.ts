@@ -29,6 +29,15 @@ export function relativeTime(iso: string | null, now: Date = new Date()): string
 }
 
 /**
+ * 오늘(이 컴퓨터 날짜) 일인지
+ * @param iso 시각
+ * @param now 기준 시각
+ */
+export function isToday(iso: string, now: Date = new Date()): boolean {
+  return new Date(iso).toDateString() === now.toDateString();
+}
+
+/**
  * 영상 길이 (예: 12:48, 1:02:03)
  * @param sec 초
  */

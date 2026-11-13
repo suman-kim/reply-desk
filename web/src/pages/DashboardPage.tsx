@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { VideoModal, type ModalVideo } from '../components/VideoModal';
 import { Badge, Button, Chips, Glyph, Keyword, MatchBar, Segmented, StatPill } from '../ds';
-import { formatDuration, formatLogTime, relativeTime } from '../lib/format';
+import { formatDuration, formatLogTime, isToday, relativeTime } from '../lib/format';
 import { searchRunText, searchStatusText } from '../lib/search-text';
 import { topicTone } from '../lib/topic-tone';
 import { PAGE_SIZE, sortVideos, type VideoSort } from '../lib/video-order';
@@ -219,9 +219,7 @@ function FlowStrip({ topic, videos }: { topic: Topic; videos: VideoItem[] | null
   const attention = list.filter((v) => !v.commented && (v.draftState === 'error' || (v.draftState === 'ready' && !v.checkPassed))).length;
   const ready = sortVideos(list, 'rel').filter(isReadyToPost);
   const lastPost = logs.data?.find((l) => l.status === 'success');
-  // 오늘(이 컴퓨터 날짜) 실패한 게시
-  const today = new Date().toDateString();
-  const failedToday = logs.data?.filter((l) => l.status === 'failed' && new Date(l.startedAt).toDateString() === today).length ?? 0;
+  const failedToday = logs.data?.filter((l) => l.status === 'failed' && isToday(l.startedAt)).length ?? 0;
   const windowText = topic.videoWindowDays > 0 ? (topic.videoWindowDays === 1 ? '24시간 안' : `${topic.videoWindowDays}일 안`) : '기간 제한 없음';
 
   return (
