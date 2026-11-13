@@ -10,7 +10,7 @@
 ```sh
 cd server
 npm install
-cp env.example .env      # YOUTUBE_API_KEY, AI 키를 채운다 (비워도 서버는 뜬다)
+cp env.example .env.development   # YOUTUBE_API_KEY, AI 키를 채운다 (비워도 서버는 뜬다)
 npm run db:up            # PostgreSQL 컨테이너 (127.0.0.1:5441)
 npm run start:dev        # http://127.0.0.1:4100/api
 ```

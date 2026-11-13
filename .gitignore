@@ -14,3 +14,7 @@ coverage/
 # 크롬 프로필·캡처 (로그인 정보가 들어 있다)
 profiles/
 screenshots/
+
+# 편집기 설정
+.idea/
+.vscode/

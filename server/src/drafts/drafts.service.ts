@@ -1,0 +1,342 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
+import { CheckRunnerService } from '../checks/check-runner.service.js';
+import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
+import { ProfilesService } from '../profiles/profiles.service.js';
+import { TopicsService } from '../topics/topics.service.js';
+import { VideosService, type VideoItem } from '../videos/videos.service.js';
+import { AnalysisService } from './analysis.service.js';
+import {
+  DraftQueueService,
+  type DraftProgress,
+} from './draft-queue.service.js';
+import {
+  DRAFT_STATUS_LABELS,
+  DraftListStatus,
+  draftListStatus,
+} from './draft-status.js';
+import { Draft, DraftState } from './draft.entity.js';
+import { checkContextOf } from './drafting.service.js';
+import type { VideoAnalysis } from './video-analysis.entity.js';
+
+/** ② 칸 / 초안 상세 패널에 필요한 값 */
+export interface DraftDetail {
+  /** 영상 카드 값 */
+  video: VideoItem;
+  /** 최근 분석 (없으면 null) */
+  analysis: VideoAnalysis | null;
+  /** 최근 초안 (없으면 null) */
+  draft: Draft | null;
+  /** 목록 상태 (초안이 없으면 null) */
+  status: { code: DraftListStatus; label: string } | null;
+  /** 이 영상의 게시 기록 (최근 순) */
+  attempts: Pick<
+    PostAttempt,
+    | 'id'
+    | 'status'
+    | 'failedStep'
+    | 'failureReason'
+    | 'startedAt'
+    | 'commentUrl'
+  >[];
+}
+
+/** 초안 목록 한 행 */
+export interface DraftListRow {
+  /** 초안 ID */
+  id: number;
+  /** 주제 */
+  topic: { id: number; name: string };
+  /** 영상 */
+  video: {
+    id: number;
+    youtubeId: string;
+    title: string;
+    channelTitle: string;
+    isMine: boolean;
+  };
+  /** 초안 글 */
+  text: string;
+  /** 사람이 고쳤는지 */
+  edited: boolean;
+  /** 상태 */
+  status: DraftListStatus;
+  /** 상태 이름 */
+  statusLabel: string;
+  /** 작성 실패 원인 */
+  errorMessage: string | null;
+  /** 고친 시각 */
+  updatedAt: Date;
+}
+
+/** 초안 목록 조회 조건 */
+export interface DraftListFilter {
+  /** 상태 */
+  status?: DraftListStatus;
+  /** 주제 ID */
+  topicId?: number;
+  /** 검색어 (영상 제목·댓글 내용) */
+  q?: string;
+  /** 최대 행 수 */
+  limit: number;
+}
+
+/**
+ * 초안: 불러오기 + 자동 작성, 다시 생성, 상세, 고치기, 목록.
+ * 실제 AI 호출은 DraftQueueService가 차례로 한다.
+ */
+@Injectable()
+export class DraftsService {
+  /**
+   * @param drafts 초안 저장소
+   * @param attempts 게시 기록 저장소
+   * @param dataSource 집계 쿼리용
+   * @param queue 초안 작성 대기열
+   * @param analysis 영상 분석
+   * @param checks 자동 검사
+   * @param topics 주제 서비스
+   * @param videos 영상 서비스
+   * @param profiles 프로필 서비스 (내 채널)
+   */
+  constructor(
+    @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
+    @InjectRepository(PostAttempt)
+    private readonly attempts: Repository<PostAttempt>,
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly queue: DraftQueueService,
+    private readonly analysis: AnalysisService,
+    private readonly checks: CheckRunnerService,
+    private readonly topics: TopicsService,
+    private readonly videos: VideosService,
+    private readonly profiles: ProfilesService,
+  ) {}
+
+  /**
+   * [영상 불러오기]: 영상을 불러오고, 순위에 든 영상의 초안을 차례로 쓰기 시작한다.
+   * 이미 댓글을 단 영상과 초안이 있는 영상은 건너뛴다.
+   * @param topicId 주제 ID
+   */
+  async load(
+    topicId: number,
+  ): Promise<{ videos: VideoItem[]; progress: DraftProgress | null }> {
+    if (this.queue.progressOf(topicId)?.running) {
+      throw new ConflictException(
+        '초안을 쓰는 중이에요 · 끝난 뒤 다시 불러와 주세요',
+      );
+    }
+    const list = await this.videos.fetchForTopic(topicId);
+    const targets = list
+      .filter((v) => v.rank !== null && !v.commented && v.draftState === 'none')
+      .map((v) => v.id);
+    await this.queue.enqueue(topicId, targets, {
+      reanalyze: false,
+      trackProgress: true,
+    });
+    return {
+      videos: await this.videos.listForTopic(topicId),
+      progress: this.queue.progressOf(topicId),
+    };
+  }
+
+  /**
+   * [다시 생성]: 초안을 새로 쓴다. reanalyze면 분석부터 다시 한다.
+   * @param topicId 주제 ID
+   * @param videoId 영상 ID
+   * @param reanalyze 분석부터 다시 할지
+   */
+  async regenerate(
+    topicId: number,
+    videoId: number,
+    reanalyze: boolean,
+  ): Promise<DraftDetail> {
+    const video = await this.videos.getForTopic(topicId, videoId);
+    if (video.draftState === DraftState.Writing) {
+      throw new ConflictException(
+        '이 영상의 초안을 쓰는 중이에요 · 잠시만 기다려 주세요',
+      );
+    }
+    await this.queue.enqueue(topicId, [videoId], {
+      reanalyze,
+      trackProgress: false,
+    });
+    return this.detail(topicId, videoId);
+  }
+
+  /**
+   * 자동 작성 진행률
+   * @param topicId 주제 ID
+   */
+  async progress(topicId: number): Promise<DraftProgress | null> {
+    await this.topics.findOrFail(topicId);
+    return this.queue.progressOf(topicId);
+  }
+
+  /**
+   * ② 칸 / 상세 패널
+   * @param topicId 주제 ID
+   * @param videoId 영상 ID
+   */
+  async detail(topicId: number, videoId: number): Promise<DraftDetail> {
+    const video = await this.videos.getForTopic(topicId, videoId);
+    const [analysis, draft, attempts] = await Promise.all([
+      this.analysis.latest(topicId, videoId),
+      this.drafts.findOne({
+        where: { topicId, videoId },
+        order: { createdAt: 'DESC', id: 'DESC' },
+      }),
+      this.attempts.find({
+        select: {
+          id: true,
+          status: true,
+          failedStep: true,
+          failureReason: true,
+          startedAt: true,
+          commentUrl: true,
+        },
+        where: { videoId },
+        order: { startedAt: 'DESC', id: 'DESC' },
+        take: 20,
+      }),
+    ]);
+    const status = draft
+      ? draftListStatus({
+          state: draft.state,
+          checkPassed: draft.checkPassed,
+          isMine: video.isMine,
+          commented: video.commented,
+          lastPostFailed: attempts[0]?.status === PostStatus.Failed,
+        })
+      : null;
+    return {
+      video,
+      analysis,
+      draft,
+      status: status
+        ? { code: status, label: DRAFT_STATUS_LABELS[status] }
+        : null,
+      attempts,
+    };
+  }
+
+  /**
+   * 사람이 초안을 고친다. 고치면 바로 다시 검사한다.
+   * @param draftId 초안 ID
+   * @param text 고친 글
+   */
+  async edit(draftId: number, text: string): Promise<Draft> {
+    const draft = await this.drafts.findOneBy({ id: draftId });
+    if (!draft)
+      throw new NotFoundException(
+        '초안을 찾을 수 없어요 · 목록을 새로 고쳐 주세요',
+      );
+    if (draft.state !== DraftState.Ready) {
+      throw new BadRequestException([
+        'text: 다 쓴 초안만 고칠 수 있어요 · 작성이 끝나거나 [다시 생성]한 뒤 고쳐 주세요',
+      ]);
+    }
+    const topic = await this.topics.findOrFail(draft.topicId);
+    const analysis = draft.analysisId
+      ? await this.dataSource
+          .getRepository('VideoAnalysis')
+          .findOneBy({ id: draft.analysisId })
+      : null;
+    const report = this.checks.run(
+      checkContextOf(text, topic, analysis as VideoAnalysis | null),
+    );
+    await this.drafts.update(draftId, {
+      text,
+      edited: text !== draft.aiText,
+      checkResults: report.results,
+      checkPassed: report.passed,
+    });
+    return (await this.drafts.findOneBy({ id: draftId }))!;
+  }
+
+  /**
+   * 초안 목록 (영상·주제마다 가장 최근 초안). 상태별 개수도 함께 준다.
+   * @param filter 상태·주제·검색어
+   */
+  async list(
+    filter: DraftListFilter,
+  ): Promise<{
+    rows: DraftListRow[];
+    counts: Record<DraftListStatus, number>;
+  }> {
+    const latest: { id: number }[] = await this.dataSource.query(
+      `SELECT DISTINCT ON (topic_id, video_id) id FROM draft
+       ${filter.topicId ? 'WHERE topic_id = $1' : ''}
+       ORDER BY topic_id, video_id, created_at DESC, id DESC`,
+      filter.topicId ? [filter.topicId] : [],
+    );
+    const counts = Object.fromEntries(
+      Object.values(DraftListStatus).map((s) => [s, 0]),
+    ) as Record<DraftListStatus, number>;
+    if (latest.length === 0) return { rows: [], counts };
+
+    const drafts = await this.drafts.find({
+      where: { id: In(latest.map((l) => l.id)) },
+      relations: { topic: true, video: true },
+      order: { updatedAt: 'DESC', id: 'DESC' },
+    });
+    const videoIds = [...new Set(drafts.map((d) => d.videoId))];
+    const [myChannels, attempts] = await Promise.all([
+      this.profiles.myChannelIds(),
+      this.dataSource.query(
+        `SELECT DISTINCT ON (video_id) video_id, status,
+                EXISTS (SELECT 1 FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success') AS commented
+         FROM post_attempt a WHERE video_id = ANY($1)
+         ORDER BY video_id, started_at DESC, id DESC`,
+        [videoIds],
+      ) as Promise<
+        { video_id: number; status: PostStatus; commented: boolean }[]
+      >,
+    ]);
+    const postBy = new Map(attempts.map((a) => [Number(a.video_id), a]));
+
+    const q = filter.q?.trim().toLowerCase();
+    const rows: DraftListRow[] = [];
+    for (const d of drafts) {
+      const post = postBy.get(d.videoId);
+      const isMine = myChannels.has(d.video!.channelId);
+      const status = draftListStatus({
+        state: d.state,
+        checkPassed: d.checkPassed,
+        isMine,
+        commented: post?.commented ?? false,
+        lastPostFailed: post?.status === PostStatus.Failed,
+      });
+      if (
+        q &&
+        !d.video!.title.toLowerCase().includes(q) &&
+        !d.text.toLowerCase().includes(q)
+      )
+        continue;
+      counts[status] += 1;
+      if (filter.status && filter.status !== status) continue;
+      rows.push({
+        id: d.id,
+        topic: { id: d.topic!.id, name: d.topic!.name },
+        video: {
+          id: d.video!.id,
+          youtubeId: d.video!.youtubeId,
+          title: d.video!.title,
+          channelTitle: d.video!.channelTitle,
+          isMine,
+        },
+        text: d.text,
+        edited: d.edited,
+        status,
+        statusLabel: DRAFT_STATUS_LABELS[status],
+        errorMessage: d.errorMessage,
+        updatedAt: d.updatedAt,
+      });
+    }
+    return { rows: rows.slice(0, filter.limit), counts };
+  }
+}

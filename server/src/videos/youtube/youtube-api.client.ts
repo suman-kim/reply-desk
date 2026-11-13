@@ -5,6 +5,7 @@ import { parseIsoDuration } from './youtube-parsers.js';
 import type {
   YoutubeClient,
   YoutubeSearchParams,
+  YoutubeVideoContext,
   YoutubeVideoInfo,
 } from './youtube-client.js';
 
@@ -25,12 +26,27 @@ interface VideosResponse {
       channelId?: string;
       channelTitle?: string;
       publishedAt?: string;
+      description?: string;
       thumbnails?: Record<string, { url?: string } | undefined>;
     };
     statistics?: { viewCount?: string };
     contentDetails?: { duration?: string };
   }[];
 }
+
+/** commentThreads.list 응답 중 쓰는 부분 */
+interface CommentThreadsResponse {
+  items?: {
+    snippet?: {
+      topLevelComment?: {
+        snippet?: { textDisplay?: string; likeCount?: number };
+      };
+    };
+  }[];
+}
+
+/** 댓글이 막힌 영상 (내부 신호) */
+class CommentsDisabledError extends Error {}
 
 /** API 오류 응답 */
 interface ApiError {
@@ -92,6 +108,39 @@ export class YoutubeApiClient implements YoutubeClient {
    * @param resource search 또는 videos
    * @param query 쿼리 값 (key는 여기서 붙인다)
    */
+  async getVideoContext(
+    youtubeId: string,
+    maxComments: number,
+  ): Promise<YoutubeVideoContext> {
+    const video = await this.call<VideosResponse>('videos', {
+      part: 'snippet',
+      id: youtubeId,
+    });
+    const description = video.items?.[0]?.snippet?.description ?? '';
+
+    let comments: YoutubeVideoContext['comments'] = [];
+    try {
+      const threads = await this.call<CommentThreadsResponse>(
+        'commentThreads',
+        {
+          part: 'snippet',
+          videoId: youtubeId,
+          order: 'relevance',
+          textFormat: 'plainText',
+          maxResults: String(Math.min(100, maxComments)),
+        },
+      );
+      comments = (threads.items ?? [])
+        .map((t) => t.snippet?.topLevelComment?.snippet)
+        .filter((c): c is NonNullable<typeof c> => !!c?.textDisplay)
+        .map((c) => ({ text: c.textDisplay!, likeCount: c.likeCount ?? 0 }));
+    } catch (err) {
+      // 댓글이 막힌 영상은 댓글 없이 분석한다
+      if (!(err instanceof CommentsDisabledError)) throw err;
+    }
+    return { description, comments };
+  }
+
   private async call<T>(
     resource: string,
     query: Record<string, string>,
@@ -99,7 +148,7 @@ export class YoutubeApiClient implements YoutubeClient {
     const key = this.config.get('YOUTUBE_API_KEY', { infer: true });
     if (!key) {
       throw new ServiceUnavailableException(
-        'YouTube API 키가 없어요 · server/.env의 YOUTUBE_API_KEY를 채워 주세요',
+        'YouTube API 키가 없어요 · server/.env.development의 YOUTUBE_API_KEY를 채워 주세요',
       );
     }
     const url = `${API}/${resource}?${new URLSearchParams({ ...query, key })}`;
@@ -116,6 +165,7 @@ export class YoutubeApiClient implements YoutubeClient {
 
     const err = ((await res.json().catch(() => ({}))) as ApiError).error;
     const reason = err?.errors?.[0]?.reason ?? '';
+    if (reason === 'commentsDisabled') throw new CommentsDisabledError();
     if (reason === 'quotaExceeded' || reason === 'dailyLimitExceeded') {
       throw new ServiceUnavailableException(
         'YouTube API 하루 할당량을 다 썼어요 · 한국 시간 오후 4~5시에 다시 채워져요',
@@ -126,7 +176,7 @@ export class YoutubeApiClient implements YoutubeClient {
       (res.status === 400 && /API key/i.test(err?.message ?? ''))
     ) {
       throw new ServiceUnavailableException(
-        'YouTube API 키가 맞지 않아요 · server/.env의 YOUTUBE_API_KEY를 확인해 주세요',
+        'YouTube API 키가 맞지 않아요 · server/.env.development의 YOUTUBE_API_KEY를 확인해 주세요',
       );
     }
     if (res.status === 403) {

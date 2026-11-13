@@ -3,14 +3,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import type { AiProviderInfo } from '../ai/ai-provider.js';
-import type { Env } from '../config/env.schema.js';
 import { AppSetting } from './app-setting.entity.js';
 import {
-  OLLAMA_BASE_URL,
   SETTING_DEFINITIONS,
   type SettingDefinition,
 } from './setting-definitions.js';
@@ -33,16 +29,15 @@ export interface SettingView {
 
 /**
  * 공용 설정 읽기·쓰기. 값은 정의의 스키마로 검증하고, 저장된 값이 없으면 기본값을 쓴다.
+ * AI 제공자 안내는 ai 모듈(AiService.providerInfos)이 맡는다.
  */
 @Injectable()
 export class SettingsService {
   /**
    * @param repo 설정 저장소
-   * @param config 환경 변수 (AI 키가 있는지 볼 때 쓴다)
    */
   constructor(
     @InjectRepository(AppSetting) private readonly repo: Repository<AppSetting>,
-    private readonly config: ConfigService<Env, true>,
   ) {}
 
   /**
@@ -84,8 +79,7 @@ export class SettingsService {
    * @param value 새 값 (정의의 스키마로 검증한다)
    */
   async update(key: string, value: unknown): Promise<SettingView> {
-    const def = SETTING_DEFINITIONS.find((d) => d.key === key);
-    if (!def) throw new NotFoundException(`"${key}" 설정은 없어요`);
+    const def = this.definition(key);
     const parsed = def.schema.safeParse(value);
     if (!parsed.success) {
       throw new BadRequestException(
@@ -101,48 +95,15 @@ export class SettingsService {
    * @param key 설정 키
    */
   async reset(key: string): Promise<SettingView> {
-    const def = SETTING_DEFINITIONS.find((d) => d.key === key);
-    if (!def) throw new NotFoundException(`"${key}" 설정은 없어요`);
+    this.definition(key);
     await this.repo.delete({ key });
     return (await this.list()).find((s) => s.key === key)!;
   }
 
-  /**
-   * AI 제공자마다 지금 쓸 수 있는지 알려 준다 (설정 화면에서 고를 때 보여 줄 안내).
-   * Ollama가 실제로 켜져 있는지는 분석·작성 작업에서 확인한다.
-   */
-  async aiProviders(): Promise<AiProviderInfo[]> {
-    const hasGemini =
-      this.config.get('GEMINI_API_KEY', { infer: true }).length > 0;
-    const hasClaude =
-      this.config.get('ANTHROPIC_API_KEY', { infer: true }).length > 0;
-    const ollamaUrl = await this.get(OLLAMA_BASE_URL);
-    return [
-      {
-        id: 'gemini',
-        label: 'Gemini',
-        ready: hasGemini,
-        note: hasGemini
-          ? '유튜브 영상을 직접 보고 분석해요'
-          : 'GEMINI_API_KEY가 없어요 · server/.env에 넣어 주세요',
-        canWatchVideo: true,
-      },
-      {
-        id: 'claude',
-        label: 'Claude',
-        ready: hasClaude,
-        note: hasClaude
-          ? '자막과 영상 정보로 분석하고, 댓글을 잘 써요'
-          : 'ANTHROPIC_API_KEY가 없어요 · server/.env에 넣어 주세요',
-        canWatchVideo: false,
-      },
-      {
-        id: 'ollama',
-        label: 'Ollama (이 맥에서 돌리는 AI)',
-        ready: true,
-        note: `${ollamaUrl}에서 돌아요 · 키가 필요 없고, 모델은 미리 받아 두세요 (ollama pull)`,
-        canWatchVideo: false,
-      },
-    ];
+  /** 키로 정의를 찾고, 없으면 404 */
+  private definition(key: string): SettingDefinition<unknown> {
+    const def = SETTING_DEFINITIONS.find((d) => d.key === key);
+    if (!def) throw new NotFoundException(`"${key}" 설정은 없어요`);
+    return def;
   }
 }

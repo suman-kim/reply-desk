@@ -36,9 +36,9 @@ export const DAILY_CAP_TOTAL = define({
 export const AI_ANALYSIS = define({
   key: 'ai.analysis',
   label: '영상 분석 AI',
-  help: '영상을 보고 고민 한 줄, 근거 장면, 고른 이유를 뽑는 AI예요. Gemini는 유튜브 영상을 직접 볼 수 있어요.',
+  help: '영상을 보고 고민 한 줄, 근거 장면, 고른 이유를 뽑는 AI예요. Gemini는 유튜브 영상을 직접 보고, 다른 AI는 영상 설명과 인기 댓글로 분석해요.',
   schema: aiChoiceSchema,
-  defaultValue: { provider: 'gemini' as const, model: 'gemini-2.5-flash' },
+  defaultValue: { provider: 'gemini' as const, model: 'gemini-3.8-flash' },
 });
 
 /** 댓글 작성에 쓸 AI */
@@ -54,11 +54,20 @@ export const AI_DRAFTING = define({
 export const OLLAMA_BASE_URL = define({
   key: 'ai.ollamaBaseUrl',
   label: 'Ollama 주소',
-  help: '이 맥에서 돌리는 로컬 AI(Ollama) 주소예요. 보통 바꿀 필요가 없어요.',
+  help: 'Ollama 주소예요. 집 AI PC를 쓰면 SSH 터널 주소(예: http://127.0.0.1:11435)를 넣어요.',
   schema: z.url({
     message: '주소 형식이 아니에요 (예: http://127.0.0.1:11434)',
   }),
   defaultValue: 'http://127.0.0.1:11434',
+});
+
+/** Ollama 문맥 길이 */
+export const OLLAMA_NUM_CTX = define({
+  key: 'ai.ollamaNumCtx',
+  label: 'Ollama 문맥 길이',
+  help: '같은 AI PC를 쓰는 다른 앱(animation-chat)과 같은 값이어야 해요. 다르면 부를 때마다 모델을 다시 올려 느려져요.',
+  schema: z.number().int().min(2048).max(131072),
+  defaultValue: 16384,
 });
 
 /** 모든 설정 정의 (화면에 보일 순서) */
@@ -67,4 +76,5 @@ export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   AI_ANALYSIS,
   AI_DRAFTING,
   OLLAMA_BASE_URL,
+  OLLAMA_NUM_CTX,
 ] as SettingDefinition<unknown>[];
