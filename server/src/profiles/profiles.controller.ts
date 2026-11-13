@@ -14,6 +14,7 @@ import {
   type CreateProfileDto,
   type UpdateProfileDto,
 } from './profile.schemas.js';
+import { ProfileLoginService } from './profile-login.service.js';
 import { ProfilesService } from './profiles.service.js';
 
 /**
@@ -23,10 +24,33 @@ import { ProfilesService } from './profiles.service.js';
  * - GET    /api/profiles/:id   하나
  * - PATCH  /api/profiles/:id   이름 바꾸기 { name }
  * - DELETE /api/profiles/:id   지우기 (크롬 폴더는 남긴다)
+ * - POST   /api/profiles/:id/login   [크롬 열고 직접 로그인] (일반 크롬을 그 프로필로 연다)
+ * - POST   /api/profiles/:id/check   [로그인 확인] (채널 ID·이름·화면 언어를 읽어 저장)
  */
 @Controller('profiles')
 export class ProfilesController {
-  constructor(private readonly profiles: ProfilesService) {}
+  constructor(
+    private readonly profiles: ProfilesService,
+    private readonly login: ProfileLoginService,
+  ) {}
+
+  /**
+   * [크롬 열고 직접 로그인]
+   * @param id 프로필 ID
+   */
+  @Post(':id/login')
+  openLogin(@Param('id', { schema: idParam }) id: number) {
+    return this.login.openLogin(id);
+  }
+
+  /**
+   * [로그인 확인]
+   * @param id 프로필 ID
+   */
+  @Post(':id/check')
+  check(@Param('id', { schema: idParam }) id: number) {
+    return this.login.check(id);
+  }
 
   /** 목록 */
   @Get()
