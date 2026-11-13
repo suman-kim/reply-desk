@@ -257,7 +257,7 @@ export function toAiError(
     }
     if (status === 404) {
       return new AiError(
-        `${label}에 "${model}" 모델이 없어요 · 설정에서 모델 이름을 확인해 주세요`,
+        `${label}에 "${model}" 모델이 없거나 이 키로 쓸 수 없어요(예전 모델은 새 키에 막히기도 해요) · 설정에서 목록의 다른 모델을 골라 주세요`,
         false,
         err,
       );

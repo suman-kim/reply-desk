@@ -347,7 +347,7 @@ function LoadPanel({
     <Panel
       step={1}
       title="영상 불러오기"
-      hint={`'${topic.keywords[0] ?? ''}' 등 ${topic.videoWindowDays > 0 ? `최근 ${topic.videoWindowDays}일` : '기간 제한 없이'} 영상을 ${sortLabel}으로 ${countLabel} 가져와요 · 초안은 ② 영상 선택에서 써요`}
+      hint={`'${topic.keywords[0] ?? ''}' 등 ${topic.videoWindowDays > 0 ? `${topic.videoWindowDays === 1 ? '24시간' : `${topic.videoWindowDays}일`} 안에 올라온` : '올린 날짜와 상관없이'} 영상을 ${sortLabel}으로 ${countLabel} 가져와요 · 초안은 ② 영상 선택에서 써요`}
     >
       <Button
         variant="primary"

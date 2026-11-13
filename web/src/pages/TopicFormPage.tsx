@@ -177,20 +177,25 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
             emptyText="아직 키워드가 없어요 · 하나 이상 넣어 주세요"
           />
           <div className="rd-stack-8">
-            <span className="text-label rd-label">기간</span>
+            <span className="text-label rd-label">올린 날짜</span>
             <Segmented
-              label="기간"
+              label="올린 날짜"
               block
               value={f.videoWindowDays}
               onChange={(v) => setF((s) => ({ ...s, videoWindowDays: v }))}
               options={[
-                { value: '1', label: '24시간' },
-                { value: '3', label: '3일' },
-                { value: '7', label: '7일' },
-                { value: '30', label: '30일' },
-                { value: '0', label: '무제한' },
+                { value: '1', label: '24시간 안' },
+                { value: '3', label: '3일 안' },
+                { value: '7', label: '7일 안' },
+                { value: '30', label: '30일 안' },
+                { value: '0', label: '상관없음' },
               ]}
             />
+            <span className="text-caption rd-muted">
+              {f.videoWindowDays === '0'
+                ? '올린 날짜와 상관없이 찾아요'
+                : `지금부터 ${f.videoWindowDays === '1' ? '24시간' : `${f.videoWindowDays}일`} 안에 올라온 영상만 찾아요 · 조회수는 그 영상의 전체 조회수예요`}
+            </span>
           </div>
           <div className="rd-stack-8">
             <span className="text-label rd-label">정렬</span>
