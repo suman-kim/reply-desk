@@ -1,4 +1,8 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
+import { z } from 'zod';
+import { AiService } from '../ai/ai.service.js';
+import { TopicsService } from '../topics/topics.service.js';
+import { previewPrompt, type PromptPreview } from './prompt-preview.js';
 import {
   ANALYSIS_PROMPT_VARS,
   analysisSchema,
@@ -36,9 +40,44 @@ export interface PromptInfo {
   key: string;
   /** 덩이들 */
   parts: PromptPartInfo[];
-  /** AI에게 함께 보내는 답의 모양 (코드가 정해 읽기만) */
-  response: ResponseField[];
+  /** AI에게 함께 보내는 답의 모양 (코드가 정해 읽기만, label은 우리말 이름) */
+  response: (ResponseField & { label: string })[];
 }
+
+/** 답의 칸 우리말 이름 (설정 화면) */
+const FIELD_LABELS: Record<string, string> = {
+  worry: '고민 한 줄',
+  pickReasons: '이 영상을 고른 이유',
+  scenes: '근거 장면',
+  'scenes.time': '근거 장면 · 시점',
+  'scenes.quote': '근거 장면 · 인용',
+  'scenes.source': '근거 장면 · 출처(영상/댓글)',
+  sceneKeywords: '장면 검사용 단어',
+  text: '댓글',
+  reasons: '이렇게 쓴 이유',
+};
+
+/**
+ * 답의 칸에 우리말 이름을 붙인다
+ * @param fields 칸 이름·설명
+ */
+function labeled(fields: ResponseField[]) {
+  return fields.map((f) => ({ ...f, label: FIELD_LABELS[f.name] ?? f.name }));
+}
+
+/** 예시 보기 요청 */
+const previewSchema = z.object({
+  /** 어느 프롬프트 */
+  key: z.enum(['prompt.analysis', 'prompt.drafting']),
+  /** 고치는 중인 값 (저장 전) */
+  value: z.object({
+    system: z.string().max(8000),
+    user: z.string().max(8000),
+    retry: z.string().max(8000).optional(),
+  }),
+  /** 값을 채울 주제 (없으면 첫 주제, 주제가 없으면 예시 주제) */
+  topicId: z.number().int().positive().optional(),
+});
 
 /** 지시 덩이 (자리 없음) */
 const SYSTEM_PART: PromptPartInfo = {
@@ -54,6 +93,32 @@ const SYSTEM_PART: PromptPartInfo = {
  */
 @Controller('settings/prompts')
 export class PromptsController {
+  /**
+   * @param topics 주제 (예시 보기에 채울 값)
+   * @param ai AI 창구 (분석 AI가 영상을 직접 보는지)
+   */
+  constructor(
+    private readonly topics: TopicsService,
+    private readonly ai: AiService,
+  ) {}
+
+  /**
+   * 예시 보기: 고치는 중인 프롬프트를 예시 영상과 주제 값으로 채운 글 (저장하지 않는다)
+   * @param body 프롬프트 키·값·주제
+   */
+  @Post('preview')
+  async preview(
+    @Body({ schema: previewSchema }) body: z.infer<typeof previewSchema>,
+  ): Promise<PromptPreview> {
+    const list = await this.topics.list();
+    const topic = list.find((t) => t.id === body.topicId) ?? list[0] ?? null;
+    const watchesVideo = await this.ai
+      .resolve('analysis')
+      .then((r) => r.provider.canWatchVideo)
+      .catch(() => false);
+    return previewPrompt(body.key, body.value, topic, watchesVideo);
+  }
+
   /** 역할별 프롬프트 안내 */
   @Get()
   list(): PromptInfo[] {
@@ -69,7 +134,7 @@ export class PromptsController {
             vars: ANALYSIS_PROMPT_VARS,
           },
         ],
-        response: responseFields(analysisSchema),
+        response: labeled(responseFields(analysisSchema)),
       },
       {
         key: PROMPT_DRAFTING.key,
@@ -88,7 +153,7 @@ export class PromptsController {
             vars: DRAFT_RETRY_VARS,
           },
         ],
-        response: responseFields(draftSchema),
+        response: labeled(responseFields(draftSchema)),
       },
     ];
   }

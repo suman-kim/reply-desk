@@ -406,8 +406,20 @@ export interface PromptInfo {
     /** 쓸 수 있는 {{자리}} */
     vars: { name: string; help: string }[];
   }[];
-  /** AI에게 함께 보내는 답의 모양 (읽기만) */
-  response: { name: string; description: string }[];
+  /** AI에게 함께 보내는 답의 모양 (읽기만, label은 우리말 이름) */
+  response: { name: string; label: string; description: string }[];
+}
+
+/** 프롬프트 예시 보기 (POST /settings/prompts/preview) */
+export interface PromptPreview {
+  /** 채운 값의 출처 (주제는 실제, 영상은 예시) */
+  basis: { topicName: string; videoTitle: string; watchesVideo: boolean };
+  /** 지시 */
+  system: string;
+  /** 자료 틀을 채운 글 (slot이 있으면 빈칸에서 온 값) */
+  user: { text: string; slot: string | null }[];
+  /** 다시 쓸 때 덧붙이는 글 (작성만) */
+  retry: { text: string; slot: string | null }[] | null;
 }
 
 /** 영상 보기 창의 인기 댓글 (GET /topics/:id/videos/:videoId/comments) */

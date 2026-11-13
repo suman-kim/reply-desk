@@ -16,25 +16,59 @@ export interface PromptVar {
   help: string;
 }
 
+/** 채운 글의 조각 (예시 보기에서 채운 값을 색으로 보이려고) */
+export interface RenderedPart {
+  /** 글 */
+  text: string;
+  /** 자리에서 온 값이면 그 자리 이름, 틀의 글이면 null */
+  slot: string | null;
+}
+
 /**
- * 틀을 채운다. 자리가 있는 줄인데 그 자리가 모두 비면 줄째 뺀다
+ * 틀을 채워 조각으로 돌려준다. 자리가 있는 줄인데 그 자리가 모두 비면 줄째 뺀다
  * (예: 금지 표현이 없는 주제는 "[쓰면 안 되는 말]" 줄이 없어진다).
  * @param template 틀
  * @param values 자리 이름 → 넣을 값 (여러 줄이어도 된다)
+ */
+export function renderTemplateParts(
+  template: string,
+  values: Record<string, string>,
+): RenderedPart[] {
+  const parts: RenderedPart[] = [];
+  /** 앞 조각이 같은 종류(틀의 글)면 이어 붙인다 */
+  const push = (text: string, slot: string | null) => {
+    const last = parts.at(-1);
+    if (last && slot === null && last.slot === null) last.text += text;
+    else if (text) parts.push({ text, slot });
+  };
+  const lines = template.split('\n').filter((line) => {
+    const names = [...line.matchAll(SLOT)].map((m) => m[1].trim());
+    return names.length === 0 || names.some((n) => !!values[n]);
+  });
+  lines.forEach((line, i) => {
+    let at = 0;
+    for (const m of line.matchAll(SLOT)) {
+      push(line.slice(at, m.index), null);
+      push(values[m[1].trim()] ?? '', m[1].trim());
+      at = m.index + m[0].length;
+    }
+    push(line.slice(at) + (i < lines.length - 1 ? '\n' : ''), null);
+  });
+  return parts;
+}
+
+/**
+ * 틀을 채운다 (규칙은 renderTemplateParts와 같다)
+ * @param template 틀
+ * @param values 자리 이름 → 넣을 값
  */
 export function renderTemplate(
   template: string,
   values: Record<string, string>,
 ): string {
-  return template
-    .split('\n')
-    .flatMap((line) => {
-      const names = [...line.matchAll(SLOT)].map((m) => m[1].trim());
-      if (names.length === 0) return [line];
-      if (names.every((n) => !values[n])) return [];
-      return [line.replace(SLOT, (_, n: string) => values[n.trim()] ?? '')];
-    })
-    .join('\n');
+  return renderTemplateParts(template, values)
+    .map((p) => p.text)
+    .join('');
 }
 
 /**

@@ -342,3 +342,20 @@ button.rd-grid-row:focus-visible { outline: 2px solid var(--accent); outline-off
 .rd-ms-badges { display: inline-flex; gap: 4px; margin-left: auto; }
 .rd-ms-note { color: var(--warning-ink); }
 .rd-ms-foot { padding: 8px 14px; border-top: 1px solid var(--line); background: var(--surface-sunken); }
+
+/* 프롬프트: 쉬운 설명, 왼쪽 고치기 | 오른쪽 예시 보기 */
+.rd-prompt-intro { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--accent-soft); }
+.rd-prompt-intro ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: var(--ink); }
+.rd-prompt-intro code { font-family: var(--font-mono); font-size: 12px; background: var(--surface); padding: 1px 4px; border-radius: 4px; }
+.rd-prompt-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (min-width: 1100px) { .rd-prompt-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.rd-prompt-preview {
+  position: sticky; top: 88px; display: flex; flex-direction: column; gap: 14px; padding: 16px;
+  border-radius: var(--radius-lg); background: var(--surface-sunken); max-height: calc(100vh - 112px); overflow-y: auto;
+}
+.rd-preview-text {
+  margin: 0; padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface); border: 1px solid var(--line);
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink);
+}
+.rd-filled { background: var(--accent-soft); color: var(--accent-ink); border-radius: 3px; padding: 0 1px; }
+.rd-narrow-col { max-width: 960px; }

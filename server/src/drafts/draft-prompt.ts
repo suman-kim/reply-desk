@@ -103,14 +103,12 @@ export type DraftPromptTemplates = Pick<
 >;
 
 /**
- * 작성 프롬프트(자료)를 만든다.
- * @param topic 주제 (말투·글자 수·브랜드)
+ * 작성 자료 틀의 자리 값 (실제 프롬프트와 설정 화면 예시 보기가 함께 쓴다)
+ * @param topic 주제
  * @param video 영상
  * @param analysis 영상 분석
- * @param retry 앞 시도가 검사에 걸렸으면 그 글과 걸린 이유
- * @param templates 자료 틀과 다시 쓸 때 틀 (설정 prompt.drafting)
  */
-export function buildDraftPrompt(
+export function draftPromptValues(
   topic: Pick<
     Topic,
     | 'brandTarget'
@@ -122,16 +120,14 @@ export function buildDraftPrompt(
   >,
   video: Pick<Video, 'title'>,
   analysis: Pick<VideoAnalysis, 'worry' | 'scenes'>,
-  retry?: { text: string; failed: CheckResult[] },
-  templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
-): string {
+): Record<string, string> {
   const scenes = analysis.scenes
     .map(
       (s) =>
         `- ${s.time ? `${s.time} ` : ''}"${s.quote}" (${s.source === 'comment' ? '인기 댓글' : '영상'})`,
     )
     .join('\n');
-  const body = renderTemplate(templates.user, {
+  return {
     '홍보 대상': topic.brandTarget,
     '브랜드 단어': topic.brandWord.trim(),
     말투: topic.tone || '20~30대 시청자, 공감형 구어체',
@@ -141,11 +137,42 @@ export function buildDraftPrompt(
     '영상 제목': video.title,
     '시청자 고민': analysis.worry,
     '근거 장면': scenes,
-  });
-  if (!retry) return body;
-  const again = renderTemplate(templates.retry, {
+  };
+}
+
+/**
+ * 다시 쓸 때 덧붙이는 틀의 자리 값
+ * @param retry 앞서 쓴 글과 걸린 검사
+ */
+export function draftRetryValues(retry: {
+  text: string;
+  failed: Pick<CheckResult, 'label' | 'detail'>[];
+}): Record<string, string> {
+  return {
     '앞서 쓴 글': retry.text,
     '고칠 점': retry.failed.map((f) => `- ${f.label}: ${f.detail}`).join('\n'),
-  });
-  return `${body}\n\n${again}`;
+  };
+}
+
+/**
+ * 작성 프롬프트(자료)를 만든다.
+ * @param topic 주제 (말투·글자 수·브랜드)
+ * @param video 영상
+ * @param analysis 영상 분석
+ * @param retry 앞 시도가 검사에 걸렸으면 그 글과 걸린 이유
+ * @param templates 자료 틀과 다시 쓸 때 틀 (설정 prompt.drafting)
+ */
+export function buildDraftPrompt(
+  topic: Parameters<typeof draftPromptValues>[0],
+  video: Pick<Video, 'title'>,
+  analysis: Pick<VideoAnalysis, 'worry' | 'scenes'>,
+  retry?: { text: string; failed: CheckResult[] },
+  templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
+): string {
+  const body = renderTemplate(
+    templates.user,
+    draftPromptValues(topic, video, analysis),
+  );
+  if (!retry) return body;
+  return `${body}\n\n${renderTemplate(templates.retry, draftRetryValues(retry))}`;
 }

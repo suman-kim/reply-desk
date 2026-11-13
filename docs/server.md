@@ -141,6 +141,7 @@
 | `GET /settings` | 설정 | 모든 설정 (이름·도움말·값·기본값) |
 | `PUT /settings/:key` `{ value }` | 설정 | 값 바꾸기 |
 | `DELETE /settings/:key` | 설정 | 기본값으로 |
+| `POST /settings/prompts/preview` | 설정 | 예시 보기: 고치는 중(저장 전)인 프롬프트를 실제 주제 값 + 고정 예시 영상으로 채워 AI가 받을 글을 돌려준다. 채운 값은 `slot`이 붙은 조각으로 와 화면이 색칠한다. 유튜브 할당량·AI 비용 없음 |
 | `GET /settings/prompts` | 설정 | AI 프롬프트 안내: 역할별 덩이(지시·자료 틀·다시 쓸 때), 쓸 수 있는 `{{자리}}`, 답의 모양(JSON 칸 설명, 읽기만). 값은 설정 `prompt.analysis`·`prompt.drafting`(`PUT/DELETE /settings/:key`). 자료 틀은 `{{자리}}`를 코드가 채우고, 자리가 모두 빈 줄은 뺀다. 모르는 자리는 저장 때 400. 기본값은 고치기 전 프롬프트와 글자 하나까지 같다 |
 | `GET /settings/ai/providers` | 설정 | AI 제공자별 사용 가능 여부, 안내, 영상 직접 보기 여부, 모델 예시 |
 | `GET /settings/ai/providers/:id/models?refresh=1` | 설정 | 모델 고르기 목록. 제공자 API(Gemini `v1beta/models`, Claude `v1/models`, OpenAI `v1/models`, Ollama `api/tags`)에서 받아 글쓰기 모델만 남기고(임베딩·음성·이미지·실시간 제외) 추천 모델을 앞에 둔다. 10분 동안 받아 둔다. 키가 없거나 못 받으면 추천 목록과 이유(`source: recommended`). Ollama 상태는 실제로 `/api/tags`에 연결해 본다 | 모델마다 가격(입력·출력 100만 토큰당 달러)·무료 여부·한 줄 설명을 붙인다(`ai/providers/model-pricing.ts`, 공식 가격표를 2026-11-13에 옮겨 적음. 표에 없는 모델은 null로 두고 지어내지 않는다. 무료: Gemini 무료 등급 모델과 Ollama. Claude·OpenAI는 API 무료 등급이 없다) || `GET /profiles` | 계정 관리 | 프로필 카드 목록 (오늘 게시, 쓰는 주제) |
