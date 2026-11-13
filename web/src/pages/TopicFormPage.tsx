@@ -127,8 +127,9 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
     else createTopic.mutate(input, { onSuccess: done });
   };
 
-  const totalCap = today.data?.cap ?? 10;
-  const capBad = Number(f.dailyCap) > totalCap;
+  // 전체 하루 상한은 설정(서버) 값. 불러오기 전에는 비교하지 않는다
+  const totalCap = today.data?.cap;
+  const capBad = totalCap !== undefined && Number(f.dailyCap) > totalCap;
 
   return (
     <div className="rd-page rd-page-narrow">
@@ -268,9 +269,9 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
             type="number"
             value={f.dailyCap}
             onChange={set('dailyCap')}
-            counter={`전체 ${totalCap}개 중`}
+            counter={totalCap !== undefined ? `전체 ${totalCap}개 중` : undefined}
             counterInvalid={capBad}
-            hint={`전체 하루 ${totalCap}개 안에서 주제별로 나눠 써요`}
+            hint={totalCap !== undefined ? `전체 하루 ${totalCap}개 안에서 주제별로 나눠 써요` : '전체 하루 상한 안에서 주제별로 나눠 써요'}
             error={err.dailyCap ?? (capBad ? `전체 하루 상한(${totalCap})보다 클 수 없어요` : undefined)}
           />
           {topicId ? (

@@ -41,7 +41,8 @@ export function AppNav({ live }: { live: LiveStatus }) {
               </Badge>
             </Link>
           ))}
-          <StatPill label="오늘 전체 게시" value={today.data?.posted ?? 0} max={today.data?.cap ?? 10} />
+          {/* 서버에서 받은 값만 보인다 (불러오기 전에는 숫자를 지어내지 않는다) */}
+          {today.data ? <StatPill label="오늘 전체 게시" value={today.data.posted} max={today.data.cap} /> : null}
         </div>
       </div>
     </nav>

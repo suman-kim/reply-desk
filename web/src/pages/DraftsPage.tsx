@@ -38,7 +38,7 @@ export function DraftsPage() {
       <PageHeader
         title="초안 목록"
         description="AI가 쓴 초안을 모아 봐요. 행을 누르면 오른쪽에서 고치고, 게시하거나 다시 게시할 수 있어요."
-        right={<StatPill label="게시 대기" value={(counts?.pending ?? 0) + (counts?.failed ?? 0)} />}
+        right={counts ? <StatPill label="게시 대기" value={counts.pending + counts.failed} /> : undefined}
       />
 
       <div className="rd-filters">
@@ -50,7 +50,7 @@ export function DraftsPage() {
             { value: 'all', label: `전체 ${total}` },
             ...STATUS_LABELS.filter(([s]) => s !== 'writing' || (counts?.writing ?? 0) > 0).map(([s, label]) => ({
               value: s,
-              label: `${label} ${counts?.[s] ?? 0}`,
+              label: counts ? `${label} ${counts[s]}` : label,
             })),
           ]}
         />
