@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { StatusBadge } from '../components/StatusBadge';
 import { Badge, MatchBar, Tabs } from '../ds';
-import { countChars, formatDuration, formatLogTime, relativeTime } from '../lib/format';
+import { bodyChars, formatDuration, formatLogTime, relativeTime } from '../lib/format';
 import { paths } from '../nav/paths';
 import { useRouteTopic } from '../nav/route-topic';
 
@@ -104,7 +104,7 @@ export function DraftsPage() {
           </li>
           {drafts.data.rows.map((r) => (
             <li key={r.id}>
-              <DraftRow row={r} to={paths.video(topic.id, r.video.id)} from={from} />
+              <DraftRow row={r} to={paths.video(topic.id, r.video.id)} from={from} disclosure={topic.adDisclosure} />
             </li>
           ))}
         </ul>
@@ -118,8 +118,9 @@ export function DraftsPage() {
  * @param props.row 작업 한 행
  * @param props.to 작업 상세 주소
  * @param props.from 돌아올 곳 (지금 주소)
+ * @param props.disclosure 주제의 광고 표시 (글자 수에서 뺀다)
  */
-function DraftRow({ row: r, to, from }: { row: DraftListRow; to: string; from: string }) {
+function DraftRow({ row: r, to, from, disclosure }: { row: DraftListRow; to: string; from: string; disclosure: string }) {
   const failed = r.status === 'error';
   return (
     <Link className="rd-dgrid rd-drow" to={to} state={{ from }}>
@@ -147,7 +148,7 @@ function DraftRow({ row: r, to, from }: { row: DraftListRow; to: string; from: s
           <>
             <span className="text-body-sm rd-clamp rd-ink2">{r.text}</span>
             <span className="text-caption rd-muted">
-              <span className="text-mono">{countChars(r.text)}</span>자{r.model ? <> · <span className="text-mono">{r.model}</span></> : null}
+              <span className="text-mono">{bodyChars(r.text, r.video.isMine ? null : disclosure)}</span>자{r.model ? <> · <span className="text-mono">{r.model}</span></> : null}
               {r.edited ? ' · 직접 고침' : null}
             </span>
           </>
