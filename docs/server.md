@@ -52,6 +52,8 @@
      - **기간 전체** (`full`): 처음이거나 검색 조건(키워드·기간·정렬·불러올 수)이 바뀌었을 때. 마지막 조건은 서버 메모리에 기억해 말투·이름만 고치면 다시 검색하지 않는다. 서버를 다시 띄워 기억이 없으면 '주제를 고친 시각 > 마지막 검색'으로 본다(그래서 재시작 직후 한 번은 전체 검색일 수 있다).
      - 마지막 검색 시각은 칸을 따로 두지 않고 검색으로 들어온 `topic_video.fetched_at`의 최댓값으로 센다. 링크 추가는 검색 영상의 시각을 바꾸지 않는다. 결과가 하나도 없으면 시각이 남지 않아 다음에 다시 검색한다.
      - 결과에 방식·새 영상 수·쓴 할당량(검색 쪽 수×100 + 정보 50개당 1)을 돌려주고, ①이 누르기 전 안내와 결과 띠로 보인다.
+   - **관련도 순위와 맞은 검색어** (2026-11-14, RD-23, 사용자 승인): 검색은 관련도 순(`order=relevance`)으로 받아 그 순서를 `topic_video.search_position`에 남긴다. 목록 순위(`rank`)는 그대로 주제 정렬(조회수·최신)로 매기고, 대시보드에서 관련도·조회수·최신을 바로 바꿔 본다. 새 영상만 검색했을 때는 두 검색의 관련도를 비교할 수 없어 기존 목록 뒤에 그 검색의 순서대로 붙인다.
+     - 맞은 검색어(`matched_keywords`)는 검색어마다 따로 검색하지 않고(할당량이 검색어 수만큼 늘어서) 이미 받은 `videos.list` snippet의 제목·설명·태그와 코드가 대조한다(`videos/keyword-match.ts`, 띄어쓰기·대소문자·# 무시). 링크로 직접 추가한 영상도 대조한다.
 2. **대기열**: 한 번에 하나씩 처리한다. 로컬 GPU(Ollama)와 API 사용량 한도를 지키기 위해서다. 주제별 진행률(2/5)은 `GET /topics/:id/drafts/progress`로 본다. 대기열은 메모리에 있어서, 서버가 다시 뜨면 `writing`으로 남은 행을 `error`로 바꾼다.
 3. **분석** (설정 `ai.analysis`):
    - Gemini는 유튜브 주소를 그대로 받아 영상을 직접 본다.
@@ -158,7 +160,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `topic_profile` | 주제가 쓸 프로필 |
 | `profile` | 크롬 프로필: 이름, 폴더, 가린 구글 계정, 채널 ID(=내 채널), 화면 언어, 로그인 상태 |
 | `video` | 유튜브 영상과 숫자(조회수·시각·길이). 여러 주제가 함께 씀 |
-| `topic_video` | 주제별 영상 목록과 불러오기 순위, 들어온 경로(검색·직접) |
+| `topic_video` | 주제별 영상 목록과 불러오기 순위, 관련도 순위(`search_position`), 맞은 검색어(`matched_keywords`), 들어온 경로(검색·직접) |
 | `video_analysis` | AI 분석: 주제와 매칭 %(`topic_match`)·이유, 고른 이유[], 근거 장면[], 장면 핵심 단어[] (`worry`는 2026-11-13에 지움) |
 | `draft` | 초안: 글, AI 원본, 쓴 이유[], 고쳤는지, 검사 결과, 작성 상태 |
 | `post_attempt` | 게시 기록(댓글 게시 목록): 결과, 실패 단계·원인, 게시 결과 캡처(성공·실패), 댓글 주소 |
@@ -193,7 +195,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `POST /topics` | 새 주제 | 만들기 (계획서 예시 값이 기본값) |
 | `PATCH /topics/:id` | 주제 설정 | 보낸 값만 고치기, `profileIds`는 통째로 바꿈 |
 | `DELETE /topics/:id` | 주제 설정 | 지우기 (댓글 게시 목록은 남음) |
-| `GET /topics/:id/videos` | ① | 영상 카드 (순위, 내 채널, 댓글 완료, 초안 상태) |
+| `GET /topics/:id/videos` | ① | 영상 카드 (순위, 관련도 순위 `searchPosition`, 맞은 검색어 `matchedKeywords`, 주제와 매칭 `topicMatch`, 내 채널, 댓글 완료, 초안 상태) |
 | `POST /topics/:id/videos/fetch` | ① | [영상 불러오기] |
 | `POST /topics/:id/videos` `{ url }` | ② | 링크 직접 추가 |
 | `GET /topics/:id/videos/:videoId` | ② | 영상 하나 |

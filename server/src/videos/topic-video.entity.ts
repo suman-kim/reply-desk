@@ -21,10 +21,12 @@ export enum TopicVideoSource {
 
 /**
  * 주제별 영상 목록 (① 칸). 불러오기를 다시 하면 순위가 새로 매겨진다.
+ * 관련도 순위와 맞은 검색어도 함께 둔다(RD-23).
  */
 @Entity({
   name: 'topic_video',
-  comment: '주제별 영상 목록(① 칸). 불러오기 순위와 들어온 경로',
+  comment:
+    '주제별 영상 목록(① 칸). 불러오기 순위·관련도 순위·맞은 검색어와 들어온 경로',
 })
 @Index('uq_topic_video_topic_video', ['topicId', 'videoId'], { unique: true })
 export class TopicVideo {
@@ -67,6 +69,27 @@ export class TopicVideo {
       '마지막 불러오기에서의 순위 (1부터). 이번 결과에 없거나 직접 추가한 영상은 NULL',
   })
   rank: number | null;
+
+  /** 유튜브 검색의 관련도 순위 (RD-23) */
+  @Column({
+    name: 'search_position',
+    type: 'int',
+    nullable: true,
+    comment:
+      '유튜브 검색(관련도 순)에서 나온 순서 (1부터). 새 영상만 검색했을 때는 기존 목록 뒤에 그 검색의 순서대로 붙는다. 직접 추가한 영상은 NULL',
+  })
+  searchPosition: number | null;
+
+  /** 맞은 검색어 (RD-23) */
+  @Column({
+    name: 'matched_keywords',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+    comment:
+      '주제 검색 키워드 중 영상 제목·설명·태그에 들어 있는 것 (코드가 대조, 주제에 적은 순서)',
+  })
+  matchedKeywords: string[];
 
   /** 마지막으로 목록에 들어온 시각 */
   @Column({

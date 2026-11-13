@@ -145,6 +145,12 @@ export interface VideoItem {
   draftState: DraftState | 'none';
   /** 최근 초안 검사 통과 */
   checkPassed: boolean;
+  /** 유튜브 검색의 관련도 순위 (1부터, 직접 추가한 영상은 null) — RD-23 */
+  searchPosition: number | null;
+  /** 주제 검색 키워드 중 제목·설명·태그에 들어 있는 것 — RD-23 */
+  matchedKeywords: string[];
+  /** 주제와 매칭 (이 주제의 최근 분석. 분석 전이면 null) */
+  topicMatch: Omit<TopicMatch, 'reason'> | null;
 }
 
 /** 자동 작성 진행률 */
