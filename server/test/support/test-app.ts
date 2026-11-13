@@ -28,6 +28,7 @@ import {
   YOUTUBE_CLIENT,
   type YoutubeClient,
   type YoutubeSearchParams,
+  type YoutubeSearchResult,
   type YoutubeVideoContext,
   type YoutubeVideoInfo,
   type YoutubeComments,
@@ -98,10 +99,15 @@ export const MANUAL = info(
 export class FakeYoutube implements YoutubeClient {
   /** 마지막 검색 조건 (검증용) */
   lastSearch: YoutubeSearchParams | null = null;
+  /** 검색한 횟수 (저장된 목록을 쓰면 늘지 않는다) */
+  searches = 0;
 
-  async searchVideoIds(params: YoutubeSearchParams): Promise<string[]> {
+  async searchVideoIds(
+    params: YoutubeSearchParams,
+  ): Promise<YoutubeSearchResult> {
     this.lastSearch = params;
-    return VIDEOS.map((v) => v.youtubeId);
+    this.searches += 1;
+    return { ids: VIDEOS.map((v) => v.youtubeId), pages: 1 };
   }
 
   async getVideos(ids: string[]): Promise<YoutubeVideoInfo[]> {

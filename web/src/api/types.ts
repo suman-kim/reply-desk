@@ -281,6 +281,43 @@ export interface DraftDetail {
   }[];
 }
 
+/** [영상 불러오기] 검색 방식: cached(검색 안 함, 저장된 목록) · incremental(새로 올라온 영상만) · full(기간 전체) */
+export type SearchMode = 'cached' | 'incremental' | 'full';
+
+/** 이번 [영상 불러오기]의 검색 정보 */
+export interface SearchRun {
+  /** 검색 방식 */
+  mode: SearchMode;
+  /** 마지막 검색 시각 (이번 포함) */
+  lastSearchedAt: string | null;
+  /** 이 시각 전에 다시 누르면 저장된 목록 (기준 시간이 0이면 null) */
+  nextSearchAt: string | null;
+  /** 이번에 쓴 유튜브 할당량 */
+  quotaUsed: number;
+  /** 이번에 새로 들어온 영상 수 */
+  newVideos: number;
+}
+
+/** [영상 불러오기] 결과 (POST /topics/:id/load) */
+export interface LoadResult {
+  /** 주제의 영상 목록 */
+  videos: VideoItem[];
+  /** 검색 정보 */
+  search: SearchRun;
+}
+
+/** [영상 불러오기]를 누르기 전 검색 상태 (GET /topics/:id/videos/search-status) */
+export interface SearchStatus {
+  /** 지금 누르면 할 검색 방식 */
+  nextMode: SearchMode;
+  /** 마지막 검색 시각 */
+  lastSearchedAt: string | null;
+  /** 이 시각부터 다시 검색 (지금 누르면 저장된 목록일 때만) */
+  nextSearchAt: string | null;
+  /** 다시 검색하기 전 기다리는 시간 (분) */
+  cacheMinutes: number;
+}
+
 /** 진행 단계 한 줄 */
 export interface StepView {
   /** 단계 */

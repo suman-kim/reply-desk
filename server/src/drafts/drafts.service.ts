@@ -13,7 +13,11 @@ import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
 import { Video } from '../videos/video.entity.js';
-import { VideosService, type VideoItem } from '../videos/videos.service.js';
+import {
+  VideosService,
+  type LoadResult,
+  type VideoItem,
+} from '../videos/videos.service.js';
 import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -155,10 +159,12 @@ export class DraftsService {
    * [영상 불러오기]: 영상만 불러와 순위를 매긴다. 초안은 쓰지 않는다.
    * 초안은 ② 영상 선택에서 [초안 작성]을 누를 때 그 영상 하나만 쓴다
    * (영상을 많이·무제한으로 불러와도 AI 비용이 들지 않게).
+   * 유튜브 할당량을 아끼려고 최근에 검색했으면 저장된 목록을, 아니면 새로 올라온 영상만 검색한다 (VideosService.loadForTopic).
    * @param topicId 주제 ID
+   * @param force [새로 검색]: 기준 시간을 무시하고 검색한다
    */
-  async load(topicId: number): Promise<{ videos: VideoItem[] }> {
-    return { videos: await this.videos.fetchForTopic(topicId) };
+  async load(topicId: number, force = false): Promise<LoadResult> {
+    return this.videos.loadForTopic(topicId, { force });
   }
 
   /**

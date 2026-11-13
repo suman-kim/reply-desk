@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostAttempt } from '../posting/post-attempt.entity.js';
 import { ProfilesModule } from '../profiles/profiles.module.js';
+import { SettingsModule } from '../settings/settings.module.js';
 import { TopicsModule } from '../topics/topics.module.js';
 import { TopicVideo } from './topic-video.entity.js';
 import { Video } from './video.entity.js';
@@ -16,6 +17,7 @@ import { YOUTUBE_CLIENT } from './youtube/youtube-client.js';
     TypeOrmModule.forFeature([Video, TopicVideo, PostAttempt]),
     TopicsModule,
     ProfilesModule,
+    SettingsModule,
   ],
   controllers: [VideosController],
   providers: [

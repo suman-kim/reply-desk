@@ -46,6 +46,12 @@
 ## 영상 분석과 초안 작성
 
 1. **[영상 불러오기]** (`POST /topics/:id/load`): 영상만 불러와 순위를 매긴다. **초안은 쓰지 않는다.** 초안은 ② 영상 선택에서 [초안 작성](`POST /topics/:id/videos/:videoId/draft`)을 누른 영상만 쓴다(많이·무제한으로 불러와도 AI 비용이 들지 않게, 2026-11-13). 한 번에 불러올 수(`fetch_limit`)가 0이면 무제한: 검색을 여러 쪽(한 쪽 50개, 할당량 100) 받아 결과 끝까지, 최대 500개(할당량 최대 1,000)까지 가져온다. 영상 정보는 50개씩 나눠 받는다.
+   - **할당량 줄이기** (2026-11-13, RD-20, `videos/search-plan.ts`): 검색(`search.list`)은 한 쪽에 100으로 비싸고 영상 정보(`videos.list`)는 50개에 1로 싸다. 그래서 검색 방식을 고른다.
+     - **저장된 목록** (`cached`): 마지막 검색 뒤 설정 `youtube.searchCacheMinutes`(기본 60분) 안에 다시 누르면 검색하지 않는다(할당량 0). ①에 [새로 검색]이 보인다(`{ force: true }`).
+     - **새 영상만** (`incremental`): 시간이 지났거나 [새로 검색]이면 지난 검색 2시간 전부터 올라온 영상만 검색하고, 기간 안의 이미 있는 검색 영상은 `videos.list`로 조회수를 다시 받아 함께 순위를 매긴다. 2시간을 겹치는 것은 유튜브 검색이 새 영상을 늦게 잡기도 해서다.
+     - **기간 전체** (`full`): 처음이거나 검색 조건(키워드·기간·정렬·불러올 수)이 바뀌었을 때. 마지막 조건은 서버 메모리에 기억해 말투·이름만 고치면 다시 검색하지 않는다. 서버를 다시 띄워 기억이 없으면 '주제를 고친 시각 > 마지막 검색'으로 본다(그래서 재시작 직후 한 번은 전체 검색일 수 있다).
+     - 마지막 검색 시각은 칸을 따로 두지 않고 검색으로 들어온 `topic_video.fetched_at`의 최댓값으로 센다. 링크 추가는 검색 영상의 시각을 바꾸지 않는다. 결과가 하나도 없으면 시각이 남지 않아 다음에 다시 검색한다.
+     - 결과에 방식·새 영상 수·쓴 할당량(검색 쪽 수×100 + 정보 50개당 1)을 돌려주고, ①이 누르기 전 안내와 결과 띠로 보인다.
 2. **대기열**: 한 번에 하나씩 처리한다. 로컬 GPU(Ollama)와 API 사용량 한도를 지키기 위해서다. 주제별 진행률(2/5)은 `GET /topics/:id/drafts/progress`로 본다. 대기열은 메모리에 있어서, 서버가 다시 뜨면 `writing`으로 남은 행을 `error`로 바꾼다.
 3. **분석** (설정 `ai.analysis`):
    - Gemini는 유튜브 주소를 그대로 받아 영상을 직접 본다.
@@ -191,7 +197,8 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `POST /topics/:id/videos` `{ url }` | ② | 링크 직접 추가 |
 | `GET /topics/:id/videos/:videoId` | ② | 영상 하나 |
 | `GET /topics/:id/post-check?videoId=&profileId=` | ③ | 버튼 열림 여부, 차단 사유 한 줄, 이번 차례 프로필, 오늘 n/상한 |
-| `POST /topics/:id/load` | ① | [영상 불러오기] (영상만, 초안은 쓰지 않음) |
+| `POST /topics/:id/load` `{ force? }` | ① | [영상 불러오기] (영상만, 초안은 쓰지 않음) → `{ videos, search: { mode, lastSearchedAt, nextSearchAt, quotaUsed, newVideos } }`. `force`면 [새로 검색] |
+| `GET /topics/:id/videos/search-status` | ① | 지금 누르면 할 검색 방식(`nextMode`), 마지막 검색 시각, 다시 검색하는 시각, 기준 시간(분) |
 | `GET /topics/:id/videos/:videoId/comments?limit=` | ① 영상 보기 창 | 인기 댓글(쓴 사람·좋아요·답글 수, 관련성 순). 댓글이 막힌 영상은 `disabled: true`. 할당량 1, 5분 받아 둔다 |
 | `GET /topics/:id/drafts/progress` | ① | 자동 작성 진행률 (total·done·failed·running·lastError) |
 | `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·주제와 매칭(`topicMatch`: 퍼센트·이유·기준 이상인지·기준)·초안·검사·상태·이 영상의 댓글 게시 |

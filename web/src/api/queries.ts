@@ -10,6 +10,7 @@ import type {
   DraftListRow,
   DraftListStatus,
   DraftProgress,
+  LoadResult,
   LoginCheckView,
   OpenLoginView,
   PostCheck,
@@ -17,6 +18,7 @@ import type {
   Profile,
   PromptInfo,
   PromptPreview,
+  SearchStatus,
   SettingView,
   TodayQuota,
   Topic,
@@ -66,7 +68,20 @@ export const keys = {
   promptPreview: (key: string, value: string) => ['promptPreview', key, value] as const,
   /** 영상 보기 창 댓글 */
   comments: (topicId: number, videoId: number) => ['comments', topicId, videoId] as const,
+  /** [영상 불러오기]를 누르기 전 검색 상태 */
+  searchStatus: (topicId: number) => ['searchStatus', topicId] as const,
 };
+
+/**
+ * [영상 불러오기]를 누르기 전 검색 상태 (지금 누르면 검색하는지, 마지막 검색 시각). 1분마다 다시 읽어 남은 시간을 맞춘다
+ * @param topicId 주제 ID
+ */
+export const useSearchStatus = (topicId: number) =>
+  useQuery({
+    queryKey: keys.searchStatus(topicId),
+    queryFn: () => api<SearchStatus>('GET', `/topics/${topicId}/videos/search-status`),
+    refetchInterval: 60_000,
+  });
 
 /** 주제 목록 */
 export const useTopics = () => useQuery({ queryKey: keys.topics, queryFn: () => api<Topic[]>('GET', '/topics') });
@@ -258,20 +273,21 @@ export function useActions() {
     /** 주제 고치기 */
     updateTopic: useMutation({
       mutationFn: ({ id, input }: { id: number; input: Partial<TopicInput> }) => api<Topic>('PATCH', `/topics/${id}`, input),
-      onSuccess: () => refresh('topics', 'profiles', 'postCheck'),
+      onSuccess: () => refresh('topics', 'profiles', 'postCheck', 'searchStatus'),
     }),
     /** 주제 지우기 */
     deleteTopic: useMutation({
       mutationFn: (id: number) => api<{ id: number }>('DELETE', `/topics/${id}`),
       onSuccess: () => refresh('topics', 'profiles', 'drafts'),
     }),
-    /** [영상 불러오기] + 자동 작성 */
+    /** [영상 불러오기] (force면 [새로 검색]: 최근에 검색했어도 다시 검색) */
     load: useMutation({
-      mutationFn: (topicId: number) =>
-        api<{ videos: VideoItem[] }>('POST', `/topics/${topicId}/load`),
-      onSuccess: (res, topicId) => {
+      mutationFn: ({ topicId, force = false }: { topicId: number; force?: boolean }) =>
+        api<LoadResult>('POST', `/topics/${topicId}/load`, { force }),
+      onSuccess: (res, { topicId }) => {
         // 불러오기는 영상만 받는다 (초안은 ②의 [초안 작성]에서)
         qc.setQueryData(keys.videos(topicId), res.videos);
+        void qc.invalidateQueries({ queryKey: keys.searchStatus(topicId) });
       },
     }),
     /** 링크 직접 추가 */

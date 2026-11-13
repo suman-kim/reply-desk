@@ -40,13 +40,15 @@ describe('YoutubeApiClient', () => {
         },
       };
     });
-    const ids = await new YoutubeApiClient(config).searchVideoIds({
+    const { ids, pages } = await new YoutubeApiClient(config).searchVideoIds({
       keywords: ['연애', '썸'],
       publishedAfter: null,
       order: 'viewCount',
       maxResults: 120,
     });
     expect(ids).toHaveLength(120);
+    // 받은 쪽 수 = 쓴 검색 할당량 300
+    expect(pages).toBe(3);
     expect(urls.map((u) => u.searchParams.get('maxResults'))).toEqual([
       '50',
       '50',
@@ -64,13 +66,13 @@ describe('YoutubeApiClient', () => {
 
   it('검색: 다음 쪽이 없으면 거기서 끝난다', async () => {
     stubFetch(() => ({ body: { items: [{ id: { videoId: 'a' } }] } }));
-    const ids = await new YoutubeApiClient(config).searchVideoIds({
+    const result = await new YoutubeApiClient(config).searchVideoIds({
       keywords: ['k'],
       publishedAfter: null,
       order: 'date',
       maxResults: 500,
     });
-    expect(ids).toEqual(['a']);
+    expect(result).toEqual({ ids: ['a'], pages: 1 });
   });
 
   it('영상 정보: 50개씩 나눠 받는다', async () => {
