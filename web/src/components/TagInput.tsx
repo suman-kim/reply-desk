@@ -14,6 +14,7 @@ import { Badge, Button, Field } from '../ds';
  * @param props.max 넣을 수 있는 개수
  * @param props.maxLength 한 개의 최대 글자 수
  * @param props.emptyText 아직 하나도 없을 때 보일 말
+ * @param props.hideLabel 칸 이름을 화면에서 숨길지 (옆에 이름이 이미 있을 때. 읽기 프로그램에는 남는다)
  */
 export function TagInput({
   label,
@@ -25,6 +26,7 @@ export function TagInput({
   max,
   maxLength,
   emptyText,
+  hideLabel,
 }: {
   label: string;
   values: string[];
@@ -35,6 +37,7 @@ export function TagInput({
   max: number;
   maxLength: number;
   emptyText: string;
+  hideLabel?: boolean;
 }) {
   /** 입력 중인 한 개 */
   const [draft, setDraft] = useState('');
@@ -65,7 +68,7 @@ export function TagInput({
   return (
     <div className="rd-stack-8" onKeyDown={onKeyDown}>
       <Field
-        label={label}
+        label={hideLabel ? <span className="dk-sr">{label}</span> : label}
         value={draft}
         onChange={(e) => {
           setDraft(e.target.value);

@@ -1,102 +1,103 @@
 import { useEffect, useRef, useState } from "react";
-import { useActions, usePromptInfo, usePromptPreview } from "../api/queries";
+import { usePromptInfo, usePromptPreview } from "../api/queries";
 import type { PromptInfo, SettingView } from "../api/types";
-import { Button, Panel, Segmented } from '../ds';
+import { Segmented } from '../ds';
 import { ErrorBand, LoadingBox } from "./StateBox";
 
 /** 프롬프트 설정 값 (덩이 이름 → 글) */
-type PromptValue = Record<string, string>;
+export type PromptValue = Record<string, string>;
+
+/** 프롬프트 설정 키 */
+type PromptKey = "prompt.analysis" | "prompt.drafting";
 
 /**
- * AI 프롬프트 설정: 영상 분석·댓글 작성 AI에게 보내는 글 전체를 보고 고친다.
+ * AI 프롬프트 설정 (설정 화면의 '프롬프트' 탭): 영상 분석·댓글 작성 AI에게 보내는 글 전체를 보고 고친다.
  * 역할을 위에서 고르고(전환), 덩이(지시·자료 틀·다시 쓸 때)마다 글을 고친다. {{자리}}는 눌러서 넣는다.
- * 답의 모양(JSON 칸)은 코드가 검증에 쓰므로 읽기만 한다.
- * @param props.settings 전체 설정 (prompt.analysis, prompt.drafting 값)
+ * 저장은 설정 화면 아래 저장 막대가 한 번에 한다. 답의 모양(JSON 칸)은 코드가 검증에 쓰므로 읽기만 한다.
+ * @param props.settings 전체 설정 (prompt.analysis, prompt.drafting 저장 값)
+ * @param props.values 고치는 중인 값 (키 → 값)
+ * @param props.changed 저장하지 않은 바뀐 값이 있는지 (키 → 참)
+ * @param props.errors 저장할 때 난 오류 (키 → 한 줄)
+ * @param props.onChange 값이 바뀔 때
  */
-export function PromptSettings({ settings }: { settings: SettingView[] }) {
+export function PromptSettings({
+  settings,
+  values,
+  changed,
+  errors,
+  onChange,
+}: {
+  settings: SettingView[];
+  values: Record<PromptKey, PromptValue>;
+  changed: Record<PromptKey, boolean>;
+  errors: Record<string, string>;
+  onChange: (key: PromptKey, value: PromptValue) => void;
+}) {
   const info = usePromptInfo();
-  const [role, setRole] = useState("prompt.analysis");
+  const [role, setRole] = useState<PromptKey>("prompt.analysis");
   const setting = settings.find((s) => s.key === role);
   const meta = info.data?.find((p) => p.key === role);
 
   return (
-    <Panel
-      title="AI 프롬프트"
-      hint="영상 분석과 댓글 작성 AI에게 보내는 글 전체예요. 고치면 다음 분석·초안부터 적용돼요."
-    >
-      <Segmented
-        label="프롬프트 고르기"
-        value={role}
-        onChange={setRole}
-        options={[
-          { value: "prompt.analysis", label: "영상 분석" },
-          { value: "prompt.drafting", label: "댓글 작성" },
-        ]}
-      />
-      <div className="rd-prompt-intro">
-        <span className="text-label rd-ink2">AI에게 함께 보내는 세 가지</span>
-        <ul className="text-body-sm">
-          <li>
-            <strong>지시</strong> — 업무 매뉴얼이에요. "없는 말을 지어내지
-            마"처럼 모든 영상에 똑같이 보내요.
-          </li>
-          <li>
-            <strong>자료 틀</strong> — 빈칸이 있는 양식이에요.{" "}
-            <code>{"{{영상 제목}}"}</code> 같은 빈칸에 코드가 영상·주제 값을
-            채워 보내요.
-          </li>
-          <li>
-            <strong>답의 칸</strong> — AI가 채워 올 답안지예요. 코드가 이 칸으로
-            검사하므로 바꿀 수 없어요.
-          </li>
-        </ul>
+    <div className="rd-stack-16">
+      <div className="rd-prompt-top">
+        <Segmented
+          label="어느 AI에게 보내는 글"
+          value={role}
+          onChange={(v) => setRole(v as PromptKey)}
+          options={[
+            { value: "prompt.analysis", label: <>영상 분석{changed["prompt.analysis"] ? <span className="rd-seg-dot" aria-label="바뀐 내용 있음" /> : null}</> },
+            { value: "prompt.drafting", label: <>댓글 작성{changed["prompt.drafting"] ? <span className="rd-seg-dot" aria-label="바뀐 내용 있음" /> : null}</> },
+          ]}
+        />
         <span className="text-caption rd-muted">
-          <code>{"{조회수}"}</code>처럼 괄호가 하나인 것은 AI에게 "숫자 대신
-          이렇게 써 두라"고 시킨 표시예요. 답이 오면 코드가 숫자로 바꿔요.
-          오른쪽 예시 보기에서 실제로 채워진 모습을 볼 수 있어요.
+          AI에게 함께 보내는 세 가지 — <strong className="rd-ink">지시</strong>(모든 영상에 같게) ·{" "}
+          <strong className="rd-ink">자료 틀</strong>(빈칸 <code>{"{{영상 제목}}"}</code>에 코드가 값을 채움) ·{" "}
+          <strong className="rd-ink">답의 칸</strong>(코드가 정해 바꿀 수 없음). <code>{"{조회수}"}</code>처럼 괄호가 하나인 것은
+          답이 오면 코드가 숫자로 바꾸는 표시예요.
         </span>
       </div>
-      {info.isPending ? (
-        <LoadingBox>프롬프트 안내를 불러오는 중…</LoadingBox>
-      ) : null}
-      {info.error ? (
-        <ErrorBand error={info.error} onRetry={() => void info.refetch()} />
-      ) : null}
+      {info.isPending ? <LoadingBox>프롬프트 안내를 불러오는 중…</LoadingBox> : null}
+      {info.error ? <ErrorBand error={info.error} onRetry={() => void info.refetch()} /> : null}
       {setting && meta ? (
-        // 저장된 값이 바뀌면(저장·기본값으로) 고치던 글을 새로 받는다
         <PromptEditor
-          key={`${role}:${JSON.stringify(setting.value)}`}
+          key={role}
           setting={setting}
           meta={meta}
+          value={values[role]}
+          error={errors[role]}
+          onChange={(v) => onChange(role, v)}
         />
       ) : null}
-    </Panel>
+    </div>
   );
 }
 
 /**
- * 역할 하나의 프롬프트 고치기
- * @param props.setting 설정 (값·기본값 여부)
+ * 역할 하나의 프롬프트 고치기 (왼쪽 고치기 | 오른쪽 예시 보기)
+ * @param props.setting 설정 (저장 값·도움말)
  * @param props.meta 덩이·자리·답의 모양 안내
+ * @param props.value 고치는 중인 값
+ * @param props.error 저장 오류
+ * @param props.onChange 값이 바뀔 때
  */
 function PromptEditor({
   setting,
   meta,
+  value,
+  error,
+  onChange,
 }: {
   setting: SettingView;
   meta: PromptInfo;
+  value: PromptValue;
+  error?: string;
+  onChange: (value: PromptValue) => void;
 }) {
-  const { updateSetting, resetSetting } = useActions();
   const saved = setting.value as PromptValue;
-  const [value, setValue] = useState<PromptValue>(saved);
-  const dirty = meta.parts.some((p) => value[p.field] !== saved[p.field]);
-  const error =
-    updateSetting.error && updateSetting.variables?.key === setting.key
-      ? updateSetting.error.message
-      : null;
 
   // 예시 보기는 입력을 잠시 멈추면 새로 만든다 (글자마다 서버에 묻지 않게)
-  const [previewValue, setPreviewValue] = useState<PromptValue>(saved);
+  const [previewValue, setPreviewValue] = useState<PromptValue>(value);
   useEffect(() => {
     const t = setTimeout(() => setPreviewValue(value), 400);
     return () => clearTimeout(t);
@@ -114,39 +115,10 @@ function PromptEditor({
             vars={part.vars}
             text={value[part.field] ?? ""}
             changed={value[part.field] !== saved[part.field]}
-            onChange={(text) => setValue((v) => ({ ...v, [part.field]: text }))}
+            onChange={(text) => onChange({ ...value, [part.field]: text })}
           />
         ))}
-
-        {error ? <ErrorBand error={updateSetting.error!} /> : null}
-        <div className="rd-row">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={!dirty}
-            loading={updateSetting.isPending}
-            onClick={() => updateSetting.mutate({ key: setting.key, value })}
-          >
-            저장
-          </Button>
-          {dirty ? (
-            <Button variant="ghost" size="sm" onClick={() => setValue(saved)}>
-              고친 것 버리기
-            </Button>
-          ) : null}
-          {!setting.isDefault ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              loading={resetSetting.isPending}
-              onClick={() => resetSetting.mutate(setting.key)}
-            >
-              기본값으로
-            </Button>
-          ) : (
-            <span className="text-caption rd-muted">기본값이에요</span>
-          )}
-        </div>
+        {error ? <span className="dk-field-error">{error}</span> : null}
       </div>
       <PromptPreviewPane
         settingKey={setting.key}
