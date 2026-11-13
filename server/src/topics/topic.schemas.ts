@@ -59,6 +59,15 @@ const topicFields = {
   maxLength: z.number().int().min(10).max(500, '최대 글자 수는 500자까지예요'),
   /** 추가 금지 표현 */
   bannedWords: wordList(50),
+  /** 다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 */
+  adDisclosure: z
+    .string()
+    .trim()
+    .min(2, '광고 표시를 넣어 주세요 (예: [광고])')
+    .max(20, '광고 표시는 20자까지예요')
+    .refine((v) => v.includes('광고') || v.includes('협찬'), {
+      message: "광고 표시에는 '광고'나 '협찬'이 들어가야 해요",
+    }),
   /** 주제 하루 상한 */
   dailyCap: z.number().int().min(1, '하루 상한은 1 이상이에요').max(50),
   /** 상태 */
@@ -86,6 +95,7 @@ export const createTopicSchema = z
     minLength: topicFields.minLength.default(40),
     maxLength: topicFields.maxLength.default(120),
     bannedWords: topicFields.bannedWords.default([]),
+    adDisclosure: topicFields.adDisclosure.default('[광고]'),
     dailyCap: topicFields.dailyCap.default(5),
     status: topicFields.status.default(TopicStatus.Active),
     /** 쓸 프로필 ID 목록 */

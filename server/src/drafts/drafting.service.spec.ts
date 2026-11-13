@@ -55,6 +55,7 @@ describe('DraftingService', () => {
       topic,
       video,
       analysis,
+      null,
     );
     expect(r).toMatchObject({
       text: GOOD,
@@ -72,6 +73,7 @@ describe('DraftingService', () => {
       topic,
       video,
       analysis,
+      null,
     );
     expect(r.attempts).toBe(2);
     expect(r.report.passed).toBe(true);
@@ -85,9 +87,26 @@ describe('DraftingService', () => {
       topic,
       video,
       analysis,
+      null,
     );
     expect(r.attempts).toBe(2);
     expect(r.report.passed).toBe(false);
     expect(r.text).toBe(BAD);
+  });
+
+  it('다른 채널 영상이면 광고 표시를 코드가 맨 앞에 붙이고 검사도 통과한다', async () => {
+    const { ai } = fakeAi([GOOD]);
+    const r = await new DraftingService(ai, checks).write(
+      topic,
+      video,
+      analysis,
+      '[광고]',
+    );
+    expect(r.text).toBe(`[광고] ${GOOD}`);
+    expect(r.report.passed).toBe(true);
+    expect(r.report.results.at(-1)).toMatchObject({
+      code: 'ad_disclosure',
+      passed: true,
+    });
   });
 });

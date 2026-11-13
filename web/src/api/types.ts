@@ -32,6 +32,8 @@ export interface Topic {
   maxLength: number;
   /** 추가 금지 표현 */
   bannedWords: string[];
+  /** 다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 (예: [광고]) */
+  adDisclosure: string;
   /** 주제 하루 상한 */
   dailyCap: number;
   /** 상태 */
@@ -58,6 +60,7 @@ export type TopicInput = Pick<
   | 'minLength'
   | 'maxLength'
   | 'bannedWords'
+  | 'adDisclosure'
   | 'dailyCap'
   | 'status'
 > & { profileIds: number[] };
@@ -234,7 +237,7 @@ export interface Draft {
 }
 
 /** 초안 목록 상태 */
-export type DraftListStatus = 'pending' | 'failed' | 'check_failed' | 'posted' | 'draft_only' | 'writing' | 'error';
+export type DraftListStatus = 'pending' | 'failed' | 'check_failed' | 'posted' | 'writing' | 'error';
 
 /** 게시 결과 */
 export type PostStatus = 'running' | 'success' | 'failed';

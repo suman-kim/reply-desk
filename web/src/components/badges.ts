@@ -24,7 +24,6 @@ export const STATUS_TONE: Record<DraftListStatus, Tone> = {
   failed: 'danger',
   check_failed: 'warning',
   posted: 'success',
-  draft_only: 'neutral',
   writing: 'neutral',
   error: 'danger',
 };
@@ -35,7 +34,6 @@ export const STATUS_LABELS: [DraftListStatus, string][] = [
   ['failed', '실패'],
   ['check_failed', '검사 미통과'],
   ['posted', '게시 완료'],
-  ['draft_only', '초안만'],
   ['writing', '작성 중'],
   ['error', '작성 실패'],
 ];

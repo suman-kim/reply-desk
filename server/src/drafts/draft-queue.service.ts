@@ -7,7 +7,9 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AiError } from '../ai/ai-provider.js';
+import { requiredDisclosure } from '../checks/ad-disclosure.js';
 import { EventsService } from '../events/events.service.js';
+import { ProfilesService } from '../profiles/profiles.service.js';
 import { Topic } from '../topics/topic.entity.js';
 import { Video } from '../videos/video.entity.js';
 import { AnalysisService } from './analysis.service.js';
@@ -72,6 +74,7 @@ export class DraftQueueService implements OnModuleInit {
    * @param analysis 영상 분석
    * @param drafting 초안 작성
    * @param events 실시간 이벤트 (카드 배지·진행률)
+   * @param profiles 프로필 서비스 (내 채널이면 광고 표시를 붙이지 않는다)
    */
   constructor(
     @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
@@ -80,6 +83,7 @@ export class DraftQueueService implements OnModuleInit {
     private readonly analysis: AnalysisService,
     private readonly drafting: DraftingService,
     private readonly events: EventsService,
+    private readonly profiles: ProfilesService,
   ) {}
 
   /** 서버가 뜰 때: 지난번에 쓰다 멈춘 초안을 실패로 바꾼다 */
@@ -222,7 +226,14 @@ export class DraftQueueService implements OnModuleInit {
       const analysis =
         (!task.reanalyze && (await this.analysis.latest(topic.id, video.id))) ||
         (await this.analysis.analyze(topic, video));
-      const written = await this.drafting.write(topic, video, analysis);
+      // 다른 채널 영상이면 광고 표시를 붙인다
+      const mine = (await this.profiles.myChannelIds()).has(video.channelId);
+      const written = await this.drafting.write(
+        topic,
+        video,
+        analysis,
+        requiredDisclosure(topic.adDisclosure, mine),
+      );
 
       await this.drafts.update(task.draftId, {
         state: DraftState.Ready,

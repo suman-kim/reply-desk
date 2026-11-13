@@ -6,11 +6,13 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
+import { requiredDisclosure } from '../checks/ad-disclosure.js';
 import { CheckRunnerService } from '../checks/check-runner.service.js';
 import { EventsService } from '../events/events.service.js';
 import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
+import { Video } from '../videos/video.entity.js';
 import { VideosService, type VideoItem } from '../videos/videos.service.js';
 import { AnalysisService } from './analysis.service.js';
 import {
@@ -211,7 +213,6 @@ export class DraftsService {
       ? draftListStatus({
           state: draft.state,
           checkPassed: draft.checkPassed,
-          isMine: video.isMine,
           commented: video.commented,
           lastPostFailed: attempts[0]?.status === PostStatus.Failed,
         })
@@ -249,8 +250,17 @@ export class DraftsService {
           .getRepository('VideoAnalysis')
           .findOneBy({ id: draft.analysisId })
       : null;
+    // 다른 채널 영상이면 광고 표시가 맨 앞에 있어야 한다 (사람이 지웠으면 검사에서 걸린다)
+    const [video, myChannels] = await Promise.all([
+      this.dataSource.getRepository(Video).findOneBy({ id: draft.videoId }),
+      this.profiles.myChannelIds(),
+    ]);
+    const disclosure = requiredDisclosure(
+      topic.adDisclosure,
+      !!video && myChannels.has(video.channelId),
+    );
     const report = this.checks.run(
-      checkContextOf(text, topic, analysis as VideoAnalysis | null),
+      checkContextOf(text, topic, analysis as VideoAnalysis | null, disclosure),
     );
     await this.drafts.update(draftId, {
       text,
@@ -319,7 +329,6 @@ export class DraftsService {
       const status = draftListStatus({
         state: d.state,
         checkPassed: d.checkPassed,
-        isMine,
         commented: post?.commented ?? false,
         lastPostFailed: post?.status === PostStatus.Failed,
       });

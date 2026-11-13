@@ -192,14 +192,27 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       message: expect.stringContaining('영상당 1개'),
     });
 
+    // 다른 채널 영상: 사람이 광고 표시를 지우면 막힌다
+    const { body: o } = await http()
+      .get(`/api/topics/${topicId}/videos/${cards.demo00000v1.id}/draft`)
+      .expect(200);
+    expect(o.draft.text.startsWith('[광고] ')).toBe(true);
+    await http()
+      .patch(`/api/drafts/${o.draft.id}`)
+      .send({ text: o.draft.text.replace('[광고] ', '') })
+      .expect(200);
     const other = await http()
       .post(`/api/topics/${topicId}/videos/${cards.demo00000v1.id}/post`)
       .send({})
       .expect(409);
     expect(other.body).toMatchObject({
-      code: 'not_my_channel',
-      message: '내 채널 영상에만 게시돼요 · 이 영상은 초안까지',
+      code: 'ad_disclosure_missing',
+      message: expect.stringContaining('"[광고]"'),
     });
+    await http()
+      .patch(`/api/drafts/${o.draft.id}`)
+      .send({ text: o.draft.aiText })
+      .expect(200);
   });
 
   it('실패: 로그인이 풀렸으면 그 단계에서 멈추고, 캡처를 남기고, 프로필을 다시 로그인 필요로 바꾼다', async () => {

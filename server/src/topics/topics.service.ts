@@ -10,7 +10,6 @@ import {
   Profile,
   type ProfileLoginStatus,
 } from '../profiles/profile.entity.js';
-import { ProfilesService } from '../profiles/profiles.service.js';
 import { DAILY_CAP_TOTAL } from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { TopicProfile } from './topic-profile.entity.js';
@@ -23,7 +22,7 @@ export interface TopicView extends Topic {
   profiles: { id: number; name: string; loginStatus: ProfileLoginStatus }[];
   /** 오늘(한국 시간) 이 주제로 게시한 수 */
   postedToday: number;
-  /** 게시를 기다리는 초안 수 (내 채널 영상, 검사 통과, 아직 댓글 안 단 영상) */
+  /** 게시를 기다리는 초안 수 (검사 통과, 아직 댓글 안 단 영상) */
   pendingDrafts: number;
 }
 
@@ -34,7 +33,6 @@ export class TopicsService {
    * @param repo 주제 저장소
    * @param topicProfiles 주제-프로필 연결 저장소
    * @param dataSource 트랜잭션·집계 쿼리용
-   * @param profiles 프로필 서비스 (내 채널 목록)
    * @param quota 오늘 게시 수
    * @param settings 공용 설정 (전체 하루 상한)
    */
@@ -43,7 +41,6 @@ export class TopicsService {
     @InjectRepository(TopicProfile)
     private readonly topicProfiles: Repository<TopicProfile>,
     @InjectDataSource() private readonly dataSource: DataSource,
-    private readonly profiles: ProfilesService,
     private readonly quota: PostQuotaService,
     private readonly settings: SettingsService,
   ) {}
@@ -215,13 +212,12 @@ export class TopicsService {
 
   /**
    * 주제별 게시 대기 초안 수.
-   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 내 채널 영상이며 아직 댓글을 안 단 것만 센다.
+   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 댓글을 안 단 것만 센다.
+   * (다른 채널 영상은 광고 표시 검사까지 통과해야 checkPassed다)
    */
   private async pendingDraftCounts(
     topicIds: number[],
   ): Promise<Map<number, number>> {
-    const myChannels = [...(await this.profiles.myChannelIds())];
-    if (myChannels.length === 0) return new Map();
     const rows: { topic_id: number; n: string }[] = await this.dataSource.query(
       `
       SELECT d.topic_id, COUNT(*) AS n
@@ -231,14 +227,12 @@ export class TopicsService {
         WHERE topic_id = ANY($1)
         ORDER BY topic_id, video_id, created_at DESC, id DESC
       ) d
-      JOIN video v ON v.id = d.video_id
       WHERE d.state = 'ready'
         AND d.check_passed
-        AND v.channel_id = ANY($2)
         AND NOT EXISTS (SELECT 1 FROM post_attempt a WHERE a.video_id = d.video_id AND a.status = 'success')
       GROUP BY d.topic_id
       `,
-      [topicIds, myChannels],
+      [topicIds],
     );
     return new Map(rows.map((r) => [Number(r.topic_id), Number(r.n)]));
   }

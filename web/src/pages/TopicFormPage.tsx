@@ -20,6 +20,7 @@ interface FormState {
   minLength: string;
   maxLength: string;
   bannedWords: string;
+  adDisclosure: string;
   dailyCap: string;
   status: Topic['status'];
   profileIds: number[];
@@ -38,6 +39,7 @@ const EMPTY: FormState = {
   minLength: '40',
   maxLength: '120',
   bannedWords: '',
+  adDisclosure: '[광고]',
   dailyCap: '5',
   status: 'active',
   profileIds: [],
@@ -67,6 +69,7 @@ function fromTopic(t: Topic): FormState {
     minLength: String(t.minLength),
     maxLength: String(t.maxLength),
     bannedWords: t.bannedWords.join(', '),
+    adDisclosure: t.adDisclosure,
     dailyCap: String(t.dailyCap),
     status: t.status,
     profileIds: t.profiles.map((p) => p.id),
@@ -118,6 +121,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
       minLength: Number(f.minLength),
       maxLength: Number(f.maxLength),
       bannedWords: splitList(f.bannedWords),
+      adDisclosure: f.adDisclosure.trim(),
       dailyCap: Number(f.dailyCap),
       status: f.status,
       profileIds: f.profileIds,
@@ -235,7 +239,15 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
           />
         </Panel>
 
-        <Panel title="게시" hint="실제 게시는 내 채널 영상에만 돼요">
+        <Panel title="게시" hint="내 채널 영상과 다른 채널 영상 모두 게시할 수 있어요">
+          <Field
+            label="광고 표시 (다른 채널 영상)"
+            value={f.adDisclosure}
+            onChange={set('adDisclosure')}
+            placeholder="예: [광고]"
+            hint="다른 채널 영상에 다는 댓글 맨 앞에 붙여요 · 업체 홍보 댓글임을 밝히는 표시라 '광고'나 '협찬'이 들어가야 해요 · 내 채널 영상에는 붙이지 않아요"
+            error={err.adDisclosure}
+          />
           <div role="group" aria-label="쓸 프로필" className="rd-stack-8">
             <span className="text-label rd-label">쓸 프로필</span>
             {profiles.data?.length === 0 ? (

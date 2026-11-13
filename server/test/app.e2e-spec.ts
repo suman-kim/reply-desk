@@ -109,11 +109,12 @@ describe('reply-desk API (e2e)', () => {
       .expect(200);
     expect(noDraft.body.block.code).toBe('draft_not_ready');
 
-    // 다른 채널 영상은 초안이 있어도 "초안까지만"
+    // 다른 채널 영상: 맨 앞에 광고 표시가 없으면 막고, 있으면 연다
+    // (검사 결과가 낡았어도 게시 직전에 글을 다시 본다)
     const other = list.body.find(
       (v: { youtubeId: string }) => v.youtubeId === 'demo00000v3',
     );
-    await ds.getRepository(Draft).insert({
+    const otherDraft = await ds.getRepository(Draft).insert({
       topicId: t,
       videoId: other.id,
       state: DraftState.Ready,
@@ -124,9 +125,17 @@ describe('reply-desk API (e2e)', () => {
       .get(`/api/topics/${t}/post-check?videoId=${other.id}`)
       .expect(200);
     expect(otherCheck.body.block).toEqual({
-      code: 'not_my_channel',
-      message: '내 채널 영상에만 게시돼요 · 이 영상은 초안까지',
+      code: 'ad_disclosure_missing',
+      message:
+        '다른 채널 영상에는 맨 앞에 광고 표시("[광고]")가 있어야 게시돼요 · 초안 맨 앞에 넣어 주세요',
     });
+    await ds
+      .getRepository(Draft)
+      .update(otherDraft.identifiers[0].id, { text: '[광고] x' });
+    const otherOk = await http()
+      .get(`/api/topics/${t}/post-check?videoId=${other.id}`)
+      .expect(200);
+    expect(otherOk.body).toMatchObject({ allowed: true, block: null });
 
     // 5. 검사를 통과한 초안이 생기면 열리고, 자동 배정으로 유튜브1이 이번 차례
     await ds.getRepository(Draft).insert({
@@ -145,9 +154,10 @@ describe('reply-desk API (e2e)', () => {
       profile: { name: '유튜브1' },
       autoAssigned: true,
     });
+    // 게시 대기: 내 채널 영상 1 + 광고 표시가 있는 다른 채널 영상 1
     expect(
       (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
-    ).toBe(1);
+    ).toBe(2);
 
     // 6. 게시 성공 기록이 생기면 영상당 1개 규칙으로 막히고, 오늘 게시 수가 오른다
     await ds.getRepository(PostAttempt).insert({
@@ -170,7 +180,7 @@ describe('reply-desk API (e2e)', () => {
     });
     expect(
       (await http().get(`/api/topics/${t}`).expect(200)).body,
-    ).toMatchObject({ postedToday: 1, pendingDrafts: 0 });
+    ).toMatchObject({ postedToday: 1, pendingDrafts: 1 }); // 남은 것: 다른 채널 영상
     expect(
       (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body
         .commented,

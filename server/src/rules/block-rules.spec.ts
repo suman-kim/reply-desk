@@ -6,11 +6,17 @@ import { findBlockReason, type PostGuardContext } from './block-rules.js';
 function ok(): PostGuardContext {
   return {
     video: { id: 1, isMine: true },
-    draft: { state: DraftState.Ready, checkPassed: true },
+    draft: { state: DraftState.Ready, checkPassed: true, text: '좋은 댓글' },
     alreadyCommented: false,
     postingNow: false,
     total: { posted: 0, cap: 10 },
-    topic: { name: '운명원 연애 사주', active: true, posted: 0, cap: 5 },
+    topic: {
+      name: '운명원 연애 사주',
+      active: true,
+      posted: 0,
+      cap: 5,
+      adDisclosure: '[광고]',
+    },
     profile: { name: '유튜브1', loginStatus: ProfileLoginStatus.Ok },
   };
 }
@@ -21,12 +27,12 @@ describe('게시 차단 규칙', () => {
   });
 
   it('여러 개에 걸리면 계획서 순서대로 먼저 걸린 하나만 보여 준다', () => {
-    // 3(이미 댓글), 4(다른 채널), 5(검사 미통과), 6(상한)에 모두 걸린 상황
+    // 3(이미 댓글), 4(광고 표시 없음), 5(검사 미통과), 6(상한)에 모두 걸린 상황
     const ctx: PostGuardContext = {
       ...ok(),
       alreadyCommented: true,
       video: { id: 1, isMine: false },
-      draft: { state: DraftState.Ready, checkPassed: false },
+      draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' },
       total: { posted: 10, cap: 10 },
     };
     expect(findBlockReason(ctx)?.code).toBe('already_commented');
@@ -37,19 +43,38 @@ describe('게시 차단 규칙', () => {
     ['draft_not_ready', { draft: null }],
     [
       'draft_not_ready',
-      { draft: { state: DraftState.Writing, checkPassed: false } },
+      { draft: { state: DraftState.Writing, checkPassed: false, text: '' } },
     ],
     ['already_commented', { alreadyCommented: true }],
-    ['not_my_channel', { video: { id: 1, isMine: false } }],
+    ['ad_disclosure_missing', { video: { id: 1, isMine: false } }],
     [
       'check_failed',
-      { draft: { state: DraftState.Ready, checkPassed: false } },
+      { draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' } },
     ],
     ['daily_cap', { total: { posted: 10, cap: 10 } }],
-    ['daily_cap', { topic: { name: 't', active: true, posted: 5, cap: 5 } }],
+    [
+      'daily_cap',
+      {
+        topic: {
+          name: 't',
+          active: true,
+          posted: 5,
+          cap: 5,
+          adDisclosure: '[광고]',
+        },
+      },
+    ],
     [
       'topic_paused',
-      { topic: { name: 't', active: false, posted: 0, cap: 5 } },
+      {
+        topic: {
+          name: 't',
+          active: false,
+          posted: 0,
+          cap: 5,
+          adDisclosure: '[광고]',
+        },
+      },
     ],
     ['posting_now', { postingNow: true }],
     ['profile_unavailable', { profile: null }],
@@ -64,6 +89,20 @@ describe('게시 차단 규칙', () => {
     ],
   ])('%s 사유로 막는다', (code, over) => {
     expect(findBlockReason({ ...ok(), ...over })?.code).toBe(code);
+  });
+
+  it('다른 채널 영상도 맨 앞에 광고 표시가 있으면 열린다', () => {
+    expect(
+      findBlockReason({
+        ...ok(),
+        video: { id: 1, isMine: false },
+        draft: {
+          state: DraftState.Ready,
+          checkPassed: true,
+          text: '[광고] 좋은 댓글',
+        },
+      }),
+    ).toBeNull();
   });
 
   it('상한 문구에 숫자를 넣는다', () => {
