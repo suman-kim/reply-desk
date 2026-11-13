@@ -198,7 +198,7 @@ function TopicWorkspace({
       <StepBar topic={topic} videoId={selected?.id ?? null} videoCount={videos.data?.length ?? null} step={step} onStep={onStep} />
 
       {step === 1 ? <LoadPanel topic={topic} selectedId={selected?.id ?? null} onSelect={onPickVideo} onWatch={setWatching} /> : null}
-      {step === 2 ? <SelectPanel topic={topic} videoId={selected?.id ?? null} onSelect={onSelectVideo} onWatch={setWatching} /> : null}
+      {step === 2 ? <SelectPanel topic={topic} videoId={selected?.id ?? null} onWatch={setWatching} /> : null}
       {step === 3 ? <PostPanel topic={topic} videoId={selected?.id ?? null} /> : null}
 
       <StepNav step={step} canGo={(n) => n === 1 || !!selected} onStep={onStep} />
@@ -302,11 +302,11 @@ function StepNav({ step, canGo, onStep }: { step: Step; canGo: (n: Step) => bool
 const PAGE_SIZE = 30;
 
 /**
- * ① 영상 불러오기: 영상만 불러온다(초안은 ②에서). 카드를 누르면 그 영상으로 ② 영상 선택으로 넘어가고,
- * 카드의 [영상 보기]는 이 화면에서 영상과 댓글을 띄운다.
+ * ① 영상 불러오기: 영상만 불러온다(초안은 ②에서). 검색에 안 나온 영상은 링크로 추가한다.
+ * 카드를 누르면 그 영상으로 ② 영상 선택으로 넘어가고, 카드의 [영상 보기]는 이 화면에서 영상과 댓글을 띄운다.
  * @param props.topic 주제
  * @param props.selectedId 고른 영상
- * @param props.onSelect 카드를 눌러 영상을 고를 때
+ * @param props.onSelect 카드를 누르거나 링크로 추가해 영상을 고를 때 (②로 넘어간다)
  * @param props.onWatch 영상 보기 창을 열 때
  */
 function LoadPanel({
@@ -320,9 +320,23 @@ function LoadPanel({
   onSelect: (id: number) => void;
   onWatch: (v: ModalVideo) => void;
 }) {
-  const { load } = useActions();
+  const { load, addVideo } = useActions();
   const videos = useVideos(topic.id);
   const [shown, setShown] = useState(PAGE_SIZE);
+  /** 링크로 추가할 주소 (검색에 안 걸린 영상) */
+  const [link, setLink] = useState('');
+
+  // 링크로 넣은 영상은 목록에 더하고, 바로 골라 ②로 넘어간다
+  const add = () =>
+    addVideo.mutate(
+      { topicId: topic.id, url: link },
+      {
+        onSuccess: (added) => {
+          setLink('');
+          onSelect(added.id);
+        },
+      },
+    );
   const has = (videos.data?.length ?? 0) > 0;
   const sortLabel = topic.videoSortBy === 'date' ? '최신순' : '조회수 높은 순';
   const countLabel = topic.fetchLimit > 0 ? `상위 ${topic.fetchLimit}개` : '검색 결과 끝까지(최대 500개)';
@@ -346,6 +360,19 @@ function LoadPanel({
       </Button>
       {topic.status === 'paused' ? <span className="text-caption rd-block-reason">일시정지된 주제예요 · 다시 시작하면 불러올 수 있어요</span> : null}
       {load.error ? <ErrorBand error={load.error} /> : null}
+      <Field
+        label="링크로 영상 추가"
+        value={link}
+        placeholder="https://www.youtube.com/watch?v=… (검색에 안 나온 영상)"
+        onChange={(e) => setLink(e.target.value)}
+        hint="넣으면 목록에 더하고 그 영상으로 ② 영상 선택으로 넘어가요"
+        error={addVideo.error?.message}
+        action={
+          <Button variant="secondary" loading={addVideo.isPending} disabled={link.trim().length === 0} onClick={add}>
+            추가
+          </Button>
+        }
+      />
       {has ? (
         <div className="rd-list-head">
           <span className="text-caption rd-muted">{videos.data!.length}개 영상 · 카드를 누르면 ② 영상 선택으로 넘어가요</span>
@@ -388,54 +415,18 @@ function LoadPanel({
 }
 
 /**
- * ② 영상 선택: 링크 직접 입력 + 고른 영상의 이유·초안·검사. 초안이 없으면 [초안 작성]으로 이때 쓴다.
+ * ② 영상 선택: 고른 영상의 이유·고민·근거 장면·초안·검사. 초안이 없으면 [초안 작성]으로 이때 쓴다.
+ * 영상 고르기·링크로 추가하기는 ①에서 한다.
  * @param props.topic 주제
  * @param props.videoId 고른 영상
- * @param props.onSelect 링크로 추가한 영상을 고른다
  * @param props.onWatch 영상 보기 창을 열 때
  */
-function SelectPanel({
-  topic,
-  videoId,
-  onSelect,
-  onWatch,
-}: {
-  topic: Topic;
-  videoId: number | null;
-  onSelect: (id: number) => void;
-  onWatch: (v: ModalVideo) => void;
-}) {
-  const { addVideo } = useActions();
-  const [link, setLink] = useState('');
+function SelectPanel({ topic, videoId, onWatch }: { topic: Topic; videoId: number | null; onWatch: (v: ModalVideo) => void }) {
   const detail = useDraftDetail(topic.id, videoId);
   const v = detail.data?.video;
 
-  const add = () =>
-    addVideo.mutate(
-      { topicId: topic.id, url: link },
-      {
-        onSuccess: (added) => {
-          setLink('');
-          onSelect(added.id);
-        },
-      },
-    );
-
   return (
-    <Panel step={2} title="영상 선택" hint="목록에서 고르거나 링크를 직접 넣으세요">
-      <Field
-        label="링크 직접 입력"
-        value={link}
-        placeholder="https://www.youtube.com/watch?v=…"
-        onChange={(e) => setLink(e.target.value)}
-        error={addVideo.error?.message}
-        action={
-          <Button variant="secondary" loading={addVideo.isPending} disabled={link.trim().length === 0} onClick={add}>
-            추가
-          </Button>
-        }
-      />
-      <div className="rd-divider" />
+    <Panel step={2} title="영상 선택" hint="고른 영상의 고른 이유와 초안을 보고 고쳐요 · 다른 영상은 ①에서 골라요">
       {!videoId ? (
         <EmptyBox>영상을 고르면 고른 이유, 영상 속 고민 한 줄, 댓글 초안과 그렇게 쓴 이유가 여기 보여요</EmptyBox>
       ) : detail.isPending ? (
