@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useActions, useProfiles } from '../api/queries';
-import type { LoginCheckView, Profile } from '../api/types';
+import type { LoginCheckView, OpenLoginView, Profile } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, BrowserFrame, Button, CheckList, Field, Panel, ReasonBox, StatPill, StepList, type StepItem } from '../ds/inyeon';
@@ -58,9 +58,24 @@ export function AccountsPage() {
 function ProfileCard({ profile: p }: { profile: Profile }) {
   const { openLogin, checkLogin, deleteProfile } = useActions();
   const [result, setResult] = useState<LoginCheckView | null>(null);
+  // [크롬 열기] 결과 (다음 할 일 안내). [연결 확인] 결과가 오면 그쪽을 보인다
+  const [opened, setOpened] = useState<OpenLoginView | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const badge = STATUS_BADGE[p.loginStatus];
-  const check = () => checkLogin.mutate(p.id, { onSuccess: setResult });
+  const check = () =>
+    checkLogin.mutate(p.id, {
+      onSuccess: (r) => {
+        setOpened(null);
+        setResult(r);
+      },
+    });
+  const open = () =>
+    openLogin.mutate(p.id, {
+      onSuccess: (r) => {
+        setResult(null);
+        setOpened(r);
+      },
+    });
 
   return (
     <article className="rd-card">
@@ -85,13 +100,18 @@ function ProfileCard({ profile: p }: { profile: Profile }) {
             {p.loginStatus === 'needs_login' ? '로그인이 풀렸어요 · 다시 로그인할 때까지 자동 배정에서 빠져요' : '아직 연결을 확인하지 않았어요'}
             {'\n'}크롬 창에서 로그인한 뒤 [연결 확인]을 눌러 주세요 · 창은 열어 둬도 돼요
           </span>
-          <Button variant="primary" size="sm" loading={openLogin.isPending} onClick={() => openLogin.mutate(p.id)}>
+          <Button variant="primary" size="sm" loading={openLogin.isPending} onClick={open}>
             크롬 열어 로그인
           </Button>
         </div>
       ) : null}
       {openLogin.error ? <ErrorBand error={openLogin.error} /> : null}
       {checkLogin.error ? <ErrorBand error={checkLogin.error} /> : null}
+      {opened && !result ? (
+        <div className="rd-band rd-band-accent">
+          <span className="text-body-sm">{opened.message}</span>
+        </div>
+      ) : null}
       {result ? (
         <div className={`rd-band ${result.warning ? 'rd-band-warning' : 'rd-band-success'}`}>
           <span className="text-body-sm">{result.message}</span>
@@ -130,7 +150,7 @@ function ProfileCard({ profile: p }: { profile: Profile }) {
           <Button variant="secondary" size="sm" loading={checkLogin.isPending} onClick={check}>
             연결 확인
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => openLogin.mutate(p.id)}>
+          <Button variant="ghost" size="sm" onClick={open}>
             크롬 열기
           </Button>
           {confirmDelete ? (
@@ -165,6 +185,8 @@ function NewProfileWizard() {
   const [name, setName] = useState('');
   const [profile, setProfile] = useState<Profile | null>(null);
   const [opened, setOpened] = useState(false);
+  // 원격 연결 없이 열려 있던 크롬을 닫고 다시 열었는지 (창이 사라졌다 다시 뜬 이유를 알린다)
+  const [restarted, setRestarted] = useState(false);
   const [result, setResult] = useState<LoginCheckView | null>(null);
   // 연결 완료는 로그인·채널 확인이 끝난 것 (화면 언어 경고는 완료 뒤에 띠로 보인다)
   const step = !profile ? 0 : result?.profile.loginStatus === 'ok' ? 3 : checkLogin.isPending ? 2 : 1;
@@ -176,6 +198,7 @@ function NewProfileWizard() {
     setName('');
     setProfile(null);
     setOpened(false);
+    setRestarted(false);
     setResult(null);
     createProfile.reset();
     checkLogin.reset();
@@ -227,7 +250,14 @@ function NewProfileWizard() {
             <Button
               variant={opened ? 'secondary' : 'primary'}
               loading={openLogin.isPending}
-              onClick={() => openLogin.mutate(profile.id, { onSuccess: () => setOpened(true) })}
+              onClick={() =>
+                openLogin.mutate(profile.id, {
+                  onSuccess: (r) => {
+                    setOpened(true);
+                    setRestarted(r.restarted);
+                  },
+                })
+              }
             >
               크롬 열기
             </Button>
@@ -240,6 +270,11 @@ function NewProfileWizard() {
               로그인했어요
             </Button>
           </div>
+          {restarted ? (
+            <div className="rd-band rd-band-accent">
+              <span className="text-body-sm">열려 있던 이 프로필의 크롬을 닫고 다시 열었어요 · 로그인은 그대로예요</span>
+            </div>
+          ) : null}
           {openLogin.error ? <ErrorBand error={openLogin.error} /> : null}
           {checkLogin.error ? <ErrorBand error={checkLogin.error} /> : null}
           {result?.warning ? (

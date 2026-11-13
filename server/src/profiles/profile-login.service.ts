@@ -9,6 +9,7 @@ import { Not, Repository } from 'typeorm';
 import { ProfileLockService } from '../browser/profile-lock.service.js';
 import { EventsService } from '../events/events.service.js';
 import {
+  ChromeNotClosedError,
   ProfileInUseError,
   YOUTUBE_BROWSER,
   type YoutubeBrowser,
@@ -51,22 +52,28 @@ export class ProfileLoginService {
    * [크롬 열고 직접 로그인]
    * @param id 프로필 ID
    */
-  async openLogin(id: number): Promise<{ message: string }> {
+  async openLogin(id: number): Promise<{
+    /** 화면에 보일 한 줄 (다음 할 일) */
+    message: string;
+    /** 원격 연결 없이 열려 있던 크롬을 닫고 다시 열었는지 */
+    restarted: boolean;
+  }> {
     const profile = await this.profiles.findOrFail(id);
-    if (this.lock.isBusy(id))
-      throw new ConflictException(
-        '이 프로필은 지금 게시 중이에요 · 끝난 뒤 다시 시도해 주세요',
-      );
-    try {
-      await this.browser.openForManualLogin(profile.folderPath);
-    } catch {
-      throw new ServiceUnavailableException(
-        '크롬을 열지 못했어요 · Google Chrome이 설치되어 있는지 확인해 주세요',
-      );
-    }
+    // 열려 있던 크롬을 닫고 다시 여는 동안 로그인 확인·게시가 끼어들지 않게 잠근다 (게시 중이면 409)
+    const { restarted } = await this.lock.run(id, '크롬 열기', () =>
+      this.browser.openForManualLogin(profile.folderPath).catch((err) => {
+        if (err instanceof ChromeNotClosedError)
+          throw new ConflictException(err.message);
+        throw new ServiceUnavailableException(
+          '크롬을 열지 못했어요 · Google Chrome이 설치되어 있는지 확인해 주세요',
+        );
+      }),
+    );
     return {
-      message:
-        '크롬 창에서 구글 로그인을 마친 뒤 [연결 확인]을 눌러 주세요 · 창은 열어 둬도 돼요',
+      restarted,
+      message: restarted
+        ? '열려 있던 크롬을 닫고 다시 열었어요 (로그인은 그대로예요) · 이제 창을 열어 둔 채로 [연결 확인]을 눌러 주세요'
+        : '크롬 창에서 구글 로그인을 마친 뒤 [연결 확인]을 눌러 주세요 · 창은 열어 둬도 돼요',
     };
   }
 

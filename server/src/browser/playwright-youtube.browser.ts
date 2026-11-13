@@ -2,12 +2,16 @@ import { spawn } from 'node:child_process';
 import { Injectable, Logger } from '@nestjs/common';
 import type { Page } from 'playwright-core';
 import {
+  isAttachable,
   openChromeSession,
+  profileOwnerPid,
+  quitChrome,
   ATTACHABLE_CHROME_ARGS,
   type ChromeSession,
   type LaunchOptions,
 } from './chrome-session.js';
 import {
+  ChromeNotClosedError,
   type CommentBoxResult,
   type LoginCheckResult,
   type YoutubeBrowser,
@@ -110,7 +114,20 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
     }
   }
 
-  async openForManualLogin(profileDir: string): Promise<void> {
+  async openForManualLogin(
+    profileDir: string,
+  ): Promise<{ restarted: boolean }> {
+    // 원격 연결 없이 열린 크롬(직접 연 크롬, 이 기능 전에 연 창)이면 붙을 수 없으니 정상 종료하고 다시 연다.
+    // 그대로 열면 macOS가 그 크롬에 창만 더 열어 원격 연결 인자가 무시된다.
+    const owner = await profileOwnerPid(profileDir);
+    const restarted = owner !== null && !(await isAttachable(owner));
+    if (restarted) {
+      this.logger.log(
+        `원격 연결 없이 열린 크롬을 닫고 다시 엽니다: ${profileDir}`,
+      );
+      if (!(await quitChrome(owner))) throw new ChromeNotClosedError();
+    }
+
     const url =
       'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fwww.youtube.com%2F&hl=ko';
     // 자동화 크롬은 구글이 로그인을 막으므로 일반 크롬을 그 프로필 폴더로 연다 (macOS).
@@ -136,6 +153,7 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
         code === 0 ? resolve() : reject(new Error(`open 종료 코드 ${code}`)),
       );
     });
+    return { restarted };
   }
 
   /**

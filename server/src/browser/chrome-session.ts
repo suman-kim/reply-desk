@@ -89,13 +89,12 @@ export async function profileOwnerPid(
 }
 
 /**
- * 이미 열려 있는 크롬에 원격 연결로 붙어 새 탭을 연다.
- * @param profileDir 크롬 프로필 폴더
- * @param pid 그 크롬의 프로세스 번호
+ * 그 크롬에 붙을 수 있는지 (원격 연결 포트를 켜고 떴는지).
+ * 원격 연결 없이 연 크롬(직접 연 크롬, 이 기능 전에 연 창)은 붙을 수 없다.
+ * 지난번 실행이 남긴 DevToolsActivePort를 믿지 않도록, 지금 크롬의 실행 인자를 본다.
+ * @param pid 크롬 프로세스 번호
  */
-async function attach(profileDir: string, pid: number): Promise<ChromeSession> {
-  // 원격 연결 없이 연 크롬(직접 연 크롬, 예전 버전에서 연 창)은 붙을 수 없다.
-  // 지난번 실행이 남긴 DevToolsActivePort를 믿지 않도록, 지금 크롬이 그 인자로 떴는지 먼저 본다.
+export async function isAttachable(pid: number): Promise<boolean> {
   const { stdout: command } = await execFileAsync('ps', [
     '-ww',
     '-o',
@@ -103,9 +102,49 @@ async function attach(profileDir: string, pid: number): Promise<ChromeSession> {
     '-p',
     String(pid),
   ]).catch(() => ({ stdout: '' }));
-  if (!command.includes('--remote-debugging-port')) {
-    throw new ProfileInUseError();
+  return command.includes('--remote-debugging-port');
+}
+
+/**
+ * 크롬을 정상 종료하고 끝날 때까지 기다린다.
+ * SIGTERM을 받은 크롬은 ⌘Q처럼 쿠키·설정을 저장하고 끝난다 (로그인은 프로필 폴더에 남는다).
+ * 강제 종료(SIGKILL)는 하지 않는다: 프로필 파일이 깨질 수 있다.
+ * @param pid 크롬 프로세스 번호
+ * @param timeoutMs 기다릴 시간
+ * @returns 제한 시간 안에 끝났으면 true
+ */
+export async function quitChrome(
+  pid: number,
+  timeoutMs = 15_000,
+): Promise<boolean> {
+  const alive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch {
+    return !alive();
   }
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!alive()) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return !alive();
+}
+
+/**
+ * 이미 열려 있는 크롬에 원격 연결로 붙어 새 탭을 연다.
+ * @param profileDir 크롬 프로필 폴더
+ * @param pid 그 크롬의 프로세스 번호
+ */
+async function attach(profileDir: string, pid: number): Promise<ChromeSession> {
+  if (!(await isAttachable(pid))) throw new ProfileInUseError();
 
   const endpoint = await readFile(
     join(profileDir, 'DevToolsActivePort'),

@@ -240,8 +240,9 @@ export class FakeBrowser implements YoutubeBrowser {
     return this.login;
   }
 
-  async openForManualLogin(dir: string): Promise<void> {
+  async openForManualLogin(dir: string): Promise<{ restarted: boolean }> {
     this.manualLogins.push(dir);
+    return { restarted: false };
   }
 }
 
