@@ -11,9 +11,10 @@ coverage/
 .env
 .env.*
 
-# 크롬 프로필·캡처 (로그인 정보가 들어 있다)
-profiles/
-screenshots/
+# 크롬 프로필·캡처 (로그인 정보가 들어 있다). 루트 기준으로만 뺀다:
+# 그냥 profiles/라고 쓰면 server/src/profiles/(소스)까지 빠진다
+/profiles/
+/screenshots/
 
 # 편집기 설정
 .idea/
