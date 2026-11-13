@@ -208,7 +208,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 ## 남은 것
 
 - 영상을 볼 수 없는 AI(Claude·OpenAI·Ollama)는 자막을 쓰지 못한다. 공식 자막 API는 내 채널 영상만, OAuth로만 받을 수 있다. 그래서 지금은 영상 설명과 인기 댓글만 쓴다.
-- 실제 Gemini는 영상 분석·초안 작성까지 확인했다(2026-11-13, `gemini-3.5-flash`, '크롬 로그인과 댓글 게시' 절의 '실제 흐름 확인'). Claude·OpenAI로 초안을 쓴 적은 아직 없다(OpenAI는 크레딧 없음).
+- 실제 Gemini는 영상 분석·초안 작성까지 확인했다(2026-11-13, `gemini-3.5-flash`, '크롬 로그인과 댓글 게시' 절의 '실제 흐름 확인'). Claude·OpenAI로 초안을 쓴 적은 아직 없다. 두 API 모두 무료 모델(무료 등급)이 없고, 2026-11-13 확인 때 두 키 모두 크레딧이 없었다(RD-16). Claude는 `Your credit balance is too low`(400), OpenAI는 `credit_balance_exhausted`(429)로 바로 거절했다. 앱에서 [초안 작성]을 누르면 1~3초 안에 "크레딧(잔액)이 없어요 · 결제 화면에서 충전하거나 설정에서 다른 AI를 골라 주세요"가 보이는 것까지 확인했다. 충전하면 가장 싼 모델은 `claude-haiku-5-5`·`gpt-6-luna`(100만 토큰당 입력 $0.1·출력 $0.5)다. 무료로 쓸 수 있는 것은 Gemini 무료 등급 모델과 Ollama다.
 
 ## 다음 작업
 
