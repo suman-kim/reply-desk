@@ -225,8 +225,10 @@ export function toAiError(
     err instanceof Error &&
     (err.name === 'TimeoutError' || err.name === 'AbortError')
   ) {
+    // 붐비는 모델은 503 대신 답 없이 멈추기도 한다(2026-11-13 gemini-3.8-flash).
+    // 같은 모델로 다시 눌러도 또 기다리게 되니, 어느 모델인지와 다른 모델로 바꾸는 길을 함께 알린다
     return new AiError(
-      `${label}가 제한 시간 안에 답하지 않았어요 · 잠시 뒤 다시 시도해 주세요`,
+      `${label}의 "${model}" 모델이 제한 시간 안에 답하지 않았어요 (붐빌 때는 답 없이 멈추기도 해요) · 잠시 뒤 [다시 생성]을 누르고, 계속되면 설정에서 다른 모델로 바꿔 주세요`,
       true,
       err,
     );
