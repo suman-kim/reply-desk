@@ -12,7 +12,7 @@ const STEP_STATE = { done: 'done', running: 'active', failed: 'failed', waiting:
  * ③ 칸 / 초안 상세의 게시: 계정 고르기 → [댓글 달기] → 진행 5단계 → 크롬 미리보기 → 결과
  * @param props.topic 주제 (쓸 프로필)
  * @param props.video 고른 영상 (없으면 null)
- * @param props.attempts 이 영상의 게시 기록 (최근 결과를 이어서 보여 준다)
+ * @param props.attempts 이 영상의 댓글 게시 (최근 결과를 이어서 보여 준다)
  * @param props.showBrowser 크롬 미리보기 창을 보일지
  */
 export function PostControl({
@@ -140,8 +140,13 @@ export function PostControl({
                 댓글 보기
               </a>
             ) : null}
+            {attempt.data.hasCapture ? (
+              <a href={`/api/posting/attempts/${attempt.data.id}/capture`} target="_blank" rel="noreferrer" className="text-body-sm">
+                게시 화면 캡처
+              </a>
+            ) : null}
             <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
-              게시 기록
+              댓글 게시 목록
             </Link>
           </div>
         ) : null}
@@ -154,7 +159,7 @@ export function PostControl({
               </a>
             ) : null}
             <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
-              게시 기록
+              댓글 게시 목록
             </Link>
           </div>
         ) : null}

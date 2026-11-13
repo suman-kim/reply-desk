@@ -23,7 +23,7 @@ const postSchema = z.object({
  * - POST /api/topics/:topicId/videos/:videoId/post   [댓글 달기] { profileId? } → 막히면 409 { code, message }
  * - GET  /api/posting/attempts/:id                   진행 5단계·입력 글자 수·결과
  * - GET  /api/posting/attempts/:id/preview           크롬 화면 미리보기 (jpeg, 게시 중·최근)
- * - GET  /api/posting/attempts/:id/capture           실패 캡처 (png, [캡처 보기])
+ * - GET  /api/posting/attempts/:id/capture           게시 결과 캡처 (png, 성공: 게시된 댓글 화면, 실패: 실패 순간)
  */
 @Controller()
 export class PublishController {
@@ -68,7 +68,7 @@ export class PublishController {
   }
 
   /**
-   * 실패 캡처
+   * 게시 결과 캡처 (성공·실패)
    * @param id 게시 시도 ID
    */
   @Get('posting/attempts/:id/capture')

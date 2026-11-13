@@ -235,7 +235,7 @@ export interface Draft {
   updatedAt: string;
 }
 
-/** 초안 목록 상태 */
+/** 작업 목록 상태 */
 export type DraftListStatus = 'pending' | 'failed' | 'check_failed' | 'posted' | 'writing' | 'error';
 
 /** 게시 결과 */
@@ -254,7 +254,7 @@ export interface DraftDetail {
   draft: Draft | null;
   /** 목록 상태 */
   status: { code: DraftListStatus; label: string } | null;
-  /** 이 영상의 게시 기록 */
+  /** 이 영상의 댓글 게시 (최근 순) */
   attempts: {
     id: number;
     status: PostStatus;
@@ -325,14 +325,27 @@ export interface TodayQuota {
   byTopic: Record<string, number>;
 }
 
-/** 게시 기록 한 행 (GET /posting/logs) */
+/** 댓글 게시 목록 한 행 (GET /posting/logs) */
 export interface PostLogRow {
   /** 게시 시도 ID */
   id: number;
   /** 시작 */
   startedAt: string;
-  /** 영상 */
-  video: { id: number; youtubeId: string; title: string } | null;
+  /** 끝 (게시 중이면 null) */
+  finishedAt: string | null;
+  /** 영상 (지운 영상이면 null) */
+  video: {
+    /** 내부 영상 ID */
+    id: number;
+    /** 유튜브 영상 ID */
+    youtubeId: string;
+    /** 유튜브 보기 주소 */
+    url: string;
+    /** 제목 */
+    title: string;
+    /** 채널 이름 */
+    channelTitle: string;
+  } | null;
   /** 주제 */
   topic: { id: number; name: string } | null;
   /** 프로필 이름 */
@@ -341,24 +354,51 @@ export interface PostLogRow {
   commentText: string;
   /** 결과 */
   status: PostStatus;
+  /** 멈춘 단계 (실패일 때) */
+  failedStep: PostStep | null;
   /** 실패 원인 */
   failureReason: string | null;
-  /** 캡처 있음 */
+  /** 게시 결과 캡처 있음 (성공: 게시된 댓글 화면, 실패: 실패 순간) */
   hasScreenshot: boolean;
   /** 댓글 주소 */
   commentUrl: string | null;
 }
 
-/** 초안 목록 한 행 (GET /drafts) */
+/** 작업 목록 한 행 (GET /drafts) */
 export interface DraftListRow {
   /** 초안 ID */
   id: number;
   /** 주제 */
   topic: { id: number; name: string };
   /** 영상 */
-  video: { id: number; youtubeId: string; title: string; channelTitle: string; isMine: boolean };
+  video: {
+    /** 내부 영상 ID */
+    id: number;
+    /** 유튜브 영상 ID */
+    youtubeId: string;
+    /** 유튜브 보기 주소 */
+    url: string;
+    /** 제목 */
+    title: string;
+    /** 채널 이름 */
+    channelTitle: string;
+    /** 내 채널 영상인지 */
+    isMine: boolean;
+    /** 조회수 */
+    viewCount: number;
+    /** 올린 시각 */
+    publishedAt: string;
+    /** 영상 길이 (초) */
+    durationSec: number;
+  };
   /** 글 */
   text: string;
+  /** 초안을 쓴 AI 제공자 */
+  provider: string | null;
+  /** 초안을 쓴 모델 */
+  model: string | null;
+  /** 게시된 댓글 주소 (게시 완료일 때) */
+  commentUrl: string | null;
   /** 고쳤는지 */
   edited: boolean;
   /** 상태 */

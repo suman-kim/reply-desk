@@ -5,8 +5,8 @@ describe('메뉴 목록', () => {
     expect(menuOf('/')?.label).toBe('대시보드');
     expect(menuOf('/topics/new')?.label).toBe('대시보드');
     expect(menuOf('/topics/12/edit')?.label).toBe('대시보드');
-    expect(menuOf('/drafts')?.label).toBe('초안 목록');
-    expect(menuOf('/logs')?.label).toBe('게시 기록');
+    expect(menuOf('/drafts')?.label).toBe('작업 목록');
+    expect(menuOf('/logs')?.label).toBe('댓글 게시 목록');
     expect(menuOf('/settings/')?.label).toBe('설정');
     expect(menuOf('/nothing')).toBeUndefined();
   });

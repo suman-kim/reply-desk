@@ -24,7 +24,7 @@ npm run start:dev        # http://127.0.0.1:4100/api
 | `npm run start:dev` | 개발 서버 (고치면 다시 뜸) |
 | `npm test` | 단위 테스트 (DB 없이) |
 | `npm run test:e2e` | e2e 테스트. `reply_desk_test` DB를 비우고 다시 만든다. `npm run db:up` 먼저 |
-| `npm run test:live` | 실제 YouTube 게시 시험 (손으로만). `LIVE_PROFILE_DIR`·`LIVE_VIDEO_ID`가 없으면 건너뛴다. 기본은 입력까지만, `LIVE_SUBMIT=1`이면 실제로 게시. 자세한 것은 `docs/server.md`의 '실제 게시 시험' |
+| `npm run test:live` | 실제 YouTube 게시 시험 (손으로만). `LIVE_PROFILE_DIR`·`LIVE_VIDEO_ID`가 없으면 건너뛴다. 기본은 입력까지만, `LIVE_SUBMIT=1`이면 실제로 게시, `LIVE_FIND_TEXT`면 이미 단 댓글을 찾아 캡처만. 자세한 것은 `docs/server.md`의 '실제 게시 시험' |
 | `npm run lint` | oxlint |
 | `npm run migration:generate -- src/database/migrations/<이름>` | 엔티티 변경으로 마이그레이션 만들기. 만든 뒤 `src/database/migrations.ts`에 추가 |
 | `npm run migration:revert` | 마지막 마이그레이션 되돌리기 |

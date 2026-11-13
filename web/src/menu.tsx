@@ -36,8 +36,8 @@ export const MENU: MenuItem[] = [
       { path: '/topics/:id/edit', page: <TopicFormPage /> },
     ],
   },
-  { path: '/drafts', label: '초안 목록', page: <DraftsPage />, Count: PendingDraftsCount },
-  { path: '/logs', label: '게시 기록', page: <LogsPage /> },
+  { path: '/drafts', label: '작업 목록', page: <DraftsPage />, Count: PendingDraftsCount },
+  { path: '/logs', label: '댓글 게시 목록', page: <LogsPage /> },
   { path: '/accounts', label: '계정 관리', page: <AccountsPage />, Count: NeedLoginCount },
   { path: '/settings', label: '설정', page: <SettingsPage /> },
 ];

@@ -2,6 +2,14 @@
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 
 /**
+ * 유튜브 영상 보기 주소 (화면의 링크, 영상 분석에 넘기는 주소)
+ * @param youtubeId 유튜브 영상 ID
+ */
+export function watchUrl(youtubeId: string): string {
+  return `https://www.youtube.com/watch?v=${youtubeId}`;
+}
+
+/**
  * 링크나 ID에서 유튜브 영상 ID를 꺼낸다.
  * 지원: watch?v=, youtu.be/, shorts/, embed/, live/, m.youtube.com, ID 그대로
  * @param input 사용자가 붙여 넣은 링크
