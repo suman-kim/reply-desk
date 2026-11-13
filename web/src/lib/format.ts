@@ -75,6 +75,17 @@ export function countChars(text: string): number {
 }
 
 /**
+ * 길이 검사에 쓰는 본문 글자 수: 광고 표시를 뺀 글을 센다 (서버 길이 검사와 같다)
+ * @param text 댓글 전체
+ * @param disclosure 이 댓글에 필요한 광고 표시 (내 채널 영상이면 null)
+ */
+export function bodyChars(text: string, disclosure: string | null): number {
+  const mark = disclosure?.trim();
+  const body = mark ? text.split(mark).join(' ').replace(/\s+/g, ' ').trim() : text;
+  return countChars(body);
+}
+
+/**
  * 걸린 시간 (예: 16초, 1분 5초, 2분)
  * @param startIso 시작 시각
  * @param endIso 끝난 시각 (아직이면 null → '진행 중')
