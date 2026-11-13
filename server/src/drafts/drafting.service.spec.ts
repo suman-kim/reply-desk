@@ -19,7 +19,6 @@ const topic = {
 } as unknown as Topic;
 const video = { id: 2, title: '썸 탈 때 연락 텀' } as Video;
 const analysis = {
-  worry: '연락이 뜸해진 상대의 속마음이 궁금함',
   scenes: [{ time: '04:12', quote: '확신이 없어서예요', source: 'video' }],
   sceneKeywords: ['확신', '텀'],
 } as unknown as VideoAnalysis;

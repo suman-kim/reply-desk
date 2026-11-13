@@ -50,6 +50,7 @@
 3. **분석** (설정 `ai.analysis`):
    - Gemini는 유튜브 주소를 그대로 받아 영상을 직접 본다.
    - 나머지 AI는 영상 설명과 인기 댓글(YouTube 공식 API `commentThreads`)로 분석한다.
+   - **주제와 매칭** (2026-11-13, '고민 한 줄'을 대신함): AI가 "이 영상이 주제(홍보 대상·관심 키워드)와 얼마나 맞는지" 0~100%와 이유 한 줄을 낸다(기준: 90~100 직접 다룸, 60~89 가까운 이야기, 30~59 일부만, 0~29 거의 상관없음). 코드가 0~100 정수로 맞춘다. 설정 `analysis.topicMatchThreshold`(기본 50) 이상이면 화면에 초록 '주제와 매칭됨', 미만이면 노랑 '주제와 매칭 낮음'. **초안 작성·게시는 막지 않는다**: 초안은 사람이 영상을 고르고 [초안 작성]을 눌러야 쓰고, 분석과 작성이 그 한 번에 이어서 돌기 때문이다. ② 분석 맨 위·작업 창·작업 목록 행 배지에 보인다. 이 기능 전에 한 분석은 '매칭 확인 전'([분석부터 다시]로 매김).
    - **코드가 검증한다**: 인용은 원문(설명·댓글)과 대조해 없으면 버린다. 시점은 형식과 영상 길이를 본다. 장면 핵심 단어는 인용에 있는 것만 남긴다. 고른 이유의 숫자는 AI가 `{조회수}`·`{올린때}`·`{채널}` 자리만 쓰고 코드가 채운다.
 4. **작성** (설정 `ai.drafting`): 초안을 쓰고 자동 검사를 돌린다. 걸리면 걸린 이유를 붙여 한 번 더 쓰고(최대 2번), 그래도 걸리면 "검사 미통과"로 두어 사람이 고친다.
 5. **고치기** (`PATCH /drafts/:id`): 고치면 바로 다시 검사한다. AI 원본과 다르면 `edited`가 참이 되어, 화면에서 "AI 초안 기준" 표시를 붙인다.
@@ -151,7 +152,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `profile` | 크롬 프로필: 이름, 폴더, 가린 구글 계정, 채널 ID(=내 채널), 화면 언어, 로그인 상태 |
 | `video` | 유튜브 영상과 숫자(조회수·시각·길이). 여러 주제가 함께 씀 |
 | `topic_video` | 주제별 영상 목록과 불러오기 순위, 들어온 경로(검색·직접) |
-| `video_analysis` | AI 분석: 고민 한 줄, 고른 이유[], 근거 장면[], 장면 핵심 단어[] |
+| `video_analysis` | AI 분석: 주제와 매칭 %(`topic_match`)·이유, 고른 이유[], 근거 장면[], 장면 핵심 단어[] (`worry`는 2026-11-13에 지움) |
 | `draft` | 초안: 글, AI 원본, 쓴 이유[], 고쳤는지, 검사 결과, 작성 상태 |
 | `post_attempt` | 게시 기록(댓글 게시 목록): 결과, 실패 단계·원인, 게시 결과 캡처(성공·실패), 댓글 주소 |
 | `app_setting` | 공용 설정 (키-값) |
@@ -193,10 +194,10 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `POST /topics/:id/load` | ① | [영상 불러오기] (영상만, 초안은 쓰지 않음) |
 | `GET /topics/:id/videos/:videoId/comments?limit=` | ① 영상 보기 창 | 인기 댓글(쓴 사람·좋아요·답글 수, 관련성 순). 댓글이 막힌 영상은 `disabled: true`. 할당량 1, 5분 받아 둔다 |
 | `GET /topics/:id/drafts/progress` | ① | 자동 작성 진행률 (total·done·failed·running·lastError) |
-| `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·초안·검사·상태·이 영상의 댓글 게시 |
+| `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·주제와 매칭(`topicMatch`: 퍼센트·이유·기준 이상인지·기준)·초안·검사·상태·이 영상의 댓글 게시 |
 | `POST /topics/:id/videos/:videoId/draft` `{ reanalyze? }` | ② | [다시 생성] (쓰는 중이면 409) |
 | `PATCH /drafts/:id` `{ text }` | ②·작업 목록 | 고치기 → 바로 다시 검사 |
-| `GET /drafts?status=&topicId=&q=` | 작업 목록 | 영상마다 최근 초안, 상태별 개수 (게시 대기·실패·검사 미통과·게시 완료·작성 중·작성 실패). 행마다 유튜브 주소·조회수·올린 때·길이, 쓴 AI 모델, 게시된 댓글 주소 |
+| `GET /drafts?status=&topicId=&q=` | 작업 목록 | 영상마다 최근 초안, 상태별 개수 (게시 대기·실패·검사 미통과·게시 완료·작성 중·작성 실패). 행마다 유튜브 주소·조회수·올린 때·길이, 쓴 AI 모델, 게시된 댓글 주소, 주제와 매칭 % |
 | `POST /profiles/:id/login` | 계정 관리 | [크롬 열고 직접 로그인] (일반 크롬을 그 프로필로 연다) |
 | `POST /profiles/:id/check` | 계정 관리 | [로그인 확인] (채널 ID·이름·화면 언어 저장, 결과 한 줄과 경고 여부) |
 | `POST /topics/:id/videos/:videoId/post` `{ profileId? }` | ③ | [댓글 달기]. 막히면 409 `{ code, message }` |

@@ -261,6 +261,18 @@ a:hover { color: var(--ink); }
   .rd-dl, .rd-dl-3 { grid-template-columns: 1fr; }
 }
 
+/* 주제와 매칭 상자 (② 분석 맨 위): 기준 이상 초록, 미만 노랑, 판단 전 회색 */
+.rd-match { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--radius-lg); }
+.rd-match-ok { background: var(--success-soft); color: var(--success-ink); }
+.rd-match-low { background: var(--warning-soft); color: var(--warning-ink); }
+.rd-match-none { background: var(--surface-sunken); color: var(--ink-3); }
+.rd-match-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rd-match-percent { font-size: 28px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.rd-match-bar { position: relative; height: 8px; border-radius: var(--radius-pill); background: color-mix(in srgb, currentColor 18%, transparent); }
+.rd-match-bar span { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: currentColor; }
+.rd-match-bar i { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); opacity: .55; }
+.rd-match-reason { color: var(--ink); }
+
 /* 하나씩 넣는 목록 (검색 키워드 배지) */
 .rd-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 24px; }
 .rd-tag-x {

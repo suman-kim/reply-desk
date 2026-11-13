@@ -56,7 +56,6 @@ export const DRAFT_PROMPT_VARS: PromptVar[] = [
   { name: '최대 글자 수', help: '주제의 최대 글자 수' },
   { name: '금지 표현', help: '주제의 추가 금지 표현 (없으면 그 줄을 뺀다)' },
   { name: '영상 제목', help: '영상 제목' },
-  { name: '시청자 고민', help: '분석에서 뽑은 고민 한 줄' },
   {
     name: '근거 장면',
     help: '분석에서 고른 근거 장면, 한 줄씩 "- 시점 "인용" (영상/인기 댓글)"',
@@ -81,11 +80,10 @@ export const DEFAULT_DRAFT_PROMPT = {
     '[글자 수] {{최소 글자 수}}~{{최대 글자 수}}자',
     '[쓰면 안 되는 말] {{금지 표현}}',
     '[영상 제목] {{영상 제목}}',
-    '[시청자 고민] {{시청자 고민}}',
     '[근거 장면]',
     '{{근거 장면}}',
     '',
-    '위 장면 하나를 짚어 공감하고, 고민이 홍보 대상으로 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
+    '위 장면 하나를 짚어 공감하고, 그 관심이 홍보 대상으로 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
   ].join('\n'),
   /** 자동 검사에 걸려 다시 쓸 때 자료 뒤에 덧붙이는 틀 */
   retry: [
@@ -119,7 +117,7 @@ export function draftPromptValues(
     | 'bannedWords'
   >,
   video: Pick<Video, 'title'>,
-  analysis: Pick<VideoAnalysis, 'worry' | 'scenes'>,
+  analysis: Pick<VideoAnalysis, 'scenes'>,
 ): Record<string, string> {
   const scenes = analysis.scenes
     .map(
@@ -135,7 +133,6 @@ export function draftPromptValues(
     '최대 글자 수': String(topic.maxLength),
     '금지 표현': topic.bannedWords.join(', '),
     '영상 제목': video.title,
-    '시청자 고민': analysis.worry,
     '근거 장면': scenes,
   };
 }
@@ -165,7 +162,7 @@ export function draftRetryValues(retry: {
 export function buildDraftPrompt(
   topic: Parameters<typeof draftPromptValues>[0],
   video: Pick<Video, 'title'>,
-  analysis: Pick<VideoAnalysis, 'worry' | 'scenes'>,
+  analysis: Pick<VideoAnalysis, 'scenes'>,
   retry?: { text: string; failed: CheckResult[] },
   templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
 ): string {

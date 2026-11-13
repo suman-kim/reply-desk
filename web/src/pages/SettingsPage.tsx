@@ -80,6 +80,11 @@ export function SettingsPage() {
                 setting={get("ai.analysis")!}
                 providers={providers.data ?? []}
               />
+              <TextSetting
+                key={keyOf(get("analysis.topicMatchThreshold"))}
+                setting={get("analysis.topicMatchThreshold")!}
+                type="number"
+              />
               <div className="rd-divider" />
               <AiSetting
                 key={keyOf(get("ai.drafting"))}

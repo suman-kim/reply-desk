@@ -4,6 +4,7 @@ import type { DraftDetail, Topic } from '../api/types';
 import { Button, CheckList, Field, ReasonBox } from '../ds/inyeon';
 import { countChars } from '../lib/format';
 import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
+import { TopicMatchBox } from './TopicMatchBox';
 
 /** 고친 글을 저장하기까지 기다리는 시간 (치는 동안 매번 저장하지 않게) */
 const SAVE_DELAY_MS = 700;
@@ -93,16 +94,15 @@ export function DraftReview({ topic, detail }: { topic: Topic; detail: DraftDeta
         ? editDraft.error.message
         : '고치면 바로 다시 검사해요';
 
-  // 넓으면 왼쪽은 판단 근거(고른 이유·고민·장면), 오른쪽은 초안과 검사 (좁으면 위아래)
+  // 넓으면 왼쪽은 판단 근거(주제와 매칭·고른 이유·장면), 오른쪽은 초안과 검사 (좁으면 위아래)
   return (
     <div className="rd-cq">
       <div className={`rd-split${analysis ? '' : ' is-single'}`}>
       {analysis ? (
         <div className="rd-stack-16">
+          {/* 가장 중요한 판단: 이 영상이 주제와 맞는지 */}
+          <TopicMatchBox match={detail.topicMatch} />
           <ReasonBox tone="accent" label="이 영상을 고른 이유" items={analysis.pickReasons} />
-          <ReasonBox tone="rose" label="영상 속 고민 한 줄">
-            {analysis.worry}
-          </ReasonBox>
           <div className="rd-stack-8">
             <span className="text-label rd-ink2">근거로 쓴 장면 · 댓글</span>
             {analysis.scenes.map((s, i) => (

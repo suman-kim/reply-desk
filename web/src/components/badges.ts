@@ -1,4 +1,4 @@
-import type { DraftListStatus, PostStatus, PostStep, VideoItem } from '../api/types';
+import type { DraftListStatus, PostStatus, PostStep, TopicMatch, VideoItem } from '../api/types';
 import type { Tone, VideoBadge } from '../ds/inyeon';
 
 /**
@@ -53,3 +53,12 @@ export const POST_RESULT: Record<PostStatus, { tone: Tone; label: string }> = {
   failed: { tone: 'danger', label: '실패' },
   running: { tone: 'neutral', label: '게시 중' },
 };
+
+/**
+ * 작업 목록 행의 주제 매칭 배지 (기준 이상: 초록 '매칭 82%', 미만: 노랑 '매칭 낮음 32%')
+ * @param match 주제와 매칭 (판단 전이면 null → 배지 없음)
+ */
+export function topicMatchBadge(match: Omit<TopicMatch, 'reason'> | null): { tone: Tone; label: string } | null {
+  if (!match) return null;
+  return match.matched ? { tone: 'success', label: `매칭 ${match.percent}%` } : { tone: 'warning', label: `매칭 낮음 ${match.percent}%` };
+}

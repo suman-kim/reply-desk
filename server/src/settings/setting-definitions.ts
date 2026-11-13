@@ -55,7 +55,7 @@ export const POSTING_HEADLESS = define({
 export const AI_ANALYSIS = define({
   key: 'ai.analysis',
   label: '영상 분석 AI',
-  help: '영상을 보고 고민 한 줄, 근거 장면, 고른 이유를 뽑는 AI예요. Gemini는 유튜브 영상을 직접 보고, 다른 AI는 영상 설명과 인기 댓글로 분석해요.',
+  help: '영상을 보고 주제와 얼마나 맞는지(%), 근거 장면, 고른 이유를 뽑는 AI예요. Gemini는 유튜브 영상을 직접 보고, 다른 AI는 영상 설명과 인기 댓글로 분석해요.',
   schema: aiChoiceSchema,
   defaultValue: { provider: 'gemini' as const, model: 'gemini-3.8-flash' },
 });
@@ -87,6 +87,15 @@ export const OLLAMA_NUM_CTX = define({
   help: '같은 AI PC를 쓰는 다른 앱(animation-chat)과 같은 값이어야 해요. 다르면 부를 때마다 모델을 다시 올려 느려져요.',
   schema: z.number().int().min(2048).max(131072),
   defaultValue: 16384,
+});
+
+/** 주제 매칭 기준 (%) */
+export const TOPIC_MATCH_THRESHOLD = define({
+  key: 'analysis.topicMatchThreshold',
+  label: '주제 매칭 기준 (%)',
+  help: 'AI가 영상 분석에서 매긴 "주제와 매칭" 퍼센트가 이 값 이상이면 "주제와 매칭됨", 낮으면 "매칭 낮음"으로 보여요. 초안 작성·게시는 막지 않아요.',
+  schema: z.number().int().min(0).max(100),
+  defaultValue: 50,
 });
 
 /** 영상 분석 프롬프트 (시스템 지시 + 자료 틀) */
@@ -122,6 +131,7 @@ export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   AI_DRAFTING,
   OLLAMA_BASE_URL,
   OLLAMA_NUM_CTX,
+  TOPIC_MATCH_THRESHOLD,
   PROMPT_ANALYSIS,
   PROMPT_DRAFTING,
 ] as SettingDefinition<unknown>[];

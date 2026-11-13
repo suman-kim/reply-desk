@@ -26,7 +26,7 @@ export interface EvidenceScene {
  */
 @Entity({
   name: 'video_analysis',
-  comment: 'AI 영상 분석 결과: 고민 한 줄, 고른 이유, 근거 장면',
+  comment: 'AI 영상 분석 결과: 주제와 매칭(%)·이유, 고른 이유, 근거 장면',
 })
 @Index('ix_video_analysis_topic_video', ['topicId', 'videoId', 'createdAt'])
 export class VideoAnalysis {
@@ -52,9 +52,24 @@ export class VideoAnalysis {
   @JoinColumn({ name: 'video_id' })
   video?: Video;
 
-  /** 영상 속 고민 한 줄 */
-  @Column({ type: 'text', comment: '영상 속 고민 한 줄 (금색 상자)' })
-  worry: string;
+  /** 주제와 매칭 퍼센트 (0~100, AI 판단). 이 기능 전에 한 분석은 null */
+  @Column({
+    name: 'topic_match',
+    type: 'smallint',
+    nullable: true,
+    comment:
+      '이 영상이 주제(홍보 대상·관심 키워드)와 얼마나 맞는지 0~100 (AI 판단). 이 기능 전에 한 분석은 null',
+  })
+  topicMatch: number | null;
+
+  /** 매칭 퍼센트를 그렇게 매긴 이유 한 줄 */
+  @Column({
+    name: 'topic_match_reason',
+    type: 'text',
+    nullable: true,
+    comment: '주제 매칭 퍼센트를 그렇게 매긴 이유 한 줄 (AI)',
+  })
+  topicMatchReason: string | null;
 
   /** 이 영상을 고른 이유 2~3개 */
   @Column({
