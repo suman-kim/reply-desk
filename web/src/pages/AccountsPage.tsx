@@ -83,7 +83,7 @@ function ProfileCard({ profile: p }: { profile: Profile }) {
         <div className="rd-band rd-band-warning">
           <span className="text-body-sm">
             {p.loginStatus === 'needs_login' ? '로그인이 풀렸어요 · 다시 로그인할 때까지 자동 배정에서 빠져요' : '아직 연결을 확인하지 않았어요'}
-            {'\n'}크롬 창에서 로그인하고 창을 닫은 뒤 [연결 확인]을 눌러 주세요
+            {'\n'}크롬 창에서 로그인한 뒤 [연결 확인]을 눌러 주세요 · 창은 열어 둬도 돼요
           </span>
           <Button variant="primary" size="sm" loading={openLogin.isPending} onClick={() => openLogin.mutate(p.id)}>
             크롬 열어 로그인
@@ -220,7 +220,7 @@ function NewProfileWizard() {
           </div>
           <BrowserFrame profile={`${profile.name} 프로필`} url={opened ? 'accounts.google.com/signin' : 'about:blank'} minHeight={140}>
             <p className="text-body-sm rd-muted" style={{ margin: 'auto 0', textAlign: 'center' }}>
-              {opened ? '열린 크롬 창에서 직접 로그인하고, 창을 닫아 주세요' : '[크롬 열기]를 누르면 이 프로필 전용 크롬 창이 열려요'}
+              {opened ? '열린 크롬 창에서 직접 로그인한 뒤 [로그인했어요]를 눌러 주세요 · 창은 열어 둬도 돼요' : '[크롬 열기]를 누르면 이 프로필 전용 크롬 창이 열려요'}
             </p>
           </BrowserFrame>
           <div className="rd-row">

@@ -15,6 +15,8 @@ coverage/
 # 그냥 profiles/라고 쓰면 server/src/profiles/(소스)까지 빠진다
 /profiles/
 /screenshots/
+# PROFILES_ROOT를 상대 경로(yt-agent/profiles)로 두었을 때 생기는 프로필 폴더
+yt-agent/
 
 # 편집기 설정
 .idea/

@@ -1,8 +1,13 @@
 import { spawn } from 'node:child_process';
 import { Injectable, Logger } from '@nestjs/common';
-import { chromium, type BrowserContext, type Page } from 'playwright-core';
+import type { Page } from 'playwright-core';
 import {
-  ProfileInUseError,
+  openChromeSession,
+  ATTACHABLE_CHROME_ARGS,
+  type ChromeSession,
+  type LaunchOptions,
+} from './chrome-session.js';
+import {
   type CommentBoxResult,
   type LoginCheckResult,
   type YoutubeBrowser,
@@ -29,6 +34,7 @@ const VIEWPORT = { width: 1100, height: 900 };
 
 /**
  * 크롬을 Playwright로 다루는 실제 구현. 이 맥에 설치된 Google Chrome(channel: chrome)을 쓴다.
+ * 같은 프로필의 크롬이 이미 열려 있으면(대시보드의 [크롬 열기]로 연 창) 그 크롬에 새 탭으로 붙는다.
  */
 @Injectable()
 export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
@@ -38,15 +44,17 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
     profileDir: string,
     opts: { headless: boolean },
   ): Promise<YoutubePage> {
-    const context = await this.launch(profileDir, opts.headless);
-    const page = context.pages()[0] ?? (await context.newPage());
-    return new PlaywrightYoutubePage(context, page);
+    const session = await this.open(profileDir, opts.headless);
+    // 사람이 보고 있는 창이면 게시하는 탭을 앞으로 가져온다
+    if (session.attached)
+      await session.page.bringToFront().catch(() => undefined);
+    return new PlaywrightYoutubePage(session);
   }
 
   async checkLogin(profileDir: string): Promise<LoginCheckResult> {
-    const context = await this.launch(profileDir, true);
+    const session = await this.open(profileDir, true);
     try {
-      const page = context.pages()[0] ?? (await context.newPage());
+      const page = session.page;
       await page.goto('https://www.youtube.com/', {
         waitUntil: 'domcontentloaded',
         timeout: 30_000,
@@ -98,14 +106,15 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
       }
       return { loggedIn: true, channelId, channelTitle, uiLanguage };
     } finally {
-      await context.close().catch(() => undefined);
+      await session.close();
     }
   }
 
   async openForManualLogin(profileDir: string): Promise<void> {
     const url =
       'https://accounts.google.com/ServiceLogin?continue=https%3A%2F%2Fwww.youtube.com%2F&hl=ko';
-    // 자동화 크롬은 구글이 로그인을 막으므로 일반 크롬을 그 프로필 폴더로 연다 (macOS)
+    // 자동화 크롬은 구글이 로그인을 막으므로 일반 크롬을 그 프로필 폴더로 연다 (macOS).
+    // 원격 연결을 켜 두어, 창을 닫지 않아도 [연결 확인]·게시가 이 크롬에 새 탭으로 붙는다.
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
         'open',
@@ -114,6 +123,7 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
           'Google Chrome',
           '--args',
           `--user-data-dir=${profileDir}`,
+          ...ATTACHABLE_CHROME_ARGS,
           '--no-first-run',
           url,
         ],
@@ -129,37 +139,33 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
   }
 
   /**
-   * 프로필 폴더로 크롬을 띄운다.
+   * 프로필 폴더의 크롬을 쓴다 (열려 있으면 붙고, 없으면 띄운다)
    * @param profileDir 크롬 프로필 폴더
-   * @param headless 창 없이
+   * @param headless 새로 띄울 때 창 없이
+   * @throws ProfileInUseError 열려 있는 크롬에 붙을 수 없을 때
    */
-  private async launch(
+  private async open(
     profileDir: string,
     headless: boolean,
-  ): Promise<BrowserContext> {
+  ): Promise<ChromeSession> {
+    const opts: LaunchOptions = {
+      headless,
+      viewport: VIEWPORT,
+      ignoreDefaultArgs: IGNORED_DEFAULT_ARGS,
+      args: [
+        '--disable-blink-features=AutomationControlled',
+        `--window-size=${VIEWPORT.width},${VIEWPORT.height + 120}`,
+      ],
+    };
     try {
-      return await chromium.launchPersistentContext(profileDir, {
-        channel: 'chrome',
-        headless,
-        viewport: VIEWPORT,
-        locale: 'ko-KR',
-        ignoreDefaultArgs: IGNORED_DEFAULT_ARGS,
-        args: [
-          '--disable-blink-features=AutomationControlled',
-          `--window-size=${VIEWPORT.width},${VIEWPORT.height + 120}`,
-        ],
-        timeout: 30_000,
-      });
+      const session = await openChromeSession(profileDir, opts);
+      if (session.attached)
+        this.logger.log(`열려 있는 크롬에 붙음: ${profileDir}`);
+      return session;
     } catch (err) {
-      const message = String((err as Error)?.message ?? err);
-      this.logger.warn(`크롬 띄우기 실패: ${message.split('\n')[0]}`);
-      if (
-        /ProcessSingleton|SingletonLock|already in use|profile.*in use|exited|closed/i.test(
-          message,
-        )
-      ) {
-        throw new ProfileInUseError();
-      }
+      this.logger.warn(
+        `크롬 열기 실패: ${String((err as Error)?.message ?? err).split('\n')[0]}`,
+      );
       throw err;
     }
   }
@@ -167,14 +173,15 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
 
 /** Playwright로 연 YouTube 탭 */
 class PlaywrightYoutubePage implements YoutubePage {
+  /** 일할 탭 */
+  private readonly page: Page;
+
   /**
-   * @param context 크롬 (닫을 때 함께 닫는다)
-   * @param page 탭
+   * @param session 크롬 (닫을 때 함께 끝낸다: 띄운 크롬은 닫고, 붙은 크롬은 이 탭만 닫는다)
    */
-  constructor(
-    private readonly context: BrowserContext,
-    private readonly page: Page,
-  ) {}
+  constructor(private readonly session: ChromeSession) {
+    this.page = session.page;
+  }
 
   async openVideo(youtubeId: string): Promise<void> {
     await this.page.goto(`https://www.youtube.com/watch?v=${youtubeId}&hl=ko`, {
@@ -309,7 +316,7 @@ class PlaywrightYoutubePage implements YoutubePage {
   }
 
   async close(): Promise<void> {
-    await this.context.close().catch(() => undefined);
+    await this.session.close();
   }
 
   /** 요소가 화면에 보이는지 */

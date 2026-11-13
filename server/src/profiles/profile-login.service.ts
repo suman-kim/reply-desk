@@ -66,7 +66,7 @@ export class ProfileLoginService {
     }
     return {
       message:
-        '크롬 창에서 구글 로그인을 마치고 창을 닫은 뒤 [로그인 확인]을 눌러 주세요',
+        '크롬 창에서 구글 로그인을 마친 뒤 [연결 확인]을 눌러 주세요 · 창은 열어 둬도 돼요',
     };
   }
 
