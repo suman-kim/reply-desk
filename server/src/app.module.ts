@@ -6,6 +6,7 @@ import { ChecksModule } from './checks/checks.module.js';
 import { envSchema, type Env } from './config/env.schema.js';
 import { buildDataSourceOptions } from './database/typeorm-options.js';
 import { DraftsModule } from './drafts/drafts.module.js';
+import { EventsModule } from './events/events.module.js';
 import { HealthController } from './health.controller.js';
 import { PostingModule } from './posting/posting.module.js';
 import { PublishModule } from './publish/publish.module.js';
@@ -17,7 +18,7 @@ import { VideosModule } from './videos/videos.module.js';
 
 /**
  * 앱 루트 모듈.
- * 다음 작업에서 붙일 모듈: events(SSE 실시간 진행).
+ * 실시간 진행은 EventsModule(전역)이 SSE로 보낸다.
  */
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { VideosModule } from './videos/videos.module.js';
         migrationsRun: true,
       }),
     }),
+    EventsModule,
     SettingsModule,
     ChecksModule,
     ProfilesModule,

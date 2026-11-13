@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AiError } from '../ai/ai-provider.js';
+import { EventsService } from '../events/events.service.js';
 import { Topic } from '../topics/topic.entity.js';
 import { Video } from '../videos/video.entity.js';
 import { AnalysisService } from './analysis.service.js';
@@ -70,6 +71,7 @@ export class DraftQueueService implements OnModuleInit {
    * @param videos 영상 저장소
    * @param analysis 영상 분석
    * @param drafting 초안 작성
+   * @param events 실시간 이벤트 (카드 배지·진행률)
    */
   constructor(
     @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
@@ -77,6 +79,7 @@ export class DraftQueueService implements OnModuleInit {
     @InjectRepository(Video) private readonly videos: Repository<Video>,
     private readonly analysis: AnalysisService,
     private readonly drafting: DraftingService,
+    private readonly events: EventsService,
   ) {}
 
   /** 서버가 뜰 때: 지난번에 쓰다 멈춘 초안을 실패로 바꾼다 */
@@ -117,6 +120,14 @@ export class DraftQueueService implements OnModuleInit {
         this.drafts.create({ topicId, videoId, state: DraftState.Writing }),
       );
       created.push(row);
+      this.emitDraft(
+        row.topicId,
+        row.videoId,
+        row.id,
+        DraftState.Writing,
+        false,
+        null,
+      );
       this.tasks.push({
         draftId: row.id,
         topicId,
@@ -137,6 +148,7 @@ export class DraftQueueService implements OnModuleInit {
         finishedAt: created.length > 0 ? null : new Date(),
       });
     }
+    if (opts.trackProgress) this.emitProgress(topicId);
     if (created.length > 0) this.kick();
     return created;
   }
@@ -168,7 +180,10 @@ export class DraftQueueService implements OnModuleInit {
       let task: DraftTask | undefined;
       while ((task = this.tasks[0])) {
         const p = this.progress.get(task.topicId);
-        if (p?.running) p.currentVideoId = task.videoId;
+        if (p?.running) {
+          p.currentVideoId = task.videoId;
+          this.emitProgress(task.topicId);
+        }
         const error = await this.process(task);
         this.tasks.shift();
         if (p?.running) {
@@ -182,6 +197,7 @@ export class DraftQueueService implements OnModuleInit {
             p.currentVideoId = null;
             p.finishedAt = new Date();
           }
+          this.emitProgress(task.topicId);
         }
       }
     } finally {
@@ -221,6 +237,14 @@ export class DraftQueueService implements OnModuleInit {
         model: written.model,
         errorMessage: null,
       });
+      this.emitDraft(
+        task.topicId,
+        task.videoId,
+        task.draftId,
+        DraftState.Ready,
+        written.report.passed,
+        null,
+      );
       return null;
     } catch (err) {
       const message =
@@ -235,7 +259,59 @@ export class DraftQueueService implements OnModuleInit {
           { state: DraftState.Error, errorMessage: message },
         )
         .catch(() => undefined);
+      this.emitDraft(
+        task.topicId,
+        task.videoId,
+        task.draftId,
+        DraftState.Error,
+        false,
+        message,
+      );
       return message;
     }
+  }
+
+  /** 주제 진행률을 화면에 알린다 */
+  private emitProgress(topicId: number): void {
+    const p = this.progress.get(topicId);
+    if (!p) return;
+    this.events.emit({
+      type: 'draft.progress',
+      topicId,
+      total: p.total,
+      done: p.done,
+      failed: p.failed,
+      running: p.running,
+      currentVideoId: p.currentVideoId,
+      lastError: p.lastError,
+    });
+  }
+
+  /**
+   * 초안 상태를 화면에 알린다
+   * @param topicId 주제 ID
+   * @param videoId 영상 ID
+   * @param draftId 초안 ID
+   * @param state 작성 상태
+   * @param checkPassed 자동 검사 통과
+   * @param errorMessage 작성 실패 원인
+   */
+  private emitDraft(
+    topicId: number,
+    videoId: number,
+    draftId: number,
+    state: DraftState,
+    checkPassed: boolean,
+    errorMessage: string | null,
+  ): void {
+    this.events.emit({
+      type: 'draft.updated',
+      topicId,
+      videoId,
+      draftId,
+      state,
+      checkPassed,
+      errorMessage,
+    });
   }
 }

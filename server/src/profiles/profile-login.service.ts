@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import { ProfileLockService } from '../browser/profile-lock.service.js';
+import { EventsService } from '../events/events.service.js';
 import {
   ProfileInUseError,
   YOUTUBE_BROWSER,
@@ -36,12 +37,14 @@ export class ProfileLoginService {
    * @param profiles 프로필 서비스
    * @param browser 크롬 조작
    * @param lock 프로필 잠금 (게시 중인 프로필은 열지 않는다)
+   * @param events 실시간 이벤트 (헤더·계정 관리의 로그인 상태)
    */
   constructor(
     @InjectRepository(Profile) private readonly repo: Repository<Profile>,
     private readonly profiles: ProfilesService,
     @Inject(YOUTUBE_BROWSER) private readonly browser: YoutubeBrowser,
     private readonly lock: ProfileLockService,
+    private readonly events: EventsService,
   ) {}
 
   /**
@@ -72,6 +75,13 @@ export class ProfileLoginService {
    * @param id 프로필 ID
    */
   async check(id: number): Promise<LoginCheckView> {
+    const view = await this.checkAndSave(id);
+    this.emitProfile(view.profile);
+    return view;
+  }
+
+  /** 크롬으로 읽고 저장한다 (check의 본문) */
+  private async checkAndSave(id: number): Promise<LoginCheckView> {
     const profile = await this.profiles.findOrFail(id);
     const result = await this.lock
       .run(id, '로그인 확인', () => this.browser.checkLogin(profile.folderPath))
@@ -144,6 +154,29 @@ export class ProfileLoginService {
    * @param id 프로필 ID
    */
   async markLoginLost(id: number): Promise<void> {
+    await this.saveLoginLost(id);
+    this.emitProfile(await this.profiles.findOrFail(id));
+  }
+
+  /**
+   * 로그인 상태가 바뀌었음을 화면에 알린다
+   * @param profile 프로필
+   */
+  private emitProfile(profile: {
+    id: number;
+    name: string;
+    loginStatus: ProfileLoginStatus;
+  }): void {
+    this.events.emit({
+      type: 'profile.updated',
+      profileId: profile.id,
+      name: profile.name,
+      loginStatus: profile.loginStatus,
+    });
+  }
+
+  /** 다시 로그인 필요로 저장한다 */
+  private async saveLoginLost(id: number): Promise<void> {
     await this.repo.update(id, {
       loginStatus: ProfileLoginStatus.NeedsLogin,
       lastCheckedAt: new Date(),

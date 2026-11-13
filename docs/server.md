@@ -29,6 +29,7 @@
 | `posting` | 오늘 게시 현황, 게시 기록 | 완료 |
 | `browser` | 크롬 조작 인터페이스(`YoutubeBrowser`·`YoutubePage`, 어댑터)와 Playwright 구현, 프로필 잠금 | 완료 |
 | `publish` | [댓글 달기]: 규칙 재확인 → 게시 중 행 → 5단계(단계마다 객체), 미리보기·실패 캡처 | 완료 |
+| `events` | 실시간 이벤트(관찰자 패턴, rxjs `Subject`)와 SSE `GET /events?topicId=` | 완료 |
 | `ai` | 제공자 어댑터 4개(`AiProvider`, 어댑터 패턴), 역할별 선택(`AiService`) | 완료 |
 | `drafts` | 영상 분석 → 초안 작성 → 자동 검사, 작성 대기열(차례로 하나씩), 다시 생성, 고치기, 초안 목록 | 완료 |
 
@@ -64,6 +65,26 @@
 - 같은 프로필을 두 번 열면 "같은 프로필의 크롬이 이미 열려 있어요"로 알아봤다.
 
 **아직 확인하지 못한 것**: 로그인한 계정으로 하는 한 글자씩 입력, 게시, 내 댓글 확인. 실제 계정과 내 채널의 테스트 영상이 있어야 한다.
+
+## 실시간 이벤트 (SSE)
+
+화면은 `new EventSource('/api/events?topicId=1')` 연결 하나로 아래 이벤트를 받는다. 이벤트 이름이 SSE `event:`가 되므로 `addEventListener('draft.progress', …)`처럼 이름별로 받는다. 모양은 `server/src/events/app-events.ts`에 타입으로 있다.
+
+| 이벤트 | 언제 | 화면 |
+| --- | --- | --- |
+| `draft.progress` | 자동 작성이 시작·한 편 끝·모두 끝날 때 | ① 버튼 "초안 자동 작성 중 (2/5)" |
+| `draft.updated` | 초안이 작성 중·준비됨·실패로 바뀌거나 사람이 고칠 때 | ① 카드 배지, ② 칸 새로 읽기, 초안 목록 |
+| `post.progress` | 게시 단계가 바뀔 때, 입력 글자 수(0.15초마다·마지막 글자) | ③ 진행 5단계, "한 글자씩 입력 중 (34/91자)" |
+| `post.preview` | 크롬 화면을 새로 찍었을 때 (1.5초마다) | ③ 크롬 미리보기 (`/posting/attempts/:id/preview?seq=`로 다시 받기) |
+| `post.finished` | 게시가 끝났을 때 (성공·실패, 원인, 캡처 여부, 댓글 주소) | ③ 게시 완료 띠·실패 원인, 게시 기록 |
+| `quota.updated` | 게시에 성공했을 때 | 헤더 "오늘 게시 n/10" |
+| `profile.updated` | [로그인 확인]이나 게시 중 로그인이 풀린 것을 알았을 때 | 헤더 "유튜브2 로그인 필요", 계정 관리 경고 띠 |
+
+- `topicId`를 주면 그 주제의 이벤트와 주제가 없는 이벤트(`quota.updated`, `profile.updated`)만 보낸다.
+- 25초마다 주석 줄(`: ping`)로 연결을 살려 둔다. 끊기면 EventSource가 스스로 다시 붙는다. 다시 붙은 사이에 놓친 이벤트는 다시 보내지 않으므로, 화면은 다시 붙을 때 조회 API로 상태를 새로 읽는다.
+- 이벤트는 메모리에서만 흐른다(서버 하나). 다른 패키지(`@nestjs/event-emitter`)를 더하지 않고 rxjs `Subject`를 쓴다. SSE가 rxjs `Observable`을 그대로 받기 때문이다.
+
+실제 서버 확인 (2026-11-13): `curl -N /api/events`로 연결을 열고 [로그인 확인]을 누르자 `event: profile.updated`가 왔다. 응답 헤더는 `text/event-stream`, `X-Accel-Buffering: no`였다.
 
 ## 테이블
 
@@ -126,6 +147,7 @@
 | `GET /posting/attempts/:id/preview` | ③ | 크롬 화면 미리보기 (게시 중·끝난 뒤 10분) |
 | `GET /posting/attempts/:id/capture` | 게시 기록 | 실패 캡처 ([캡처 보기]) |
 | `GET /posting/today` | 헤더 | 오늘 게시 n/상한, 주제별 수 |
+| `GET /events?topicId=` | 모든 화면 | 실시간 이벤트 (SSE, 위 '실시간 이벤트' 절) |
 | `GET /posting/logs?topicId=&limit=` | 게시 기록 | 최근 순 기록 |
 
 ## 남은 것
@@ -136,5 +158,4 @@
 ## 다음 작업
 
 1. **실제 계정으로 게시 시험**: 테스트 계정으로 로그인하고, 내 채널의 테스트 영상에 한 번 달아 본다. 입력·게시·확인 단계의 화면 요소 규칙을 확인한다.
-2. **실시간 진행** (`events`): SSE로 진행률·게시 단계·크롬 스크린샷. 지금 진행률은 조회 API로 본다.
-3. **대시보드 화면**: `design/inyeon-prototype`과 Inyeon 디자인 시스템 기준.
+2. **대시보드 화면**: `design/inyeon-prototype`과 Inyeon 디자인 시스템 기준.
