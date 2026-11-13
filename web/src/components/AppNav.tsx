@@ -3,6 +3,8 @@ import { useProfiles, useToday } from '../api/queries';
 import { Badge, StatPill } from '../ds/inyeon';
 import type { LiveStatus } from '../live/useLiveEvents';
 import { MENU, menuOf } from '../menu';
+import { PendingDraftsCount } from './MenuCounts';
+import { useTaskShell } from './task-shell-context';
 
 /**
  * 모든 화면 위의 메뉴: 앱 이름 · 메뉴 탭(menu.tsx 목록) · 오늘 전체 게시 n/10 · 로그인 필요 알림
@@ -14,6 +16,7 @@ export function AppNav({ live }: { live: LiveStatus }) {
   const profiles = useProfiles();
   const today = useToday();
   const needLogin = profiles.data?.filter((p) => p.loginStatus === 'needs_login') ?? [];
+  const shell = useTaskShell();
 
   return (
     <nav className="rd-nav" aria-label="메뉴">
@@ -41,6 +44,17 @@ export function AppNav({ live }: { live: LiveStatus }) {
               </Badge>
             </Link>
           ))}
+          {/* 전역 작업 패널 열기·닫기 (숫자는 게시 대기 초안) */}
+          <button
+            type="button"
+            className={`rd-nav-task${shell.panelOpen ? ' is-on' : ''}`}
+            aria-pressed={shell.panelOpen}
+            aria-controls="rd-task-panel"
+            onClick={shell.togglePanel}
+          >
+            작업
+            <PendingDraftsCount />
+          </button>
           {/* 서버에서 받은 값만 보인다 (불러오기 전에는 숫자를 지어내지 않는다) */}
           {today.data ? <StatPill label="오늘 전체 게시" value={today.data.posted} max={today.data.cap} /> : null}
         </div>

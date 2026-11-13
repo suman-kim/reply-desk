@@ -1,0 +1,283 @@
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { api } from '../api/http';
+import { useDrafts } from '../api/queries';
+import type { DraftListStatus, VideoItem } from '../api/types';
+import { Badge, Button, Segmented } from '../ds/inyeon';
+import { formatLogTime } from '../lib/format';
+import type { LiveEvent } from '../live/apply-event';
+import { NoticeRules, type Notice } from '../live/notify-rules';
+import { STATUS_TONE, topicMatchBadge } from './badges';
+import { DraftDetailModal, type TaskRef } from './DraftDetailModal';
+import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
+import { TaskShellContext, useTaskShell, type BrowserNotify, type TaskShellValue } from './task-shell-context';
+
+/** 화면에 띄운 알림 (작업이면 영상 제목을 붙인다) */
+type ShownNotice = Notice & {
+  /** 알림의 영상 제목 */
+  subject?: string;
+};
+
+/** 브라우저 저장소 키 (패널 열림, 브라우저 알림 켬) */
+const PANEL_KEY = 'rd.taskPanelOpen';
+const NOTIFY_KEY = 'rd.browserNotify';
+/** 알림이 화면에 머무는 시간 */
+const NOTICE_MS = 7_000;
+/** 화면에 한 번에 쌓는 알림 수 */
+const MAX_NOTICES = 4;
+
+/**
+ * 브라우저 저장소 읽기 (막힌 브라우저에서도 화면이 그려지게)
+ * @param key 키
+ */
+function readFlag(key: string): boolean {
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 브라우저 저장소 쓰기
+ * @param key 키
+ * @param on 켬/끔
+ */
+function writeFlag(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {
+    // 저장이 막혀도 이번 화면에서는 동작한다
+  }
+}
+
+/**
+ * 전역 작업 패널·알림. 어느 화면에서나 작업 창을 열고, 실시간 이벤트를 알림(오른쪽 아래)과 브라우저 알림으로 띄운다.
+ * @param props.children 앱 화면
+ */
+export function TaskShellProvider({ children }: { children: ReactNode }) {
+  const navigate = useNavigate();
+  const [panelOpen, setPanelOpen] = useState(() => readFlag(PANEL_KEY));
+  const [task, setTask] = useState<TaskRef | null>(null);
+  const [notices, setNotices] = useState<ShownNotice[]>([]);
+  const supported = typeof window !== 'undefined' && 'Notification' in window;
+  const [permission, setPermission] = useState<NotificationPermission>(supported ? Notification.permission : 'denied');
+  const [notifyPref, setNotifyPref] = useState(() => readFlag(NOTIFY_KEY));
+  const rules = useRef(new NoticeRules());
+  const browserOn = supported && notifyPref && permission === 'granted';
+  const browserOnRef = useRef(browserOn);
+  useEffect(() => {
+    browserOnRef.current = browserOn;
+  }, [browserOn]);
+
+  const togglePanel = useCallback(() => {
+    setPanelOpen((open) => {
+      writeFlag(PANEL_KEY, !open);
+      return !open;
+    });
+  }, []);
+
+  const dismiss = useCallback((id: number) => setNotices((list) => list.filter((n) => n.id !== id)), []);
+
+  /**
+   * 알림의 [보기]: 작업이면 작업 창, 아니면 그 화면으로
+   * @param n 알림
+   */
+  const act = useCallback(
+    (n: Notice) => {
+      if (n.target) setTask(n.target);
+      else if (n.href) void navigate(n.href);
+    },
+    [navigate],
+  );
+
+  const show = useCallback(
+    (n: ShownNotice) => {
+      setNotices((list) => [...list, n].slice(-MAX_NOTICES));
+      setTimeout(() => dismiss(n.id), NOTICE_MS);
+      // 다른 탭·창을 보고 있을 때만 브라우저 알림 (보고 있으면 화면 알림으로 충분하다)
+      if (browserOnRef.current && document.visibilityState === 'hidden') {
+        const bn = new Notification(n.title, { body: [n.subject, n.body].filter(Boolean).join('\n'), tag: `rd-${n.id}` });
+        bn.onclick = () => {
+          window.focus();
+          act(n);
+          bn.close();
+        };
+      }
+    },
+    [act, dismiss],
+  );
+
+  const onLiveEvent = useCallback(
+    (e: LiveEvent) => {
+      const notice = rules.current.toNotice(e);
+      if (!notice) return;
+      if (!notice.target) return show(notice);
+      // 작업 알림에는 영상 제목을 붙인다 (못 받으면 제목 없이)
+      api<VideoItem>('GET', `/topics/${notice.target.topicId}/videos/${notice.target.videoId}`)
+        .then((v) => show({ ...notice, subject: v.title }))
+        .catch(() => show(notice));
+    },
+    [show],
+  );
+
+  const browserNotify = useMemo<BrowserNotify>(
+    () => ({
+      supported,
+      on: browserOn,
+      denied: permission === 'denied',
+      enable: () => {
+        if (!supported) return;
+        void Notification.requestPermission().then((p) => {
+          setPermission(p);
+          setNotifyPref(p === 'granted');
+          writeFlag(NOTIFY_KEY, p === 'granted');
+        });
+      },
+      disable: () => {
+        setNotifyPref(false);
+        writeFlag(NOTIFY_KEY, false);
+      },
+    }),
+    [supported, browserOn, permission],
+  );
+
+  const value = useMemo<TaskShellValue>(
+    () => ({ panelOpen, togglePanel, openTask: setTask, onLiveEvent, browserNotify }),
+    [panelOpen, togglePanel, onLiveEvent, browserNotify],
+  );
+
+  return (
+    <TaskShellContext.Provider value={value}>
+      {children}
+      <div className="rd-toasts" role="status" aria-live="polite">
+        {notices.map((n) => (
+          <div key={n.id} className={`rd-toast rd-toast-${n.tone}`}>
+            <span className="text-body-strong">{n.title}</span>
+            {n.subject ? <span className="text-body-sm rd-clamp">{n.subject}</span> : null}
+            <span className="text-caption rd-muted">{n.body}</span>
+            <div className="rd-toast-actions">
+              {n.target || n.href ? (
+                <button
+                  type="button"
+                  className="rd-link-button"
+                  onClick={() => {
+                    act(n);
+                    dismiss(n.id);
+                  }}
+                >
+                  보기
+                </button>
+              ) : null}
+              <button type="button" className="rd-link-button" aria-label="알림 닫기" onClick={() => dismiss(n.id)}>
+                닫기
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {task ? <DraftDetailModal sel={task} onClose={() => setTask(null)} /> : null}
+    </TaskShellContext.Provider>
+  );
+}
+
+/** 패널 거르기: 게시 대기 · 작성 중 · 확인 필요(실패·검사 미통과·작성 실패) · 전체 */
+const PANEL_GROUPS: Record<'pending' | 'writing' | 'attention' | 'all', DraftListStatus[] | null> = {
+  pending: ['pending'],
+  writing: ['writing'],
+  attention: ['failed', 'check_failed', 'error'],
+  all: null,
+};
+
+/** 패널에 한 번에 보이는 작업 수 (더 보려면 작업 목록으로) */
+const PANEL_ROWS = 30;
+
+/**
+ * 전역 작업 패널 (오른쪽). 어느 화면에서나 작업 목록을 보고, 행을 누르면 그 자리에서 작업 창을 연다.
+ * 넓으면 오른쪽에 붙고(본문이 좁아짐), 좁으면 위에 덮는다(styles.css). 아래 링크로 작업 목록 화면에 간다.
+ */
+export function TaskPanel() {
+  const shell = useTaskShell();
+  const drafts = useDrafts({});
+  const [group, setGroup] = useState<keyof typeof PANEL_GROUPS>('pending');
+  const counts = drafts.data?.counts;
+  const count = (g: keyof typeof PANEL_GROUPS) =>
+    counts ? (PANEL_GROUPS[g] ?? (Object.keys(counts) as DraftListStatus[])).reduce((sum, s) => sum + counts[s], 0) : 0;
+  const statuses = PANEL_GROUPS[group];
+  const rows = (drafts.data?.rows ?? []).filter((r) => !statuses || statuses.includes(r.status));
+  const { browserNotify } = shell;
+
+  return (
+    <aside id="rd-task-panel" className="rd-taskpanel" aria-label="작업 패널">
+      <div className="rd-card-head">
+        <span className="text-heading">작업</span>
+        <Button variant="ghost" size="sm" onClick={shell.togglePanel}>
+          닫기
+        </Button>
+      </div>
+      <Segmented
+        label="작업 거르기"
+        value={group}
+        onChange={(v) => setGroup(v as keyof typeof PANEL_GROUPS)}
+        options={[
+          { value: 'pending', label: `게시 대기 ${count('pending')}` },
+          { value: 'writing', label: `작성 중 ${count('writing')}` },
+          { value: 'attention', label: `확인 필요 ${count('attention')}` },
+          { value: 'all', label: '전체' },
+        ]}
+      />
+      {drafts.isPending ? <LoadingBox>작업을 불러오는 중…</LoadingBox> : null}
+      {drafts.error ? <ErrorBand error={drafts.error} onRetry={() => void drafts.refetch()} /> : null}
+      {drafts.data && rows.length === 0 ? (
+        <EmptyBox>{group === 'writing' ? '지금 쓰는 초안이 없어요' : '이 칸에 해당하는 작업이 없어요'}</EmptyBox>
+      ) : null}
+      <div className="rd-stack">
+        {rows.slice(0, PANEL_ROWS).map((r) => {
+          const match = topicMatchBadge(r.topicMatch);
+          return (
+            <button
+              key={r.id}
+              type="button"
+              className="rd-task-row"
+              aria-haspopup="dialog"
+              onClick={() => shell.openTask({ topicId: r.topic.id, videoId: r.video.id })}
+            >
+              <span className="rd-row-tight">
+                <Badge tone={STATUS_TONE[r.status]}>{r.statusLabel}</Badge>
+                {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
+              </span>
+              <span className="text-body-sm rd-clamp">{r.video.title}</span>
+              <span className="text-caption rd-muted">
+                {r.topic.name} · {formatLogTime(r.updatedAt)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <Link to="/drafts" className="text-body-sm rd-task-more">
+        작업 목록에서 모두 보기 →
+      </Link>
+      <div className="rd-task-notify text-caption">
+        {!browserNotify.supported ? (
+          <span className="rd-muted">이 브라우저는 알림을 지원하지 않아요 · 화면 알림만 보여요</span>
+        ) : browserNotify.on ? (
+          <>
+            <span className="rd-muted">브라우저 알림 켜짐 · 다른 탭을 보고 있을 때 알려 줘요</span>
+            <button type="button" className="rd-link-button" onClick={browserNotify.disable}>
+              끄기
+            </button>
+          </>
+        ) : browserNotify.denied ? (
+          <span className="rd-muted">브라우저 설정에서 이 사이트의 알림이 막혀 있어요 · 주소창 왼쪽 자물쇠에서 허용해 주세요</span>
+        ) : (
+          <>
+            <span className="rd-muted">초안·게시가 끝나면 다른 탭을 보고 있어도 알려 줘요</span>
+            <button type="button" className="rd-link-button" onClick={browserNotify.enable}>
+              브라우저 알림 켜기
+            </button>
+          </>
+        )}
+      </div>
+    </aside>
+  );
+}
