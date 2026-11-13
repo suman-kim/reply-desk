@@ -40,15 +40,19 @@ export function DraftReview({ topic, detail }: { topic: Topic; detail: DraftDeta
   const regenError = regenerate.error ? <ErrorBand error={regenerate.error} /> : null;
 
   if (!draft) {
+    // 불러오기는 초안을 쓰지 않는다 · 이 영상을 골랐을 때 여기서 쓴다 (② 칸의 주요 버튼)
     return (
       <>
         <EmptyBox>
           아직 이 영상의 초안이 없어요
           <br />
-          [다시 생성]을 누르면 영상을 분석하고 초안을 써요
+          [초안 작성]을 누르면 영상을 분석하고 댓글 초안을 써요
         </EmptyBox>
         {regenError}
-        {regenButtons}
+        <Button variant="primary" fullWidth loading={regenerate.isPending} disabled={video.commented} onClick={() => regen(false)}>
+          초안 작성
+        </Button>
+        {video.commented ? <span className="text-caption rd-block-reason">이미 댓글을 단 영상이라 초안을 쓰지 않아요</span> : null}
       </>
     );
   }

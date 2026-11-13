@@ -115,32 +115,16 @@ describe('실시간 이벤트 (e2e)', () => {
     });
   });
 
-  it('[영상 불러오기]: 카드 배지(draft.updated)와 진행률(draft.progress)을 차례로 보낸다', async () => {
+  it('[초안 작성]: 카드 배지(draft.updated)를 작성 중 → 준비됨·실패로 차례로 보낸다', async () => {
+    const loaded = await http().post(`/api/topics/${topicId}/load`).expect(201);
     seen.length = 0;
-    await http().post(`/api/topics/${topicId}/load`).expect(201);
+    for (const v of loaded.body.videos as Card[]) {
+      await http()
+        .post(`/api/topics/${topicId}/videos/${v.id}/draft`)
+        .send({})
+        .expect(201);
+    }
     await app.get(DraftQueueService).whenIdle();
-
-    const progress = seen.filter((e) => e.type === 'draft.progress');
-    expect(progress[0]).toMatchObject({
-      topicId,
-      total: 3,
-      done: 0,
-      running: true,
-    });
-    expect(progress.at(-1)).toMatchObject({
-      topicId,
-      total: 3,
-      done: 3,
-      failed: 1,
-      running: false,
-      currentVideoId: null,
-    });
-    // 진행률이 1씩 오른다 (0 → 1 → 2 → 3)
-    expect([
-      ...new Set(
-        progress.map((p) => (p.type === 'draft.progress' ? p.done : -1)),
-      ),
-    ]).toEqual([0, 1, 2, 3]);
 
     const updates = seen.filter((e) => e.type === 'draft.updated');
     expect(

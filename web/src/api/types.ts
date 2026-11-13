@@ -391,6 +391,29 @@ export interface SettingView {
 export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'ollama';
 
 /** AI 제공자 안내 (GET /settings/ai/providers) */
+/** 영상 보기 창의 인기 댓글 (GET /topics/:id/videos/:videoId/comments) */
+export interface VideoComments {
+  /** 댓글이 막힌 영상인지 */
+  disabled: boolean;
+  /** 댓글 (관련성 순) */
+  comments: {
+    /** 댓글 ID */
+    id: string;
+    /** 쓴 사람 */
+    author: string;
+    /** 쓴 사람 사진 */
+    authorImageUrl: string | null;
+    /** 본문 */
+    text: string;
+    /** 좋아요 수 */
+    likeCount: number;
+    /** 답글 수 */
+    replyCount: number;
+    /** 쓴 시각 (ISO) */
+    publishedAt: string;
+  }[];
+}
+
 /** 모델 고르기 목록 (GET /settings/ai/providers/:id/models) */
 export interface AiModelList {
   /** 제공자 */

@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router';
 import {
   useActions,
   useDraftDetail,
-  useDraftProgress,
   useToday,
   useTopics,
   useVideos,
@@ -12,6 +11,7 @@ import type { Topic } from '../api/types';
 import { videoBadges } from '../components/badges';
 import { DraftReview } from '../components/DraftReview';
 import { PostControl } from '../components/PostControl';
+import { VideoModal, type ModalVideo } from '../components/VideoModal';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, Panel, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
 import { formatDuration, formatViews, relativeTime } from '../lib/format';
@@ -142,6 +142,8 @@ function TopicWorkspace({
   const today = useToday();
   const videos = useVideos(topic.id);
   const selected = videos.data?.find((v) => v.id === videoId) ?? null;
+  /** 영상 보기 창에 띄운 영상 (①의 [영상 보기], ② 머리의 [영상 보기]) */
+  const [watching, setWatching] = useState<ModalVideo | null>(null);
 
   // 영상이 있는데 고른 것이 없거나 목록에 없으면 1위 영상을 고른다 (계획서: 준비 완료 → 1위 영상 자동 선택)
   useEffect(() => {
@@ -195,11 +197,13 @@ function TopicWorkspace({
 
       <StepBar topic={topic} videoId={selected?.id ?? null} videoCount={videos.data?.length ?? null} step={step} onStep={onStep} />
 
-      {step === 1 ? <LoadPanel topic={topic} selectedId={selected?.id ?? null} onSelect={onPickVideo} /> : null}
-      {step === 2 ? <SelectPanel topic={topic} videoId={selected?.id ?? null} onSelect={onSelectVideo} /> : null}
+      {step === 1 ? <LoadPanel topic={topic} selectedId={selected?.id ?? null} onSelect={onPickVideo} onWatch={setWatching} /> : null}
+      {step === 2 ? <SelectPanel topic={topic} videoId={selected?.id ?? null} onSelect={onSelectVideo} onWatch={setWatching} /> : null}
       {step === 3 ? <PostPanel topic={topic} videoId={selected?.id ?? null} /> : null}
 
       <StepNav step={step} canGo={(n) => n === 1 || !!selected} onStep={onStep} />
+
+      <VideoModal topicId={topic.id} video={watching} onClose={() => setWatching(null)} />
     </>
   );
 }
@@ -294,47 +298,54 @@ function StepNav({ step, canGo, onStep }: { step: Step; canGo: (n: Step) => bool
   );
 }
 
+/** ① 목록을 한 번에 그리는 카드 수 (무제한으로 불러와도 화면이 무겁지 않게 [더 보기]로 늘린다) */
+const PAGE_SIZE = 30;
+
 /**
- * ① 영상 불러오기. 카드를 누르면 그 영상으로 ② 영상 선택으로 넘어간다.
+ * ① 영상 불러오기: 영상만 불러온다(초안은 ②에서). 카드를 누르면 그 영상으로 ② 영상 선택으로 넘어가고,
+ * 카드의 [영상 보기]는 이 화면에서 영상과 댓글을 띄운다.
  * @param props.topic 주제
  * @param props.selectedId 고른 영상
  * @param props.onSelect 카드를 눌러 영상을 고를 때
+ * @param props.onWatch 영상 보기 창을 열 때
  */
-function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: number | null; onSelect: (id: number) => void }) {
+function LoadPanel({
+  topic,
+  selectedId,
+  onSelect,
+  onWatch,
+}: {
+  topic: Topic;
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+  onWatch: (v: ModalVideo) => void;
+}) {
   const { load } = useActions();
   const videos = useVideos(topic.id);
-  const progress = useDraftProgress(topic.id);
-  const p = progress.data;
-  const drafting = !!p?.running;
+  const [shown, setShown] = useState(PAGE_SIZE);
   const has = (videos.data?.length ?? 0) > 0;
   const sortLabel = topic.videoSortBy === 'date' ? '최신순' : '조회수 높은 순';
+  const countLabel = topic.fetchLimit > 0 ? `상위 ${topic.fetchLimit}개` : '검색 결과 끝까지(최대 500개)';
 
-  const label = load.isPending
-    ? '최신 영상 불러오는 중…'
-    : drafting
-      ? `초안 자동 작성 중 (${p!.done}/${p!.total})`
-      : load.error
-        ? '다시 시도'
-        : has
-          ? '다시 불러오기'
-          : '영상 불러오기';
+  const label = load.isPending ? '영상 불러오는 중…' : load.error ? '다시 시도' : has ? '다시 불러오기' : '영상 불러오기';
 
   return (
     <Panel
       step={1}
       title="영상 불러오기"
-      hint={`'${topic.keywords[0] ?? ''}' 등 ${topic.videoWindowDays > 0 ? `최근 ${topic.videoWindowDays}일` : '기간 제한 없이'} 영상을 ${sortLabel}으로 정렬하고, 초안까지 자동으로 써둬요`}
+      hint={`'${topic.keywords[0] ?? ''}' 등 ${topic.videoWindowDays > 0 ? `최근 ${topic.videoWindowDays}일` : '기간 제한 없이'} 영상을 ${sortLabel}으로 ${countLabel} 가져와요 · 초안은 ② 영상 선택에서 써요`}
     >
-      <Button variant="primary" fullWidth loading={load.isPending || drafting} disabled={topic.status === 'paused'} onClick={() => load.mutate(topic.id)}>
+      <Button
+        variant="primary"
+        fullWidth
+        loading={load.isPending}
+        disabled={topic.status === 'paused'}
+        onClick={() => load.mutate(topic.id, { onSuccess: () => setShown(PAGE_SIZE) })}
+      >
         {label}
       </Button>
       {topic.status === 'paused' ? <span className="text-caption rd-block-reason">일시정지된 주제예요 · 다시 시작하면 불러올 수 있어요</span> : null}
       {load.error ? <ErrorBand error={load.error} /> : null}
-      {p && !p.running && p.failed > 0 ? (
-        <span className="text-caption rd-muted">
-          초안 {p.failed}개는 쓰지 못했어요 · 카드를 눌러 원인을 확인하세요
-        </span>
-      ) : null}
       {has ? (
         <div className="rd-list-head">
           <span className="text-caption rd-muted">{videos.data!.length}개 영상 · 카드를 누르면 ② 영상 선택으로 넘어가요</span>
@@ -347,33 +358,53 @@ function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: 
       {videos.error ? <ErrorBand error={videos.error} onRetry={() => void videos.refetch()} /> : null}
       {videos.data && !has ? <EmptyBox>[영상 불러오기]를 누르면 영상 목록이 여기 떠요</EmptyBox> : null}
       <div className="rd-video-grid">
-        {videos.data?.map((v) => (
-          <VideoCard
-            key={v.id}
-            rank={v.rank ?? '+'}
-            title={v.title}
-            channel={v.channelTitle}
-            date={relativeTime(v.publishedAt)}
-            views={formatViews(v.viewCount)}
-            duration={formatDuration(v.durationSec)}
-            thumbnail={v.thumbnailUrl ?? undefined}
-            selected={v.id === selectedId}
-            badges={videoBadges(v)}
-            onClick={() => onSelect(v.id)}
-          />
+        {videos.data?.slice(0, shown).map((v) => (
+          <div key={v.id} className="rd-video-cell">
+            <VideoCard
+              rank={v.rank ?? '+'}
+              title={v.title}
+              channel={v.channelTitle}
+              date={relativeTime(v.publishedAt)}
+              views={formatViews(v.viewCount)}
+              duration={formatDuration(v.durationSec)}
+              thumbnail={v.thumbnailUrl ?? undefined}
+              selected={v.id === selectedId}
+              badges={videoBadges(v)}
+              onClick={() => onSelect(v.id)}
+            />
+            <button type="button" className="rd-video-watch" aria-label={`${v.title} 영상 보기`} onClick={() => onWatch(v)}>
+              ▶ 영상 보기
+            </button>
+          </div>
         ))}
       </div>
+      {videos.data && videos.data.length > shown ? (
+        <Button variant="secondary" fullWidth onClick={() => setShown((n) => n + PAGE_SIZE)}>
+          {Math.min(PAGE_SIZE, videos.data.length - shown)}개 더 보기 ({shown}/{videos.data.length})
+        </Button>
+      ) : null}
     </Panel>
   );
 }
 
 /**
- * ② 영상 선택: 링크 직접 입력 + 고른 영상의 이유·초안·검사
+ * ② 영상 선택: 링크 직접 입력 + 고른 영상의 이유·초안·검사. 초안이 없으면 [초안 작성]으로 이때 쓴다.
  * @param props.topic 주제
  * @param props.videoId 고른 영상
  * @param props.onSelect 링크로 추가한 영상을 고른다
+ * @param props.onWatch 영상 보기 창을 열 때
  */
-function SelectPanel({ topic, videoId, onSelect }: { topic: Topic; videoId: number | null; onSelect: (id: number) => void }) {
+function SelectPanel({
+  topic,
+  videoId,
+  onSelect,
+  onWatch,
+}: {
+  topic: Topic;
+  videoId: number | null;
+  onSelect: (id: number) => void;
+  onWatch: (v: ModalVideo) => void;
+}) {
   const { addVideo } = useActions();
   const [link, setLink] = useState('');
   const detail = useDraftDetail(topic.id, videoId);
@@ -413,13 +444,18 @@ function SelectPanel({ topic, videoId, onSelect }: { topic: Topic; videoId: numb
         <ErrorBand error={detail.error} onRetry={() => void detail.refetch()} />
       ) : v ? (
         <>
-          <div className="rd-stack">
-            <a href={v.url} target="_blank" rel="noreferrer" className="text-body-strong" style={{ fontSize: 15, color: 'var(--ink)' }}>
-              {v.title}
-            </a>
-            <span className="text-caption rd-muted">
-              {v.channelTitle} · {relativeTime(v.publishedAt)} · {formatViews(v.viewCount)}
-            </span>
+          <div className="rd-video-head">
+            <div className="rd-stack" style={{ minWidth: 0 }}>
+              <a href={v.url} target="_blank" rel="noreferrer" className="text-body-strong" style={{ fontSize: 15, color: 'var(--ink)' }}>
+                {v.title}
+              </a>
+              <span className="text-caption rd-muted">
+                {v.channelTitle} · {relativeTime(v.publishedAt)} · {formatViews(v.viewCount)}
+              </span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => onWatch(v)}>
+              ▶ 영상 보기
+            </Button>
           </div>
           <DraftReview topic={topic} detail={detail.data!} />
         </>

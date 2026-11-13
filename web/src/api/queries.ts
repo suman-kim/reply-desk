@@ -19,6 +19,7 @@ import type {
   TodayQuota,
   Topic,
   TopicInput,
+  VideoComments,
   VideoItem,
 } from './types';
 
@@ -57,6 +58,8 @@ export const keys = {
   providers: ['providers'] as const,
   /** 제공자의 모델 고르기 목록 */
   aiModels: (provider: AiProviderId) => ['aiModels', provider] as const,
+  /** 영상 보기 창 댓글 */
+  comments: (topicId: number, videoId: number) => ['comments', topicId, videoId] as const,
 };
 
 /** 주제 목록 */
@@ -96,6 +99,19 @@ export const useDraftDetail = (topicId: number | null, videoId: number | null) =
  * 자동 작성 진행률 (실시간 이벤트가 채운다)
  * @param topicId 주제 ID
  */
+/**
+ * 영상 보기 창의 인기 댓글 (서버가 5분 받아 둔다)
+ * @param topicId 주제 ID
+ * @param videoId 영상 ID (null이면 받지 않는다)
+ */
+export const useVideoComments = (topicId: number, videoId: number | null) =>
+  useQuery({
+    queryKey: keys.comments(topicId, videoId ?? 0),
+    queryFn: () => api<VideoComments>('GET', `/topics/${topicId}/videos/${videoId}/comments?limit=50`),
+    enabled: !!videoId,
+    staleTime: 5 * 60_000,
+  });
+
 export const useDraftProgress = (topicId: number | null) =>
   useQuery({
     queryKey: keys.progress(topicId ?? 0),
@@ -229,10 +245,10 @@ export function useActions() {
     /** [영상 불러오기] + 자동 작성 */
     load: useMutation({
       mutationFn: (topicId: number) =>
-        api<{ videos: VideoItem[]; progress: DraftProgress | null }>('POST', `/topics/${topicId}/load`),
+        api<{ videos: VideoItem[] }>('POST', `/topics/${topicId}/load`),
       onSuccess: (res, topicId) => {
+        // 불러오기는 영상만 받는다 (초안은 ②의 [초안 작성]에서)
         qc.setQueryData(keys.videos(topicId), res.videos);
-        qc.setQueryData(keys.progress(topicId), res.progress);
       },
     }),
     /** 링크 직접 추가 */

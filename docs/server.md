@@ -45,7 +45,7 @@
 
 ## 영상 분석과 초안 작성
 
-1. **[영상 불러오기]** (`POST /topics/:id/load`): 영상을 불러와 순위를 매긴 뒤, 초안이 없거나 **작성에 실패한** 영상마다 `draft` 행을 `writing`으로 먼저 만들어 대기열에 넣는다. 그래서 카드에 "초안 작성 중"이 바로 보이고, AI 과부하·크레딧 부족처럼 지나간 원인으로 실패한 영상은 다시 불러오기만으로 채워진다.
+1. **[영상 불러오기]** (`POST /topics/:id/load`): 영상만 불러와 순위를 매긴다. **초안은 쓰지 않는다.** 초안은 ② 영상 선택에서 [초안 작성](`POST /topics/:id/videos/:videoId/draft`)을 누른 영상만 쓴다(많이·무제한으로 불러와도 AI 비용이 들지 않게, 2026-11-13). 한 번에 불러올 수(`fetch_limit`)가 0이면 무제한: 검색을 여러 쪽(한 쪽 50개, 할당량 100) 받아 결과 끝까지, 최대 500개(할당량 최대 1,000)까지 가져온다. 영상 정보는 50개씩 나눠 받는다.
 2. **대기열**: 한 번에 하나씩 처리한다. 로컬 GPU(Ollama)와 API 사용량 한도를 지키기 위해서다. 주제별 진행률(2/5)은 `GET /topics/:id/drafts/progress`로 본다. 대기열은 메모리에 있어서, 서버가 다시 뜨면 `writing`으로 남은 행을 `error`로 바꾼다.
 3. **분석** (설정 `ai.analysis`):
    - Gemini는 유튜브 주소를 그대로 받아 영상을 직접 본다.
@@ -156,7 +156,8 @@
 | `POST /topics/:id/videos` `{ url }` | ② | 링크 직접 추가 |
 | `GET /topics/:id/videos/:videoId` | ② | 영상 하나 |
 | `GET /topics/:id/post-check?videoId=&profileId=` | ③ | 버튼 열림 여부, 차단 사유 한 줄, 이번 차례 프로필, 오늘 n/상한 |
-| `POST /topics/:id/load` | ① | [영상 불러오기] + 초안 자동 작성 시작 (쓰는 중이면 409) |
+| `POST /topics/:id/load` | ① | [영상 불러오기] (영상만, 초안은 쓰지 않음) |
+| `GET /topics/:id/videos/:videoId/comments?limit=` | ① 영상 보기 창 | 인기 댓글(쓴 사람·좋아요·답글 수, 관련성 순). 댓글이 막힌 영상은 `disabled: true`. 할당량 1, 5분 받아 둔다 |
 | `GET /topics/:id/drafts/progress` | ① | 자동 작성 진행률 (total·done·failed·running·lastError) |
 | `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·초안·검사·상태·게시 기록 |
 | `POST /topics/:id/videos/:videoId/draft` `{ reanalyze? }` | ② | [다시 생성] (쓰는 중이면 409) |

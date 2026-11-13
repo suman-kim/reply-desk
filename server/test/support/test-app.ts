@@ -30,6 +30,7 @@ import {
   type YoutubeSearchParams,
   type YoutubeVideoContext,
   type YoutubeVideoInfo,
+  type YoutubeComments,
 } from '../../src/videos/youtube/youtube-client.js';
 
 /** 내 채널 ID (유튜브1 프로필이 로그인된 채널) */
@@ -105,6 +106,34 @@ export class FakeYoutube implements YoutubeClient {
 
   async getVideos(ids: string[]): Promise<YoutubeVideoInfo[]> {
     return [...VIDEOS, MANUAL].filter((v) => ids.includes(v.youtubeId));
+  }
+
+  /** 댓글: demo00000v3은 댓글이 막힌 영상, 나머지는 두 개 */
+  async getComments(youtubeId: string): Promise<YoutubeComments> {
+    if (youtubeId === 'demo00000v3') return { disabled: true, comments: [] };
+    return {
+      disabled: false,
+      comments: [
+        {
+          id: `${youtubeId}-c1`,
+          author: '@시청자1',
+          authorImageUrl: null,
+          text: '읽씹 3일째인데 이거 보고 위로받고 갑니다',
+          likeCount: 120,
+          replyCount: 3,
+          publishedAt: new Date('2026-11-12T00:00:00Z'),
+        },
+        {
+          id: `${youtubeId}-c2`,
+          author: '@시청자2',
+          authorImageUrl: null,
+          text: '저도 스토리만 보고 있어요',
+          likeCount: 8,
+          replyCount: 0,
+          publishedAt: new Date('2026-11-12T01:00:00Z'),
+        },
+      ],
+    };
   }
 
   async getVideoContext(youtubeId: string): Promise<YoutubeVideoContext> {

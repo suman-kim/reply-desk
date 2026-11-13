@@ -205,14 +205,30 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
               ]}
             />
           </div>
-          <Field
-            label="한 번에 불러올 영상 수"
-            type="number"
-            value={f.fetchLimit}
-            onChange={set('fetchLimit')}
-            hint="이 수만큼 초안을 자동으로 써요 (1~20)"
-            error={err.fetchLimit}
-          />
+          <div className="rd-stack-8">
+            <span className="text-label rd-label">한 번에 불러올 영상 수</span>
+            <Segmented
+              label="한 번에 불러올 영상 수"
+              block
+              value={f.fetchLimit}
+              onChange={(v) => setF((s) => ({ ...s, fetchLimit: v }))}
+              options={[
+                // 예전에 정한 다른 수(예: 7)도 고른 채로 보이게 넣는다
+                ...(['5', '10', '20', '50', '0'].includes(f.fetchLimit) ? [] : [{ value: f.fetchLimit, label: `${f.fetchLimit}개` }]),
+                { value: '5', label: '5개' },
+                { value: '10', label: '10개' },
+                { value: '20', label: '20개' },
+                { value: '50', label: '50개' },
+                { value: '0', label: '무제한' },
+              ]}
+            />
+            <span className={`text-caption ${err.fetchLimit ? 'rd-block-reason' : 'rd-muted'}`}>
+              {err.fetchLimit ??
+                (f.fetchLimit === '0'
+                  ? '검색 결과 끝까지(최대 500개) 가져와요 · 유튜브 할당량을 한 번에 최대 1,000 써요 (하루 10,000)'
+                  : '불러오기는 영상만 가져와요 · 초안은 ② 영상 선택에서 [초안 작성]을 누를 때 써요')}
+            </span>
+          </div>
         </Panel>
 
         <Panel title="댓글" hint="AI가 이 말투와 조건으로 초안을 써요">

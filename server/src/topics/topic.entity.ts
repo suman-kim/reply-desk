@@ -98,7 +98,8 @@ export class Topic {
     name: 'fetch_limit',
     type: 'int',
     default: 5,
-    comment: '[영상 불러오기] 한 번에 가져와 초안까지 쓸 영상 수',
+    comment:
+      '[영상 불러오기] 한 번에 가져올 영상 수. 0이면 무제한(검색 결과 끝까지, 최대 500개)',
   })
   fetchLimit: number;
 

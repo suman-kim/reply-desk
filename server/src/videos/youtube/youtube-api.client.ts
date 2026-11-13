@@ -7,6 +7,7 @@ import type {
   YoutubeSearchParams,
   YoutubeVideoContext,
   YoutubeVideoInfo,
+  YoutubeComments,
 } from './youtube-client.js';
 
 /** YouTube Data API v3 주소 */
@@ -15,6 +16,8 @@ const API = 'https://www.googleapis.com/youtube/v3';
 /** search.list 응답 중 쓰는 부분 */
 interface SearchResponse {
   items?: { id?: { videoId?: string } }[];
+  /** 다음 쪽 표지 (없으면 마지막 쪽) */
+  nextPageToken?: string;
 }
 
 /** videos.list 응답 중 쓰는 부분 */
@@ -37,9 +40,17 @@ interface VideosResponse {
 /** commentThreads.list 응답 중 쓰는 부분 */
 interface CommentThreadsResponse {
   items?: {
+    id?: string;
     snippet?: {
+      totalReplyCount?: number;
       topLevelComment?: {
-        snippet?: { textDisplay?: string; likeCount?: number };
+        snippet?: {
+          textDisplay?: string;
+          likeCount?: number;
+          authorDisplayName?: string;
+          authorProfileImageUrl?: string;
+          publishedAt?: string;
+        };
       };
     };
   }[];
@@ -65,31 +76,46 @@ export class YoutubeApiClient implements YoutubeClient {
   constructor(private readonly config: ConfigService<Env, true>) {}
 
   async searchVideoIds(params: YoutubeSearchParams): Promise<string[]> {
-    const body = await this.call<SearchResponse>('search', {
-      part: 'id',
-      type: 'video',
-      q: params.keywords.join('|'),
-      order: params.order,
-      ...(params.publishedAfter
-        ? { publishedAfter: params.publishedAfter.toISOString() }
-        : {}),
-      maxResults: String(Math.min(50, params.maxResults)),
-      regionCode: 'KR',
-      relevanceLanguage: 'ko',
-    });
-    return (body.items ?? [])
-      .map((i) => i.id?.videoId)
-      .filter((id): id is string => !!id);
+    // 한 쪽에 50개까지라 더 원하면 다음 쪽(pageToken)을 이어 받는다
+    const ids: string[] = [];
+    let pageToken: string | undefined;
+    do {
+      const body = await this.call<SearchResponse>('search', {
+        part: 'id',
+        type: 'video',
+        q: params.keywords.join('|'),
+        order: params.order,
+        ...(params.publishedAfter
+          ? { publishedAfter: params.publishedAfter.toISOString() }
+          : {}),
+        maxResults: String(Math.min(50, params.maxResults - ids.length)),
+        regionCode: 'KR',
+        relevanceLanguage: 'ko',
+        ...(pageToken ? { pageToken } : {}),
+      });
+      for (const item of body.items ?? []) {
+        const id = item.id?.videoId;
+        if (id && !ids.includes(id)) ids.push(id);
+      }
+      pageToken = body.nextPageToken;
+    } while (pageToken && ids.length < params.maxResults);
+    // 한 쪽이 요청보다 많이 와도 원한 수만큼만
+    return ids.slice(0, params.maxResults);
   }
 
   async getVideos(ids: string[]): Promise<YoutubeVideoInfo[]> {
     if (ids.length === 0) return [];
-    const body = await this.call<VideosResponse>('videos', {
-      part: 'snippet,statistics,contentDetails',
-      id: ids.slice(0, 50).join(','),
-      maxResults: '50',
-    });
-    return (body.items ?? []).map((v) => {
+    // videos.list는 한 번에 50개까지 받는다 (한 번에 할당량 1)
+    const items: NonNullable<VideosResponse['items']> = [];
+    for (let i = 0; i < ids.length; i += 50) {
+      const body = await this.call<VideosResponse>('videos', {
+        part: 'snippet,statistics,contentDetails',
+        id: ids.slice(i, i + 50).join(','),
+        maxResults: '50',
+      });
+      items.push(...(body.items ?? []));
+    }
+    return items.map((v) => {
       const thumbs = v.snippet?.thumbnails ?? {};
       return {
         youtubeId: v.id,
@@ -141,6 +167,44 @@ export class YoutubeApiClient implements YoutubeClient {
       if (!(err instanceof CommentsDisabledError)) throw err;
     }
     return { description, comments };
+  }
+
+  async getComments(
+    youtubeId: string,
+    maxComments: number,
+  ): Promise<YoutubeComments> {
+    try {
+      const threads = await this.call<CommentThreadsResponse>(
+        'commentThreads',
+        {
+          part: 'snippet',
+          videoId: youtubeId,
+          order: 'relevance',
+          textFormat: 'plainText',
+          maxResults: String(Math.min(100, maxComments)),
+        },
+      );
+      const comments = (threads.items ?? []).flatMap((t) => {
+        const c = t.snippet?.topLevelComment?.snippet;
+        if (!c?.textDisplay) return [];
+        return [
+          {
+            id: t.id ?? '',
+            author: c.authorDisplayName ?? '',
+            authorImageUrl: c.authorProfileImageUrl ?? null,
+            text: c.textDisplay,
+            likeCount: c.likeCount ?? 0,
+            replyCount: t.snippet?.totalReplyCount ?? 0,
+            publishedAt: new Date(c.publishedAt ?? Date.now()),
+          },
+        ];
+      });
+      return { disabled: false, comments };
+    } catch (err) {
+      if (err instanceof CommentsDisabledError)
+        return { disabled: true, comments: [] };
+      throw err;
+    }
   }
 
   private async call<T>(
