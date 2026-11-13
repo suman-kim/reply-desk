@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import type { PostLogRow } from '../api/types';
 import { Badge } from '../ds/inyeon';
 import { formatDateTime, formatElapsed } from '../lib/format';
+import { paths } from '../nav/paths';
 import { POST_RESULT, POST_STEP_LABELS } from './badges';
 
 /**
@@ -39,7 +40,7 @@ export function PostLogDetail({ row }: { row: PostLogRow }) {
         <div className="rd-band rd-band-danger" role="alert">
           <span className="text-body-sm">{row.failureReason ?? '원인을 남기지 못했어요'}</span>
           {row.video && row.topic ? (
-            <Link to={`/drafts?topic=${row.topic.id}&video=${row.video.id}`} className="text-body-sm">
+            <Link to={paths.topic(row.topic.id, 'drafts', { video: row.video.id })} className="text-body-sm">
               작업 목록에서 다시 게시
             </Link>
           ) : null}

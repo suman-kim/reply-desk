@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { keys, useActions, useAttempt, usePostCheck } from '../api/queries';
 import type { DraftDetail, Topic, VideoItem } from '../api/types';
 import { Badge, BrowserFrame, Button, Segmented, Spinner, StepList, type StepItem } from '../ds/inyeon';
+import { paths } from '../nav/paths';
 
 /** 서버 단계 상태 → 디자인 시스템 StepList 상태 */
 const STEP_STATE = { done: 'done', running: 'active', failed: 'failed', waiting: 'pending' } as const;
@@ -97,7 +98,7 @@ export function PostControl({
         <span className="text-label rd-ink2">게시할 계정</span>
         {topic.profiles.length === 0 ? (
           <span className="text-body-sm rd-muted">
-            이 주제에 쓸 프로필이 없어요 · <Link to={`/topics/${topic.id}/edit`}>주제 설정</Link>에서 골라 주세요
+            이 주제에 쓸 프로필이 없어요 · <Link to={paths.topic(topic.id, 'settings')}>주제 설정</Link>에서 골라 주세요
           </span>
         ) : (
           <Segmented
@@ -145,7 +146,7 @@ export function PostControl({
                 게시 화면 캡처
               </a>
             ) : null}
-            <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
+            <Link to={paths.topic(topic.id, 'logs')} className="text-body-sm">
               댓글 게시 목록
             </Link>
           </div>
@@ -158,7 +159,7 @@ export function PostControl({
                 캡처 보기
               </a>
             ) : null}
-            <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
+            <Link to={paths.topic(topic.id, 'logs')} className="text-body-sm">
               댓글 게시 목록
             </Link>
           </div>

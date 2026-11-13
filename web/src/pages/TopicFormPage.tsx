@@ -7,6 +7,8 @@ import { PageHeader } from '../components/PageHeader';
 import { TagInput } from '../components/TagInput';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
 import { Button, Field, Panel, Segmented } from '../ds/inyeon';
+import { paths } from '../nav/paths';
+import { useSelectedTopic } from '../nav/selected-topic';
 
 /** 입력 칸 값 (입력 중에는 글자로 들고, 저장할 때 숫자·목록으로 바꾼다) */
 interface FormState {
@@ -79,7 +81,8 @@ function fromTopic(t: Topic): FormState {
  * 새 주제 만들기 / 주제 설정. 홍보할 대상 하나가 주제 하나다.
  */
 export function TopicFormPage() {
-  const { id } = useParams();
+  // 주제 설정(/t/:topicId/settings)이면 그 주제, 새 주제(/topics/new)면 없음
+  const { topicId: id } = useParams();
   const topicId = id ? Number(id) : null;
   const existing = useTopic(topicId);
 
@@ -100,6 +103,9 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
   const { createTopic, updateTopic, deleteTopic } = useActions();
   const [f, setF] = useState<FormState>(initial);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { topic: selected } = useSelectedTopic();
+  /** [취소]: 주제 설정이면 그 주제의 대시보드, 새 주제면 고른 주제의 대시보드(없으면 홈) */
+  const cancelTo = topicId ? paths.topic(topicId) : selected ? paths.topic(selected.id) : paths.home;
 
   const save = topicId ? updateTopic : createTopic;
   const err = save.error instanceof ApiError ? save.error.fieldErrors : {};
@@ -124,7 +130,8 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
       status: f.status,
       profileIds: f.profileIds,
     };
-    const done = (t: Topic) => navigate(`/?topic=${t.id}`);
+    // 저장하면 그 주제의 대시보드로 간다 (다음 할 일: 영상 불러오기)
+    const done = (t: Topic) => navigate(paths.topic(t.id, 'dashboard'));
     if (topicId) updateTopic.mutate({ id: topicId, input }, { onSuccess: done });
     else createTopic.mutate(input, { onSuccess: done });
   };
@@ -140,7 +147,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
         description="홍보할 대상 하나가 주제 하나예요. 이 설정으로 영상을 찾고 댓글 초안을 써요."
         right={
           <>
-            <Link to={topicId ? `/?topic=${topicId}` : '/'} className="iy-btn iy-btn-secondary iy-btn-md">
+            <Link to={cancelTo} className="iy-btn iy-btn-secondary iy-btn-md">
               취소
             </Link>
             <Button variant="primary" loading={save.isPending} onClick={onSave}>
@@ -265,7 +272,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
             <span className="text-label rd-label">쓸 프로필</span>
             {profiles.data?.length === 0 ? (
               <span className="text-body-sm rd-muted">
-                아직 프로필이 없어요 · <Link to="/accounts">계정 관리</Link>에서 먼저 연결해 주세요
+                아직 프로필이 없어요 · <Link to={paths.accounts}>계정 관리</Link>에서 먼저 연결해 주세요
               </span>
             ) : null}
             <div className="rd-checks">
@@ -322,7 +329,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
                 <Button
                   variant="dark"
                   loading={deleteTopic.isPending}
-                  onClick={() => deleteTopic.mutate(topicId, { onSuccess: () => navigate('/') })}
+                  onClick={() => deleteTopic.mutate(topicId, { onSuccess: () => navigate(paths.home) })}
                 >
                   정말 지우기
                 </Button>

@@ -1,5 +1,6 @@
 import type { Tone } from '../ds/inyeon';
 import type { LiveEvent } from './apply-event';
+import { paths } from '../nav/paths';
 
 /** 화면 오른쪽 아래·브라우저에 띄울 알림 하나 */
 export interface Notice {
@@ -53,7 +54,7 @@ export class NoticeRules {
     }
     if (e.type === 'profile.updated' && e.loginStatus === 'needs_login') {
       const notice = this.make('warning', '로그인이 풀렸어요', `${e.name} · 계정 관리에서 다시 로그인해 주세요`);
-      return { ...notice, href: '/accounts' };
+      return { ...notice, href: paths.accounts };
     }
     return null;
   }
