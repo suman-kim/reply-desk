@@ -8,6 +8,7 @@ import { buildDataSourceOptions } from './database/typeorm-options.js';
 import { DraftsModule } from './drafts/drafts.module.js';
 import { HealthController } from './health.controller.js';
 import { PostingModule } from './posting/posting.module.js';
+import { PublishModule } from './publish/publish.module.js';
 import { ProfilesModule } from './profiles/profiles.module.js';
 import { RulesModule } from './rules/rules.module.js';
 import { SettingsModule } from './settings/settings.module.js';
@@ -16,7 +17,7 @@ import { VideosModule } from './videos/videos.module.js';
 
 /**
  * 앱 루트 모듈.
- * 다음 작업에서 붙일 모듈: posting의 Playwright 게시, events(SSE).
+ * 다음 작업에서 붙일 모듈: events(SSE 실시간 진행).
  */
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { VideosModule } from './videos/videos.module.js';
     RulesModule,
     AiModule,
     DraftsModule,
+    PublishModule,
   ],
   controllers: [HealthController],
 })

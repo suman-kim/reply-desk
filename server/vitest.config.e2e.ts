@@ -18,6 +18,7 @@ export default defineConfig({
       NODE_ENV: 'test',
       DB_NAME: 'reply_desk_test',
       PROFILES_ROOT: join(tmpdir(), 'reply-desk-e2e-profiles'),
+      SCREENSHOTS_DIR: join(tmpdir(), 'reply-desk-e2e-screenshots'),
       YOUTUBE_API_KEY: '',
       GEMINI_API_KEY: '',
       ANTHROPIC_API_KEY: '',
