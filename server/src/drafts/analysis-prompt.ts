@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { renderTemplate, type PromptVar } from '../prompts/prompt-template.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
 import type { YoutubeVideoContext } from '../videos/youtube/youtube-client.js';
@@ -76,40 +77,82 @@ export const ANALYSIS_SYSTEM = [
   '- 인기 댓글이 사연형이라 시청자 말투 댓글이 자연스럽게 섞임',
 ].join('\n');
 
+/** 분석 자료 틀에서 쓸 수 있는 자리 (설정 화면 안내) */
+export const ANALYSIS_PROMPT_VARS: PromptVar[] = [
+  {
+    name: '홍보 대상',
+    help: '주제의 한 줄 설명 (예: 운명원 · 연애 사주 잘 보는 곳)',
+  },
+  { name: '관심 키워드', help: '주제의 검색 키워드 (쉼표로 이음)' },
+  { name: '영상 제목', help: '영상 제목' },
+  { name: '채널', help: '영상을 올린 채널 이름' },
+  { name: '영상 길이', help: '영상 길이 (mm:ss)' },
+  {
+    name: '영상 보기 안내',
+    help: 'AI가 영상을 직접 보면 "함께 보낸 영상을 직접 보고…", 못 보면 "영상은 볼 수 없어…" (코드가 고른다)',
+  },
+  { name: '영상 설명', help: '영상 설명 (1,500자까지, 없으면 "(없음)")' },
+  {
+    name: '인기 댓글',
+    help: '인기 댓글 20개, 번호를 붙여 한 줄씩 (없으면 "(없음)")',
+  },
+];
+
+/** 기본 분석 프롬프트 (설정에서 고칠 수 있고, [기본값으로]로 되돌린다) */
+export const DEFAULT_ANALYSIS_PROMPT = {
+  /** 시스템 지시 (AI의 역할과 규칙) */
+  system: ANALYSIS_SYSTEM,
+  /** 자료 틀 ({{자리}}를 코드가 채운다) */
+  user: [
+    '[홍보 대상] {{홍보 대상}}',
+    '[관심 키워드] {{관심 키워드}}',
+    '[영상 제목] {{영상 제목}}',
+    '[채널] {{채널}}',
+    '[영상 길이] {{영상 길이}}',
+    '',
+    '[영상] {{영상 보기 안내}}',
+    '',
+    '[영상 설명]',
+    '{{영상 설명}}',
+    '',
+    '[인기 댓글]',
+    '{{인기 댓글}}',
+    '',
+    '이 영상을 보는 시청자의 고민 한 줄, 이 영상을 고른 이유, 근거 장면을 뽑아 줘.',
+  ].join('\n'),
+};
+
 /**
- * 분석 프롬프트를 만든다.
+ * 분석 프롬프트(자료)를 만든다.
  * @param topic 주제 (홍보 대상)
  * @param video 영상 (숫자는 코드가 넣는다)
  * @param ctx 영상 설명과 인기 댓글
  * @param watchesVideo AI가 영상을 직접 보는지
+ * @param template 자료 틀 (설정 prompt.analysis의 user)
  */
 export function buildAnalysisPrompt(
   topic: Pick<Topic, 'brandTarget' | 'keywords'>,
   video: Pick<Video, 'title' | 'channelTitle' | 'durationSec'>,
   ctx: YoutubeVideoContext,
   watchesVideo: boolean,
+  template: string = DEFAULT_ANALYSIS_PROMPT.user,
 ): string {
   const comments = ctx.comments
     .slice(0, 20)
     .map((c, i) => `${i + 1}. ${oneLine(c.text, 200)}`)
     .join('\n');
-  return [
-    `[홍보 대상] ${topic.brandTarget}`,
-    `[관심 키워드] ${topic.keywords.join(', ')}`,
-    `[영상 제목] ${video.title}`,
-    `[채널] ${video.channelTitle}`,
-    `[영상 길이] ${formatTime(video.durationSec)}`,
-    '',
-    watchesVideo
-      ? '[영상] 함께 보낸 영상을 직접 보고, 영상 속 말은 시점(mm:ss)과 함께 인용해.'
-      : '[영상] 영상은 볼 수 없어. 영상 설명과 인기 댓글만 근거로 써. 영상 설명에서 인용하면 source는 video, time은 null로 둬.',
-    '',
-    `[영상 설명]\n${oneLine(ctx.description, 1500) || '(없음)'}`,
-    '',
-    `[인기 댓글]\n${comments || '(없음)'}`,
-    '',
-    '이 영상을 보는 시청자의 고민 한 줄, 이 영상을 고른 이유, 근거 장면을 뽑아 줘.',
-  ].join('\n');
+  return renderTemplate(template, {
+    '홍보 대상': topic.brandTarget,
+    '관심 키워드': topic.keywords.join(', '),
+    '영상 제목': video.title,
+    채널: video.channelTitle,
+    '영상 길이': formatTime(video.durationSec),
+    '영상 보기 안내': watchesVideo
+      ? '함께 보낸 영상을 직접 보고, 영상 속 말은 시점(mm:ss)과 함께 인용해.'
+      : '영상은 볼 수 없어. 영상 설명과 인기 댓글만 근거로 써. 영상 설명에서 인용하면 source는 video, time은 null로 둬.',
+    '영상 설명': oneLine(ctx.description, 1500) || '(없음)',
+    '인기 댓글': comments || '(없음)',
+  });
 }
 
 /** 검증에 쓰는 원문 */

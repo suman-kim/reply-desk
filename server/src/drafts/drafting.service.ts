@@ -9,7 +9,9 @@ import {
 import type { CheckContext } from '../checks/check.types.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
-import { DRAFT_SYSTEM, buildDraftPrompt, draftSchema } from './draft-prompt.js';
+import { PROMPT_DRAFTING } from '../settings/setting-definitions.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { buildDraftPrompt, draftSchema } from './draft-prompt.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
 
 /** 작성 제한 시간 */
@@ -80,10 +82,12 @@ export class DraftingService {
   /**
    * @param ai AI 호출 창구
    * @param checks 자동 검사
+   * @param settings 설정 (댓글 작성 프롬프트)
    */
   constructor(
     private readonly ai: AiService,
     private readonly checks: CheckRunnerService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -100,6 +104,8 @@ export class DraftingService {
     disclosure: string | null,
   ): Promise<WrittenDraft> {
     const ai = await this.ai.resolve('drafting');
+    // 설정에서 고친 프롬프트 (없으면 기본값)
+    const prompt = await this.settings.get(PROMPT_DRAFTING);
     let retry: { text: string; failed: CheckReport['results'] } | undefined;
     let last: WrittenDraft | null = null;
 
@@ -107,8 +113,8 @@ export class DraftingService {
       const out = await this.ai.generate(
         ai,
         {
-          system: DRAFT_SYSTEM,
-          prompt: buildDraftPrompt(topic, video, analysis, retry),
+          system: prompt.system,
+          prompt: buildDraftPrompt(topic, video, analysis, retry, prompt),
           schema: draftSchema,
           timeoutMs: DRAFT_TIMEOUT_MS,
         },

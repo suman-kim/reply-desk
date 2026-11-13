@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiError } from '../ai/ai-provider.js';
 import { AiService } from '../ai/ai.service.js';
+import { PROMPT_ANALYSIS } from '../settings/setting-definitions.js';
+import { SettingsService } from '../settings/settings.service.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
 import {
@@ -10,7 +12,6 @@ import {
   type YoutubeClient,
 } from '../videos/youtube/youtube-client.js';
 import {
-  ANALYSIS_SYSTEM,
   analysisSchema,
   buildAnalysisPrompt,
   fillPlaceholders,
@@ -34,12 +35,14 @@ export class AnalysisService {
    * @param repo 분석 저장소
    * @param ai AI 호출 창구
    * @param youtube YouTube API (영상 설명·인기 댓글)
+   * @param settings 설정 (영상 분석 프롬프트)
    */
   constructor(
     @InjectRepository(VideoAnalysis)
     private readonly repo: Repository<VideoAnalysis>,
     private readonly ai: AiService,
     @Inject(YOUTUBE_CLIENT) private readonly youtube: YoutubeClient,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -67,11 +70,19 @@ export class AnalysisService {
     );
     const watchesVideo = ai.provider.canWatchVideo;
 
+    // 설정에서 고친 프롬프트 (없으면 기본값)
+    const prompt = await this.settings.get(PROMPT_ANALYSIS);
     const out = await this.ai.generate(
       ai,
       {
-        system: ANALYSIS_SYSTEM,
-        prompt: buildAnalysisPrompt(topic, video, ctx, watchesVideo),
+        system: prompt.system,
+        prompt: buildAnalysisPrompt(
+          topic,
+          video,
+          ctx,
+          watchesVideo,
+          prompt.user,
+        ),
         schema: analysisSchema,
         videoUrl: watchesVideo
           ? `https://www.youtube.com/watch?v=${video.youtubeId}`

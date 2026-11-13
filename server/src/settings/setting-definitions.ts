@@ -1,5 +1,15 @@
 import { z } from 'zod';
 import { aiChoiceSchema } from '../ai/ai-provider.js';
+import {
+  ANALYSIS_PROMPT_VARS,
+  DEFAULT_ANALYSIS_PROMPT,
+} from '../drafts/analysis-prompt.js';
+import {
+  DEFAULT_DRAFT_PROMPT,
+  DRAFT_PROMPT_VARS,
+  DRAFT_RETRY_VARS,
+} from '../drafts/draft-prompt.js';
+import { promptText } from '../prompts/prompt-template.js';
 
 /**
  * 설정 정의 하나. 키마다 값의 모양(스키마)과 기본값, 화면 안내를 함께 둔다.
@@ -79,6 +89,31 @@ export const OLLAMA_NUM_CTX = define({
   defaultValue: 16384,
 });
 
+/** 영상 분석 프롬프트 (시스템 지시 + 자료 틀) */
+export const PROMPT_ANALYSIS = define({
+  key: 'prompt.analysis',
+  label: '영상 분석 프롬프트',
+  help: '영상 분석 AI에게 보내는 글 전체예요. 지시는 AI의 역할과 규칙, 자료 틀은 {{자리}}에 영상·주제 값을 채워 보내요. 답의 모양(JSON 칸)은 코드가 검증에 쓰므로 바꾸지 않아요.',
+  schema: z.object({
+    system: promptText('지시'),
+    user: promptText('자료 틀', ANALYSIS_PROMPT_VARS),
+  }),
+  defaultValue: DEFAULT_ANALYSIS_PROMPT,
+});
+
+/** 댓글 작성 프롬프트 (시스템 지시 + 자료 틀 + 다시 쓸 때 덧붙이는 틀) */
+export const PROMPT_DRAFTING = define({
+  key: 'prompt.drafting',
+  label: '댓글 작성 프롬프트',
+  help: '댓글 작성 AI에게 보내는 글 전체예요. 자동 검사에 걸려 다시 쓸 때는 자료 뒤에 "다시 쓸 때" 글을 덧붙여요. 광고 표시([광고])는 AI가 아니라 코드가 붙여요.',
+  schema: z.object({
+    system: promptText('지시'),
+    user: promptText('자료 틀', DRAFT_PROMPT_VARS),
+    retry: promptText('다시 쓸 때 덧붙이는 글', DRAFT_RETRY_VARS),
+  }),
+  defaultValue: DEFAULT_DRAFT_PROMPT,
+});
+
 /** 모든 설정 정의 (화면에 보일 순서) */
 export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   DAILY_CAP_TOTAL,
@@ -87,4 +122,6 @@ export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   AI_DRAFTING,
   OLLAMA_BASE_URL,
   OLLAMA_NUM_CTX,
+  PROMPT_ANALYSIS,
+  PROMPT_DRAFTING,
 ] as SettingDefinition<unknown>[];

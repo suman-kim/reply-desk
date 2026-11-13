@@ -15,6 +15,7 @@ import type {
   PostCheck,
   PostLogRow,
   Profile,
+  PromptInfo,
   SettingView,
   TodayQuota,
   Topic,
@@ -58,6 +59,8 @@ export const keys = {
   providers: ['providers'] as const,
   /** 제공자의 모델 고르기 목록 */
   aiModels: (provider: AiProviderId) => ['aiModels', provider] as const,
+  /** 프롬프트 안내 */
+  prompts: ['prompts'] as const,
   /** 영상 보기 창 댓글 */
   comments: (topicId: number, videoId: number) => ['comments', topicId, videoId] as const,
 };
@@ -111,6 +114,10 @@ export const useVideoComments = (topicId: number, videoId: number | null) =>
     enabled: !!videoId,
     staleTime: 5 * 60_000,
   });
+
+/** 프롬프트 안내 (덩이·자리·답의 모양). 바뀌지 않아 한 번만 받는다 */
+export const usePromptInfo = () =>
+  useQuery({ queryKey: keys.prompts, queryFn: () => api<PromptInfo[]>('GET', '/settings/prompts'), staleTime: Infinity });
 
 export const useDraftProgress = (topicId: number | null) =>
   useQuery({

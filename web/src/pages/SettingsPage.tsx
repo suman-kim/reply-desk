@@ -3,6 +3,7 @@ import { useId, useState } from 'react';
 import { keys, useActions, useAiModels, useAiProviders, useSettings } from '../api/queries';
 import type { AiModelList, AiProviderId, AiProviderInfo, SettingView } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
+import { PromptSettings } from '../components/PromptSettings';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, Panel, Segmented } from '../ds/inyeon';
 
@@ -52,6 +53,8 @@ export function SettingsPage() {
             <TextSetting key={keyOf(get('ai.ollamaBaseUrl'))} setting={get('ai.ollamaBaseUrl')!} />
             <TextSetting key={keyOf(get('ai.ollamaNumCtx'))} setting={get('ai.ollamaNumCtx')!} type="number" />
           </Panel>
+
+          <PromptSettings settings={settings.data} />
         </div>
       ) : null}
     </div>
