@@ -14,6 +14,13 @@ import {
   type AiRequest,
 } from '../../src/ai/ai-provider.js';
 import { AppModule } from '../../src/app.module.js';
+import {
+  YOUTUBE_BROWSER,
+  type CommentBoxResult,
+  type LoginCheckResult,
+  type YoutubeBrowser,
+  type YoutubePage,
+} from '../../src/browser/youtube-browser.js';
 import { envSchema } from '../../src/config/env.schema.js';
 import { buildDataSourceOptions } from '../../src/database/typeorm-options.js';
 import {
@@ -178,10 +185,71 @@ export class FakeAi implements AiProvider {
 }
 
 /** 테스트 앱과 가짜들 */
+/** PNG 파일 머리 (가짜 화면 캡처) */
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/**
+ * 가짜 크롬: 실제 YouTube에 댓글을 달지 않는다.
+ * - commentBox: 영상 ID별 댓글 창 찾기 결과 (기본 ok)
+ * - login: 로그인 확인 결과
+ */
+export class FakeBrowser implements YoutubeBrowser {
+  /** 영상 ID별 댓글 창 찾기 결과 */
+  readonly commentBox = new Map<string, CommentBoxResult>();
+  /** 로그인 확인 결과 */
+  login: LoginCheckResult = {
+    loggedIn: true,
+    channelId: MY_CHANNEL,
+    channelTitle: '내 채널',
+    uiLanguage: 'ko-KR',
+  };
+  /** 연 프로필 폴더 (검증용) */
+  readonly opened: { dir: string; headless: boolean }[] = [];
+  /** 사람이 로그인하라고 연 폴더 */
+  readonly manualLogins: string[] = [];
+  /** 단 댓글 */
+  readonly posted: { youtubeId: string; text: string }[] = [];
+
+  async openPage(
+    dir: string,
+    opts: { headless: boolean },
+  ): Promise<YoutubePage> {
+    this.opened.push({ dir, ...opts });
+    let youtubeId = '';
+    let typed = '';
+    return {
+      openVideo: async (id) => void (youtubeId = id),
+      findCommentBox: async () => this.commentBox.get(youtubeId) ?? 'ok',
+      typeComment: async (text, onProgress) => {
+        const chars = [...text];
+        chars.forEach(
+          (c, i) => ((typed += c), onProgress(i + 1, chars.length)),
+        );
+      },
+      submit: async () => (this.posted.push({ youtubeId, text: typed }), true),
+      findOwnComment: async (text) =>
+        this.posted.some((p) => p.youtubeId === youtubeId && p.text === text)
+          ? { url: `https://www.youtube.com/watch?v=${youtubeId}&lc=fake` }
+          : null,
+      screenshot: async () => PNG,
+      close: async () => undefined,
+    };
+  }
+
+  async checkLogin(): Promise<LoginCheckResult> {
+    return this.login;
+  }
+
+  async openForManualLogin(dir: string): Promise<void> {
+    this.manualLogins.push(dir);
+  }
+}
+
 export interface TestContext {
   app: INestApplication<App>;
   ds: DataSource;
   youtube: FakeYoutube;
+  browser: FakeBrowser;
   ai: { gemini: FakeAi; claude: FakeAi; openai: FakeAi; ollama: FakeAi };
 }
 
@@ -197,6 +265,7 @@ export async function createTestApp(): Promise<TestContext> {
   await reset.destroy();
 
   const youtube = new FakeYoutube();
+  const browser = new FakeBrowser();
   const ai = {
     gemini: new FakeAi('gemini', true),
     claude: new FakeAi('claude', false),
@@ -208,10 +277,12 @@ export async function createTestApp(): Promise<TestContext> {
     .useValue(youtube)
     .overrideProvider(AI_PROVIDERS)
     .useValue(Object.values(ai))
+    .overrideProvider(YOUTUBE_BROWSER)
+    .useValue(browser)
     .compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   app.setGlobalPrefix('api');
   app.useGlobalPipes(new StandardSchemaValidationPipe());
   await app.init();
-  return { app, ds: app.get(getDataSourceToken()), youtube, ai };
+  return { app, ds: app.get(getDataSourceToken()), youtube, browser, ai };
 }

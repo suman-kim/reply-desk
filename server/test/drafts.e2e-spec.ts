@@ -36,12 +36,10 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       .post('/api/profiles')
       .send({ name: '유튜브1' })
       .expect(201);
-    await ds
-      .getRepository(Profile)
-      .update(profile.body.id, {
-        channelId: MY_CHANNEL,
-        loginStatus: ProfileLoginStatus.Ok,
-      });
+    await ds.getRepository(Profile).update(profile.body.id, {
+      channelId: MY_CHANNEL,
+      loginStatus: ProfileLoginStatus.Ok,
+    });
     const topic = await http()
       .post('/api/topics')
       .send({

@@ -37,6 +37,7 @@
     "@nestjs/typeorm": "^12.0.3",
     "ai": "^7.0.171",
     "pg": "^8.23.1",
+    "playwright-core": "^1.65.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "typeorm": "^1.1.3",

@@ -262,9 +262,7 @@ export class DraftsService {
    * 초안 목록 (영상·주제마다 가장 최근 초안). 상태별 개수도 함께 준다.
    * @param filter 상태·주제·검색어
    */
-  async list(
-    filter: DraftListFilter,
-  ): Promise<{
+  async list(filter: DraftListFilter): Promise<{
     rows: DraftListRow[];
     counts: Record<DraftListStatus, number>;
   }> {

@@ -33,6 +33,12 @@ export const envSchema = z.object({
     .default('~/yt-agent/profiles')
     .transform((p) => (p.startsWith('~') ? homedir() + p.slice(1) : p)),
 
+  /** 게시 실패 캡처를 둘 폴더 (~ 사용 가능) */
+  SCREENSHOTS_DIR: z
+    .string()
+    .default('~/yt-agent/screenshots')
+    .transform((p) => (p.startsWith('~') ? homedir() + p.slice(1) : p)),
+
   /** Gemini API 키 */
   GEMINI_API_KEY: z.string().default(''),
   /** Anthropic(Claude) API 키 */

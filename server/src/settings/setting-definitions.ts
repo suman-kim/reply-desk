@@ -32,6 +32,15 @@ export const DAILY_CAP_TOTAL = define({
   defaultValue: 10,
 });
 
+/** 게시할 때 크롬 창을 숨길지 */
+export const POSTING_HEADLESS = define({
+  key: 'posting.headless',
+  label: '게시할 때 크롬 창 숨기기',
+  help: '끄면 게시할 때 크롬 창이 떠서 한 글자씩 입력하는 모습을 볼 수 있어요(시연용). 켜면 창 없이 게시해요.',
+  schema: z.boolean(),
+  defaultValue: false,
+});
+
 /** 영상 분석에 쓸 AI */
 export const AI_ANALYSIS = define({
   key: 'ai.analysis',
@@ -73,6 +82,7 @@ export const OLLAMA_NUM_CTX = define({
 /** 모든 설정 정의 (화면에 보일 순서) */
 export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   DAILY_CAP_TOTAL,
+  POSTING_HEADLESS,
   AI_ANALYSIS,
   AI_DRAFTING,
   OLLAMA_BASE_URL,
