@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>새 주제 만들기</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/inyeon/tokens.css">
+<link rel="stylesheet" href="ds/inyeon/components/bundle.css">
+<script src="ds/inyeon/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#ffffff}
+a{color:#1f45d9}a:hover{color:#111318}
+.chk{display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 16px;border-radius:12px;background:#f5f6f8;cursor:pointer;font-weight:600}
+.chk:hover{background:#edeff2}
+.chk input{width:18px;height:18px;accent-color:#2b5cff;margin:0}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; box-sizing: border-box; background: var(--ground); color: var(--ink); font-family: var(--font-sans)">
+<div style="max-width: 1240px; margin: 0 auto; padding: 28px 32px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<a href="Main.dc.html" class="text-body-sm" style="color: var(--ink-2); text-decoration: none; font-weight: 600">← 대시보드</a>
+<h1 class="text-display" style="margin: 0; color: var(--ink)">새 주제 만들기</h1>
+<p class="text-body-sm" style="margin: 0; color: var(--ink-3)">홍보할 대상 하나가 주제 하나예요. 저장 전에 샘플 초안으로 말투와 브랜드 연결을 확인해요.</p>
+</div>
+<div style="display: flex; gap: 8px">
+<a href="Main.dc.html" class="iy-btn iy-btn-secondary iy-btn-md">취소</a>
+<a href="Main.dc.html" class="iy-btn iy-btn-primary iy-btn-md">주제 저장</a>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<div style="flex: 1.4 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+
+<x-import component-from-global-scope="Inyeon.Panel" title="홍보 대상" hint="댓글에서 자연스럽게 떠올리게 할 대상이에요">
+<x-import component-from-global-scope="Inyeon.Field" label="주제 이름" value="{{name}}" on-change="{{setName}}" placeholder="예: 운명원 연애 사주"></x-import>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<x-import component-from-global-scope="Inyeon.Field" label="브랜드 이름" value="{{brand}}" on-change="{{setBrand}}" hint="자동 검사에서 이 이름이 댓글에 있는지 봐요" style="flex: 1 1 200px; min-width: 0"></x-import>
+<x-import component-from-global-scope="Inyeon.Field" label="한 줄 설명" value="{{desc}}" on-change="{{setDesc}}" style="flex: 2 1 260px; min-width: 0"></x-import>
+</div>
+</x-import>
+
+<x-import component-from-global-scope="Inyeon.Panel" title="영상 찾기" hint="① 불러오기에서 이 조건으로 영상을 모아 조회수 순으로 정렬해요">
+<x-import component-from-global-scope="Inyeon.Field" label="검색 키워드" value="{{keywords}}" on-change="{{setKeywords}}" hint="쉼표로 나눠 여러 개 넣을 수 있어요"></x-import>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span class="text-label" style="color: var(--ink-2)">기간</span>
+<x-import component-from-global-scope="Inyeon.Segmented" label="기간" block="{{yes}}" options="{{periodOpts}}" value="{{period}}" on-change="{{setPeriod}}"></x-import>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span class="text-label" style="color: var(--ink-2)">정렬</span>
+<x-import component-from-global-scope="Inyeon.Segmented" label="정렬" block="{{yes}}" options="{{sortOpts}}" value="{{sort}}" on-change="{{setSort}}"></x-import>
+</div>
+</x-import>
+
+<x-import component-from-global-scope="Inyeon.Panel" title="댓글" hint="AI가 이 말투와 조건으로 초안을 써요">
+<x-import component-from-global-scope="Inyeon.Field" label="댓글 말투" multiline="{{yes}}" rows="{{two}}" value="{{tone}}" on-change="{{setTone}}"></x-import>
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<x-import component-from-global-scope="Inyeon.Field" label="최소 글자 수" type="number" value="{{minChars}}" on-change="{{setMin}}" style="flex: 1 1 140px; min-width: 0"></x-import>
+<x-import component-from-global-scope="Inyeon.Field" label="최대 글자 수" type="number" value="{{maxChars}}" on-change="{{setMax}}" style="flex: 1 1 140px; min-width: 0"></x-import>
+</div>
+<x-import component-from-global-scope="Inyeon.Field" label="추가 금지 표현" value="{{banned}}" on-change="{{setBanned}}" placeholder="예: 무료, 할인, 100% 맞춤" hint="공통 금지: 링크 · 해시태그 · 이용 후기처럼 지어낸 표현"></x-import>
+</x-import>
+
+<x-import component-from-global-scope="Inyeon.Panel" title="게시" hint="실제 게시는 내 채널 영상에만 돼요">
+<div role="group" aria-label="쓸 프로필" style="display: flex; flex-direction: column; gap: 8px">
+<span class="text-label" style="color: var(--ink-2)">쓸 프로필</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<sc-for list="{{profileChecks}}" as="pc" hint-placeholder-count="3">
+<label class="chk text-body-sm"><input type="checkbox" checked="{{pc.on}}" onChange="{{pc.toggle}}"><span>{{pc.label}}</span></label>
+</sc-for>
+</div>
+</div>
+<x-import component-from-global-scope="Inyeon.Field" label="하루 상한" type="number" value="{{cap}}" on-change="{{setCap}}" counter="{{capCounter}}" counter-invalid="{{capBad}}" hint="전체 하루 10개 안에서 주제별로 나눠 써요" style="max-width: 320px"></x-import>
+</x-import>
+
+</div>
+
+<div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<x-import component-from-global-scope="Inyeon.Panel" title="샘플 초안 미리보기" hint="저장하기 전에 이 설정으로 쓴 초안 하나를 확인해요">
+<x-import component-from-global-scope="Inyeon.Button" variant="dark" full-width="{{yes}}" loading="{{sampleBusy}}" on-click="{{makeSample}}">{{sampleLabel}}</x-import>
+<sc-if value="{{sampleIdle}}" hint-placeholder-val="{{ true }}">
+<div class="text-body-sm" style="padding: 28px 16px; border-radius: var(--radius-lg); background: var(--surface-sunken); text-align: center; color: var(--ink-3)">키워드로 영상 하나를 골라<br>고민 한 줄과 댓글 초안을 써볼게요</div>
+</sc-if>
+<sc-if value="{{sampleReady}}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="Inyeon.VideoCard" title="남자들이 ‘진지한 연애’ 앞에서 망설이는 순간" channel="남자의 속마음 채널" date="2일 전" views="조회수 12,400회" duration="9:37" tint="#dfeee5" badges="{{sampleBadges}}"></x-import>
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="rose" label="영상 속 고민 한 줄">사귀는 사이인데 상대가 미래 얘기를 피해서 관계가 불안함</x-import>
+<x-import component-from-global-scope="Inyeon.Field" label="샘플 댓글" multiline="{{yes}}" rows="{{four}}" value="{{sampleText}}" read-only="{{yes}}" counter="{{sampleCount}}" counter-invalid="{{sampleCountBad}}"></x-import>
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="neutral" label="이 댓글을 이렇게 쓴 이유" items="{{sampleWhy}}"></x-import>
+<x-import component-from-global-scope="Inyeon.CheckList" items="{{sampleChecks}}"></x-import>
+</sc-if>
+</x-import>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timers = [];
+    this.state = {
+      name: '운명원 연애 사주', brand: '운명원', desc: '연애 사주 잘 보는 곳',
+      keywords: '연애, 썸, 재회', period: '7d', sort: 'views',
+      tone: '20~30대 시청자, 공감형 구어체. 자기 경험을 짧게 섞고 장면 하나를 꼭 짚어요.',
+      minChars: '40', maxChars: '120', banned: '',
+      profiles: { '유튜브1': true, '유튜브2': true, '유튜브3': false },
+      cap: '5', sample: 'idle'
+    };
+  }
+  componentWillUnmount() { this.timers.forEach((t) => clearTimeout(t)); }
+  field(key) { return (e) => { const p = {}; p[key] = e.target.value; this.setState(p); }; }
+  makeSample() {
+    if (this.state.sample === 'busy') return;
+    this.setState({ sample: 'busy' });
+    this.timers.push(setTimeout(() => this.setState({ sample: 'ready' }), 1400));
+  }
+  renderVals() {
+    const s = this.state;
+    const brand = (s.brand || '').trim() || '[브랜드]';
+    const text = '부모님 얘기에 말 돌리는 장면에서 한참 멈췄어요. 심리 알아도 결국 인연은 따로 있는 듯… ' + brand + ' 연애사주 잘 본다던데 내 짝은 언제 오는지 보고 싶다.';
+    const n = Array.from(text).length;
+    const lo = Number(s.minChars) || 0, hi = Number(s.maxChars) || 0;
+    const banned = (s.banned || '').split(',').map((w) => w.trim()).filter(Boolean);
+    const cap = Number(s.cap) || 0;
+    const otherCaps = 3;
+    const left = 10 - otherCaps;
+    return {
+      yes: true, two: 2, four: 4,
+      name: s.name, setName: this.field('name'),
+      brand: s.brand, setBrand: this.field('brand'),
+      desc: s.desc, setDesc: this.field('desc'),
+      keywords: s.keywords, setKeywords: this.field('keywords'),
+      periodOpts: [{ value: '1d', label: '24시간' }, { value: '3d', label: '3일' }, { value: '7d', label: '7일' }, { value: '30d', label: '30일' }],
+      period: s.period, setPeriod: (v) => this.setState({ period: v }),
+      sortOpts: [{ value: 'views', label: '조회수 높은 순' }, { value: 'velocity', label: '시간당 조회수' }, { value: 'recent', label: '최신순' }],
+      sort: s.sort, setSort: (v) => this.setState({ sort: v }),
+      tone: s.tone, setTone: this.field('tone'),
+      minChars: s.minChars, setMin: this.field('minChars'),
+      maxChars: s.maxChars, setMax: this.field('maxChars'),
+      banned: s.banned, setBanned: this.field('banned'),
+      profileChecks: Object.keys(s.profiles).map((k) => ({ label: k, on: !!s.profiles[k], toggle: () => { const p = Object.assign({}, this.state.profiles); p[k] = !p[k]; this.setState({ profiles: p }); } })),
+      cap: s.cap, setCap: this.field('cap'),
+      capCounter: '남은 몫 ' + left + '개 중 ' + cap + '개', capBad: cap < 1 || cap > left,
+      sampleBusy: s.sample === 'busy', sampleIdle: s.sample !== 'ready', sampleReady: s.sample === 'ready',
+      sampleLabel: s.sample === 'busy' ? '샘플 초안 쓰는 중…' : (s.sample === 'ready' ? '다른 영상으로 다시 만들기' : '샘플 초안 만들기'),
+      makeSample: () => this.makeSample(),
+      sampleBadges: [{ tone: 'accent', label: '샘플' }],
+      sampleText: text,
+      sampleCount: n + ' / ' + (hi || 120) + '자', sampleCountBad: n < lo || (hi && n > hi),
+      sampleWhy: ['05:20 “부모님 얘기에 말을 돌린다면” 장면을 직접 짚음', '설정한 말투대로 자기 얘기를 짧게 섞음', '“인연은 따로 있다”에서 ' + brand + '(으)로 자연스럽게 넘어감'],
+      sampleChecks: [
+        { label: '길이 ' + lo + '~' + hi + '자 (지금 ' + n + '자)', ok: n >= lo && n <= hi },
+        { label: '영상 속 장면·말 언급', ok: true },
+        { label: brand + ' 언급', ok: text.indexOf(brand) !== -1 },
+        { label: '링크·해시태그 없음', ok: true },
+        { label: '추가 금지 표현 없음', ok: !banned.some((w) => text.indexOf(w) !== -1) }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

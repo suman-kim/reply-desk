@@ -1,0 +1,21 @@
+<!-- @dsCard group="Actions" height=148 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Button</title></head>
+<body>
+<div id="root" class="iy-preview"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(I.Button, { variant: 'primary' }, '영상 불러오기'),
+  h(I.Button, { variant: 'dark' }, '샘플 초안 만들기'),
+  h(I.Button, { variant: 'secondary' }, '다시 생성'),
+  h(I.Button, { variant: 'ghost' }, '취소'),
+  h(I.Button, { variant: 'dashed' }, '+ 새 주제'),
+  h(I.Button, { variant: 'primary', size: 'lg', loading: true }, '게시 진행 중…'),
+  h(I.Button, { variant: 'primary', size: 'lg', disabled: true }, '댓글 달기'),
+  h(I.Button, { variant: 'secondary', size: 'sm' }, '캡처 보기')
+));
+</script>
+</body>
+</html>

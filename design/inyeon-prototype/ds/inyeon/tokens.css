@@ -1,0 +1,58 @@
+/* Inyeon — generated from tokens.json */
+:root, [data-theme="light"] {
+  --ground: #ffffff;
+  --surface: #ffffff;
+  --surface-sunken: #f5f6f8;
+  --surface-hover: #edeff2;
+  --line: #ebecf0;
+  --line-strong: #d5d8de;
+  --line-control: #8e929c;
+  --ink: #111318;
+  --ink-2: #4b505b;
+  --ink-3: #646978;
+  --on-ink: #ffffff;
+  --accent: #2b5cff;
+  --accent-ink: #1f45d9;
+  --accent-soft: #eef3ff;
+  --on-accent: #ffffff;
+  --rose: #ff5c8a;
+  --rose-ink: #c2185b;
+  --rose-soft: #fff0f4;
+  --success: #0e9f5e;
+  --success-ink: #067647;
+  --success-soft: #ecfbf3;
+  --danger-ink: #c4261b;
+  --danger-soft: #fef1f0;
+  --warning-ink: #9a5b00;
+  --warning-soft: #fff6e5;
+  --focus: var(--accent);
+  --shadow-card: 0 1px 2px rgba(17, 19, 24, 0.06), 0 2px 8px rgba(17, 19, 24, 0.04);
+  --shadow-pop: 0 16px 40px rgba(17, 19, 24, 0.12);
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+.text-display { font-family: var(--font-sans); font-size: 30px; line-height: 38px; font-weight: 700; letter-spacing: -0.03em; }
+.text-title { font-family: var(--font-sans); font-size: 22px; line-height: 30px; font-weight: 700; letter-spacing: -0.025em; }
+.text-heading { font-family: var(--font-sans); font-size: 18px; line-height: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.text-eyebrow { font-family: var(--font-sans); font-size: 11px; line-height: 14px; font-weight: 700; letter-spacing: 0.08em; }
+.text-body-strong { font-family: var(--font-sans); font-size: 15px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.text-body { font-family: var(--font-sans); font-size: 14px; line-height: 22px; font-weight: 400; }
+.text-body-sm { font-family: var(--font-sans); font-size: 13px; line-height: 20px; font-weight: 400; }
+.text-label { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 600; }
+.text-caption { font-family: var(--font-sans); font-size: 12px; line-height: 16px; font-weight: 500; }
+.text-mono { font-family: var(--font-mono); font-size: 12px; line-height: 16px; font-weight: 500; }
+@font-face { font-family: "Pretendard Variable"; src: url("fonts/PretendardVariable.woff2") format("woff2"); font-weight: 45 920; font-style: normal; font-display: swap; }

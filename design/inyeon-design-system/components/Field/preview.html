@@ -1,0 +1,20 @@
+<!-- @dsCard group="Forms" height=300 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Field</title></head>
+<body>
+<div id="root" class="iy-preview iy-preview-col" style="max-width:440px"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+function Demo() {
+  var s = React.useState('부모님 얘기에 말 돌리는 장면에서 한참 멈췄어요. 심리 알아도 결국 인연은 따로 있는 듯… 운명원 연애사주 잘 본다던데 내 짝은 언제 오는지 보고 싶다.');
+  var n = Array.from(s[0]).length;
+  return h(React.Fragment, null,
+    h(I.Field, { label: '링크 직접 입력', value: 'https://www.youtube.com/watch?v=TEST0001', action: h(I.Button, null, '추가') }),
+    h(I.Field, { label: '댓글 초안', multiline: true, rows: 4, value: s[0], onChange: function (e) { s[1](e.target.value); }, counter: n + ' / 120자', counterInvalid: n < 40 || n > 120 }),
+    h(I.Field, { label: '검색 키워드', value: '연애 썸', error: '키워드는 쉼표로 나눠 주세요' }));
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(Demo));
+</script>
+</body>
+</html>

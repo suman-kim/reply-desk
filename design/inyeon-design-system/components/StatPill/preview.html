@@ -1,0 +1,15 @@
+<!-- @dsCard group="Status" height=72 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>StatPill</title></head>
+<body>
+<div id="root" class="iy-preview"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(I.StatPill, { label: '오늘 전체 게시', value: 3, max: 10 }),
+  h(I.StatPill, { label: '운명원', value: 5, max: 5 })
+));
+</script>
+</body>
+</html>

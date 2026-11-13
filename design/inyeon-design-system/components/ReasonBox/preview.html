@@ -1,0 +1,16 @@
+<!-- @dsCard group="Content" height=380 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>ReasonBox</title></head>
+<body>
+<div id="root" class="iy-preview iy-preview-col" style="max-width:460px"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(I.ReasonBox, { tone: 'accent', label: '이 영상을 고른 이유', items: ['조회수 12,400회로 목록 1위', '관계를 확정하지 않는 상대라는 고민이 분명함', '인기 댓글이 자기 연애를 털어놓는 분위기'] }),
+  h(I.ReasonBox, { tone: 'rose', label: '영상 속 고민 한 줄' }, '사귀는 사이인데 상대가 미래 얘기를 피해서 관계가 불안함'),
+  h(I.ReasonBox, { tone: 'neutral', label: '이 댓글을 이렇게 쓴 이유', items: ['05:20 "부모님 얘기에 말을 돌린다면" 장면을 직접 짚음', '인기 댓글처럼 자기 얘기를 짧게 꺼내는 말투'], note: '직접 수정한 초안이에요 · 위 이유는 AI 초안 기준' })
+));
+</script>
+</body>
+</html>

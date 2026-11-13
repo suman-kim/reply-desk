@@ -1,0 +1,29 @@
+# reply-desk 서버의 로컬 개발용 PostgreSQL
+# - 다른 프로젝트 DB(5432, 5434, 55432)와 겹치지 않게 5441 포트를 쓴다.
+# - 127.0.0.1에만 열어 같은 맥 안에서만 접속된다.
+name: reply-desk
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: reply-desk-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reply_desk
+      POSTGRES_PASSWORD: reply_desk
+      POSTGRES_DB: reply_desk
+      TZ: Asia/Seoul
+    ports:
+      - '127.0.0.1:5441:5432'
+    volumes:
+      - reply-desk-pg:/var/lib/postgresql/data
+      # 처음 만들 때 테스트용 DB(reply_desk_test)도 함께 만든다
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U reply_desk -d reply_desk']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  reply-desk-pg:

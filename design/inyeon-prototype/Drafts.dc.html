@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>초안 목록</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/inyeon/tokens.css">
+<link rel="stylesheet" href="ds/inyeon/components/bundle.css">
+<script src="ds/inyeon/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#ffffff}
+a{color:#1f45d9}a:hover{color:#111318}
+.row{box-sizing:border-box;width:100%;display:grid;grid-template-columns:112px minmax(0,1.5fr) 112px minmax(0,2fr) 84px;gap:16px;align-items:center;padding:14px 16px;border:1.5px solid transparent;border-radius:16px;background:transparent;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.row:hover{background:#f5f6f8}
+.row:focus-visible{outline:2px solid #2b5cff;outline-offset:2px}
+.clamp{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; box-sizing: border-box; background: var(--ground); color: var(--ink); font-family: var(--font-sans)">
+<div style="max-width: 1440px; margin: 0 auto; padding: 28px 32px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<a href="Main.dc.html" class="text-body-sm" style="color: var(--ink-2); text-decoration: none; font-weight: 600">← 대시보드</a>
+<h1 class="text-display" style="margin: 0; color: var(--ink)">초안 목록</h1>
+<p class="text-body-sm" style="margin: 0; color: var(--ink-3)">AI가 쓴 초안을 모아 봐요. 행을 누르면 오른쪽에서 고치고, 게시하거나 다시 게시할 수 있어요.</p>
+</div>
+<x-import component-from-global-scope="Inyeon.StatPill" label="게시 대기" value="{{readyCount}}"></x-import>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+<x-import component-from-global-scope="Inyeon.Segmented" label="상태" options="{{statusOpts}}" value="{{filter}}" on-change="{{setFilter}}"></x-import>
+<x-import component-from-global-scope="Inyeon.Segmented" label="주제" options="{{topicOpts}}" value="{{topicFilter}}" on-change="{{setTopic}}"></x-import>
+<x-import component-from-global-scope="Inyeon.Field" value="{{query}}" on-change="{{setQuery}}" placeholder="영상 제목이나 댓글 내용으로 찾기" style="flex: 1 1 260px; min-width: 0; max-width: 420px"></x-import>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section aria-label="초안 목록" style="flex: 999 1 600px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-xl); padding: 12px; box-sizing: border-box">
+<div style="overflow-x: auto">
+<div style="min-width: 760px">
+<div class="text-label" style="display: grid; grid-template-columns: 112px minmax(0,1.5fr) 112px minmax(0,2fr) 84px; gap: 16px; padding: 8px 18px 12px; color: var(--ink-3); border-bottom: 1px solid var(--line); margin-bottom: 6px">
+<span>상태</span><span>영상</span><span>주제</span><span>초안</span><span>만든 시각</span>
+</div>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}">
+<div class="text-body-sm" style="padding: 40px 16px; text-align: center; color: var(--ink-3)">조건에 맞는 초안이 없어요</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+<button type="button" class="row" aria-pressed="{{r.sel}}" onClick="{{r.pick}}" style="background: {{r.bg}}; border-color: {{r.border}}">
+<span><x-import component-from-global-scope="Inyeon.Badge" tone="{{r.tone}}">{{r.statusLabel}}</x-import></span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span class="text-body-sm clamp" style="font-weight: 600; color: var(--ink)">{{r.title}}</span>
+<span class="text-caption" style="color: var(--ink-3)">{{r.channel}}</span>
+</span>
+<span class="text-caption" style="color: var(--ink-2)">{{r.topic}}</span>
+<span class="text-body-sm clamp" style="color: var(--ink-2)">{{r.text}}</span>
+<span class="text-mono" style="color: var(--ink-3)">{{r.created}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+</div>
+</section>
+
+<sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+<aside aria-label="초안 상세" style="flex: 1 1 420px; max-width: 480px; min-width: 0; box-sizing: border-box; position: sticky; top: 24px; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-pop); padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<x-import component-from-global-scope="Inyeon.Badge" tone="{{d.tone}}">{{d.statusLabel}}</x-import>
+<sc-if value="{{d.mine}}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="Inyeon.Badge" tone="rose">내 채널</x-import></sc-if>
+</div>
+<h2 class="text-heading" style="margin: 0; color: var(--ink)">{{d.title}}</h2>
+<span class="text-caption" style="color: var(--ink-3)">{{d.channel}} · {{d.topic}} · 초안 {{d.created}}</span>
+</div>
+<button type="button" aria-label="상세 닫기" onClick="{{closeSel}}" class="iy-btn iy-btn-ghost iy-btn-sm" style="width: 36px; height: 36px; padding: 0; flex: 0 0 auto">
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+</button>
+</div>
+
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="rose" label="영상 속 고민 한 줄">{{d.worry}}</x-import>
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="accent" label="이 영상을 고른 이유" items="{{d.pick}}"></x-import>
+<x-import component-from-global-scope="Inyeon.Field" label="댓글 초안" multiline="{{yes}}" rows="{{four}}" value="{{d.text}}" on-change="{{onDraft}}" read-only="{{d.locked}}" counter="{{d.count}}" counter-invalid="{{d.countBad}}"></x-import>
+<x-import component-from-global-scope="Inyeon.CheckList" items="{{d.checks}}"></x-import>
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="neutral" label="이 댓글을 이렇게 쓴 이유" items="{{d.why}}" note="{{d.editedNote}}"></x-import>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<span class="text-label" style="color: var(--ink-2)">게시 기록</span>
+<sc-if value="{{d.noHistory}}" hint-placeholder-val="{{ true }}"><span class="text-body-sm" style="color: var(--ink-3)">아직 게시한 적 없어요</span></sc-if>
+<sc-for list="{{d.history}}" as="hst" hint-placeholder-count="1">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface-sunken)">
+<span class="text-mono" style="color: var(--ink-3)">{{hst.time}}</span>
+<span class="text-body-sm" style="color: var(--ink)">{{hst.profile}}</span>
+<x-import component-from-global-scope="Inyeon.Badge" tone="{{hst.tone}}">{{hst.label}}</x-import>
+<span class="text-caption" style="color: var(--danger-ink)">{{hst.reason}}</span>
+</div>
+</sc-for>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line)">
+<span class="text-label" style="color: var(--ink-2)">게시할 계정</span>
+<x-import component-from-global-scope="Inyeon.Segmented" label="게시할 계정" block="{{yes}}" options="{{profileOpts}}" value="{{profile}}" on-change="{{setProfile}}"></x-import>
+<x-import component-from-global-scope="Inyeon.Button" variant="primary" size="lg" full-width="{{yes}}" disabled="{{postDisabled}}" loading="{{running}}" on-click="{{post}}">{{postLabel}}</x-import>
+<sc-if value="{{hasBlock}}" hint-placeholder-val="{{ true }}"><span class="text-caption" style="color: var(--ink-3); text-align: center">{{blockText}}</span></sc-if>
+<sc-if value="{{hasRun}}" hint-placeholder-val="{{ false }}"><x-import component-from-global-scope="Inyeon.StepList" steps="{{steps}}"></x-import></sc-if>
+<sc-if value="{{runDone}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--success-soft); color: var(--success-ink)">
+<span class="text-body-strong">게시 완료 · {{runProfile}}</span>
+<a href="Main.dc.html" class="text-body-sm" style="color: var(--success-ink); font-weight: 600">기록 보기</a>
+</div>
+</sc-if>
+</div>
+</aside>
+</sc-if>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1360}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timers = [];
+    this.loggedOut = { '유튜브2': true };
+    const W = (a, b, c) => [a, b, c];
+    this.state = {
+      filter: 'all', topicFilter: 'all', query: '', selId: 't2', profile: '유튜브1', run: null, edits: {},
+      rows: [
+        { id: 't2', topic: '운명원 연애 사주', mine: true, created: '09:31', title: '[테스트] 장거리 연애 6개월 차, 계속 갈 수 있을까', channel: '내 테스트 채널',
+          worry: '장거리 연애가 길어지면서 관계를 이어갈 수 있을지 불안함', keys: ['기차', '주말'],
+          pick: ['내 채널에 올린 공개 테스트 영상 · 게시 시연용', '장거리 연애라는 고민이 분명함'],
+          text: '주말마다 기차 타는 장면에서 울컥했어요. 저도 그 거리 버텨봐서 알아요ㅠ 운명원 연애사주가 잘 본다던데 우리도 버틸 수 있을지 보고 싶다.',
+          why: W('00:35 "주말마다 기차를 타요" 장면을 짚음', '버텨본 사람의 짧은 공감 말투', '"버틸 수 있을지" 궁금증으로 운명원 연결'),
+          history: [{ time: '오늘 09:40', profile: '유튜브2', ok: false, reason: '댓글 창이 20초 안에 뜨지 않음' }], posted: null },
+        { id: 't1', topic: '운명원 연애 사주', mine: true, created: '10:02', title: '[테스트] 연락이 하루 한 번으로 줄어든 썸남, 기다려도 될까요', channel: '내 테스트 채널',
+          worry: '썸남의 연락이 줄어 계속 기다릴지 정리할지 망설임', keys: ['하루에 한 번', '하루 한 번'],
+          pick: ['내 채널에 올린 공개 테스트 영상 · 게시 시연용', '연락이 줄어든 썸남이라는 고민이 분명함'],
+          text: '답장이 하루에 한 번으로 줄었다는 얘기 너무 공감돼요. 기다리는 쪽만 늘 지치는 듯ㅠ 운명원 연애사주가 잘 본다던데 이 인연이 이어질지 한번 보고 싶네요.',
+          why: W('00:40 "하루에 한 번으로 줄었어요" 말을 그대로 짚음', '기다리는 사람의 지친 마음에 공감하는 말투', '"이 인연이 이어질지" 궁금증으로 운명원 연결'),
+          history: [], posted: null },
+        { id: 't0', topic: '운명원 연애 사주', mine: true, created: '어제', title: '[테스트] 첫 고백, 언제 하는 게 좋을까요', channel: '내 테스트 채널',
+          worry: '고백 타이밍을 놓칠까 봐 조급함', keys: ['대화 온도', '세 번째'],
+          pick: ['내 채널에 올린 공개 테스트 영상', '고백 타이밍이라는 고민이 분명함'],
+          text: '세 번째로 말한 대화 온도 얘기 공감돼요. 운명원 연애사주가 잘 본다던데 고백 타이밍 한번 보고 싶네요.',
+          why: W('세 번째 팁 "대화 온도"를 짚음', '짧고 담백한 공감', '"고백 타이밍"으로 운명원 연결'),
+          history: [{ time: '오늘 10:12', profile: '유튜브1', ok: true, reason: '' }], posted: { time: '오늘 10:12', profile: '유튜브1' } },
+        { id: 't3', topic: '운명원 연애 사주', mine: true, created: '09:05', title: '[테스트] 권태기 3개월, 이렇게 넘겼어요', channel: '내 테스트 채널',
+          worry: '오래 만나며 설렘이 줄어 관계가 식은 것 같아 걱정됨', keys: ['권태기', '3개월'],
+          pick: ['내 채널에 올린 공개 테스트 영상', '권태기라는 고민이 분명함'],
+          text: '권태기 3개월 얘기 너무 공감돼요!! 운명원 연애사주 여기서 보세요 #연애운 저도 받아봤는데 진짜 소름 돋을 만큼 맞았어요. 다들 꼭 한번 가보세요 강추합니다 진짜로요',
+          why: W('"권태기 3개월" 제목을 짚음', '(검사 미통과) 광고처럼 들리는 표현이 섞임', '수정이 필요해요'),
+          history: [], posted: null },
+        { id: 'v3', topic: '운명원 연애 사주', mine: false, created: '08:14', title: '남자들이 ‘진지한 연애’ 앞에서 망설이는 순간', channel: '남자의 속마음 채널',
+          worry: '사귀는 사이인데 상대가 미래 얘기를 피해서 관계가 불안함', keys: ['부모님', '말 돌', '미래'],
+          pick: ['조회수 12,400회로 목록 1위', '관계를 확정하지 않는 상대라는 고민이 분명함', '인기 댓글이 자기 연애를 털어놓는 분위기'],
+          text: '부모님 얘기에 말 돌리는 장면에서 한참 멈췄어요. 심리 알아도 결국 인연은 따로 있는 듯… 운명원 연애사주 잘 본다던데 내 짝은 언제 오는지 보고 싶다.',
+          why: W('05:20 "부모님 얘기에 말을 돌린다면" 장면을 직접 짚음', '인기 댓글처럼 자기 얘기를 짧게 꺼내는 말투', '"인연은 따로 있다"에서 운명원으로 넘어감'),
+          history: [], posted: null },
+        { id: 'v4', topic: '운명원 연애 사주', mine: false, created: '08:14', title: '연애할 때마다 같은 사람만 만나는 이유', channel: '연애 고민 라디오',
+          worry: '매번 비슷한 사람에게 끌리고 비슷한 이유로 헤어지는 패턴', keys: ['패턴', '취향'],
+          pick: ['조회수 8,910회로 목록 2위', '반복되는 연애 패턴이라는 고민이 구체적임'],
+          text: '취향이 아니라 패턴이라는 말 진짜 찔렸어요. 매번 비슷한 사람한테 끌리는 게 저만 그런 거 아니었구나ㅠ 운명원 연애사주가 잘 본다던데 나랑 맞는 사람 한번 보고 싶어요.',
+          why: W('06:05 "취향이 아니라 패턴" 문장을 그대로 받음', '고백형 인기 댓글과 같은 톤', '"나랑 맞는 사람"에서 운명원 언급'),
+          history: [], posted: null },
+        { id: 'v2', topic: '운명원 연애 사주', mine: false, created: '08:13', title: '헤어진 연인에게 다시 연락 오는 시기, 이 신호를 보세요', channel: '이별상담소 봄',
+          worry: '이별 후 상대에게 다시 연락이 올지, 재회 가능성이 궁금함', keys: ['스토리', '3개월'],
+          pick: ['어제 올라와 조회수 4,870회', '재회 가능성이라는 고민이 분명함'],
+          text: '스토리 계속 본다는 게 미련 신호라니ㅋㅋ 저도 매일 누가 봤나 확인하는데… 3개월 고비라는 말도 공감돼요. 운명원 연애사주로 재회운 본다던데 저도 궁금해지네요.',
+          why: W('02:45 스토리 장면과 09:10 "3개월 고비"를 짚음', '웃음으로 시작해 혼잣말처럼', '재회 시기 궁금증 → 연애사주'),
+          history: [], posted: null },
+        { id: 'v1', topic: '운명원 연애 사주', mine: false, created: '08:13', title: '썸 탈 때 남자가 연락 텀을 늘리는 진짜 이유 3가지', channel: '연애심리연구소 하루',
+          worry: '썸 단계에서 연락이 뜸해진 상대의 속마음을 몰라 불안함', keys: ['확신', '텀'],
+          pick: ['3시간 전 업로드, 조회수 2,340회', '흔한 고민이라 공감할 사람이 많음'],
+          text: '4분쯤 확신이 없어서 텀이 길어진다는 말 듣고 뜨끔했어요. 저도 딱 그 상태라ㅠ 운명원 연애사주가 그렇게 잘 본다던데 이 사람이 내 인연인지 한번 물어보고 싶네요.',
+          why: W('04:12 "확신이 없어서" 대목을 짚음', '사연형 인기 댓글 말투', '"내 인연인지" 궁금증으로 연결'),
+          history: [], posted: null },
+        { id: 'b1', topic: '[홍보 대상 B]', mine: false, created: '그제', title: '[영상 제목]', channel: '[채널 이름]',
+          worry: '[영상 속 고민]', keys: ['[키워드]'],
+          pick: ['[고른 이유]'],
+          text: '[브랜드] 주제의 샘플 초안 자리예요. 주제를 다시 시작하면 실제 초안이 여기에 쌓여요.',
+          why: W('[쓴 이유]', '', ''),
+          history: [], posted: null }
+      ]
+    };
+  }
+  componentWillUnmount() { this.timers.forEach((t) => clearTimeout(t)); }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+  textOf(r) { return this.state.edits[r.id] != null ? this.state.edits[r.id] : r.text; }
+  checks(r, t) {
+    const n = Array.from(t).length;
+    const brand = r.topic === '[홍보 대상 B]' ? '[브랜드]' : '운명원';
+    return [
+      { label: '길이 40~120자 (지금 ' + n + '자)', ok: n >= 40 && n <= 120 },
+      { label: '영상 속 장면·말 언급', ok: r.keys.some((k) => t.indexOf(k) !== -1) },
+      { label: brand + ' 언급', ok: t.indexOf(brand) !== -1 },
+      { label: '링크·해시태그 없음', ok: !/(https?:\/\/|www\.|\.com|\.kr|#)/i.test(t) },
+      { label: '이용 후기처럼 지어낸 표현 없음', ok: !/(받아\s?봤|보고\s?왔|다녀왔|상담\s?받|봤는데\s?(진짜\s?)?맞)/.test(t) }
+    ];
+  }
+  status(r) {
+    if (r.posted) return 'done';
+    if (!r.mine) return 'draftOnly';
+    const ok = this.checks(r, this.textOf(r)).every((c) => c.ok);
+    if (!ok) return 'checkFail';
+    if (r.history.some((x) => !x.ok)) return 'failed';
+    return 'ready';
+  }
+  meta(st) {
+    return {
+      ready: { label: '게시 대기', tone: 'accent' },
+      failed: { label: '실패', tone: 'danger' },
+      done: { label: '게시 완료', tone: 'success' },
+      draftOnly: { label: '초안만', tone: 'neutral' },
+      checkFail: { label: '검사 미통과', tone: 'warning' }
+    }[st];
+  }
+  isRunning() { return !!(this.state.run && this.state.run.status === 'running'); }
+  gate(r) {
+    const st = this.status(r);
+    if (st === 'done') return '이미 댓글을 단 영상이에요 · 영상당 1개';
+    if (st === 'draftOnly') return '내 채널 영상에만 게시돼요 · 이 영상은 초안까지';
+    if (st === 'checkFail') return '초안 검사를 모두 통과해야 게시할 수 있어요';
+    if (this.loggedOut[this.state.profile]) return this.state.profile + ' 로그인이 풀렸어요 · 계정 관리에서 다시 로그인하세요';
+    return '';
+  }
+  post() {
+    const s = this.state;
+    const r = s.rows.find((x) => x.id === s.selId);
+    if (!r || this.isRunning() || this.gate(r)) return;
+    const profile = s.profile;
+    const len = Array.from(this.textOf(r)).length;
+    this.setState({ run: { id: r.id, profile, step: 0, len, status: 'running' } });
+    const upd = (p) => this.setState({ run: Object.assign({}, this.state.run, p) });
+    [700, 1500, 3300, 4000].forEach((ms, i) => this.later(() => upd({ step: i + 1 }), ms));
+    this.later(() => {
+      const d = new Date(); const pad = (x) => String(x).padStart(2, '0');
+      const time = '오늘 ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      const rows = this.state.rows.map((x) => x.id === r.id ? Object.assign({}, x, { posted: { time, profile }, history: x.history.concat([{ time, profile, ok: true, reason: '' }]) }) : x);
+      this.setState({ rows, run: Object.assign({}, this.state.run, { step: 5, status: 'done' }) });
+    }, 4800);
+  }
+  renderVals() {
+    const s = this.state;
+    const q = (s.query || '').trim();
+    const counts = { all: s.rows.length, ready: 0, failed: 0, done: 0, draftOnly: 0, checkFail: 0 };
+    s.rows.forEach((r) => { counts[this.status(r)] += 1; });
+    const visible = s.rows.filter((r) => {
+      const st = this.status(r);
+      if (s.filter !== 'all' && st !== s.filter) return false;
+      if (s.topicFilter !== 'all' && r.topic !== s.topicFilter) return false;
+      if (q && (r.title + ' ' + this.textOf(r)).indexOf(q) === -1) return false;
+      return true;
+    });
+    const rows = visible.map((r) => {
+      const m = this.meta(this.status(r));
+      const sel = r.id === s.selId;
+      return { title: r.title, channel: r.channel, topic: r.topic, text: this.textOf(r), created: r.created, statusLabel: m.label, tone: m.tone, sel,
+        bg: sel ? 'var(--accent-soft)' : 'transparent', border: sel ? 'var(--accent)' : 'transparent',
+        pick: () => { if (!this.isRunning()) this.setState({ selId: r.id, run: null }); } };
+    });
+    const r = s.rows.find((x) => x.id === s.selId) || null;
+    let d = { title: '', channel: '', topic: '', created: '', statusLabel: '', tone: 'neutral', mine: false, worry: '', pick: [], text: '', checks: [], why: [], history: [], noHistory: true, count: '', countBad: false, locked: true, editedNote: '' };
+    let gate = '';
+    if (r) {
+      const t = this.textOf(r); const n = Array.from(t).length; const m = this.meta(this.status(r));
+      d = { title: r.title, channel: r.channel, topic: r.topic, created: r.created, statusLabel: m.label, tone: m.tone, mine: r.mine, worry: r.worry, pick: r.pick,
+        text: t, checks: this.checks(r, t), why: r.why.filter(Boolean),
+        history: r.history.slice().reverse().map((h) => ({ time: h.time, profile: h.profile, label: h.ok ? '성공' : '실패', tone: h.ok ? 'success' : 'danger', reason: h.reason })),
+        noHistory: r.history.length === 0, count: n + ' / 120자', countBad: n < 40 || n > 120,
+        locked: !!r.posted || this.isRunning(),
+        editedNote: s.edits[r.id] != null ? '직접 수정한 초안이에요 · 위 이유는 AI 초안 기준이에요' : '' };
+      gate = this.gate(r);
+    }
+    const run = s.run && r && s.run.id === r.id ? s.run : null;
+    const running = !!(run && run.status === 'running');
+    const labels = ['크롬 프로필 여는 중', '영상 열고 댓글 창 찾는 중', '한 글자씩 입력 중', '게시 버튼 누르는 중', '내 댓글이 보이는지 확인 중'];
+    const steps = run ? labels.map((l, i) => ({ label: l, state: run.step > i ? 'done' : (run.step === i && running ? 'active' : 'pending'), meta: i === 2 && run.step >= 2 ? (run.step > 2 ? run.len : Math.round(run.len / 2)) + ' / ' + run.len + '자' : '' })) : [];
+    const failed = r && this.status(r) === 'failed';
+    const postDisabled = !!gate || running;
+    return {
+      yes: true, four: 4,
+      readyCount: counts.ready + counts.failed,
+      statusOpts: [
+        { value: 'all', label: '전체 ' + counts.all }, { value: 'ready', label: '게시 대기 ' + counts.ready }, { value: 'failed', label: '실패 ' + counts.failed },
+        { value: 'checkFail', label: '검사 미통과 ' + counts.checkFail }, { value: 'done', label: '게시 완료 ' + counts.done }, { value: 'draftOnly', label: '초안만 ' + counts.draftOnly }
+      ],
+      filter: s.filter, setFilter: (v) => this.setState({ filter: v }),
+      topicOpts: [{ value: 'all', label: '모든 주제' }, { value: '운명원 연애 사주', label: '운명원' }, { value: '[홍보 대상 B]', label: '[B]' }],
+      topicFilter: s.topicFilter, setTopic: (v) => this.setState({ topicFilter: v }),
+      query: s.query, setQuery: (e) => this.setState({ query: e.target.value }),
+      rows, noRows: rows.length === 0,
+      hasSel: !!r, d, closeSel: () => { if (!this.isRunning()) this.setState({ selId: null, run: null }); },
+      onDraft: (e) => { if (!r) return; const ed = Object.assign({}, this.state.edits); ed[r.id] = e.target.value; this.setState({ edits: ed }); },
+      profileOpts: [{ value: '유튜브1', label: '유튜브1' }, { value: '유튜브2', label: '유튜브2' }, { value: '유튜브3', label: '유튜브3' }],
+      profile: s.profile, setProfile: (v) => { if (!this.isRunning()) this.setState({ profile: v }); },
+      post: () => this.post(), postDisabled, running,
+      postLabel: running ? '게시 진행 중…' : (failed ? '다시 게시' : '댓글 게시'),
+      hasBlock: !!gate && !running && !(run && run.status === 'done'), blockText: gate,
+      hasRun: !!run, steps, runDone: !!(run && run.status === 'done'), runProfile: run ? run.profile : ''
+    };
+  }
+}
+</script>
+</body>
+</html>

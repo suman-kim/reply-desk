@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>계정 관리</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/inyeon/tokens.css">
+<link rel="stylesheet" href="ds/inyeon/components/bundle.css">
+<script src="ds/inyeon/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#ffffff}
+a{color:#1f45d9}a:hover{color:#111318}
+</style>
+</helmet>
+<div style="width: 100%; min-height: 100vh; box-sizing: border-box; background: var(--ground); color: var(--ink); font-family: var(--font-sans)">
+<div style="max-width: 1360px; margin: 0 auto; padding: 28px 32px 56px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<a href="Main.dc.html" class="text-body-sm" style="color: var(--ink-2); text-decoration: none; font-weight: 600">← 대시보드</a>
+<h1 class="text-display" style="margin: 0; color: var(--ink)">계정 관리</h1>
+<p class="text-body-sm" style="margin: 0; color: var(--ink-3)">댓글을 게시할 크롬 프로필과 유튜브 계정을 연결해요. 등록한 계정의 채널이 곧 '내 채널'이에요.</p>
+</div>
+<x-import component-from-global-scope="Inyeon.StatPill" label="연결된 계정" value="{{connectedCount}}" max="{{profileCount}}"></x-import>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+
+<section aria-label="등록된 프로필" style="flex: 1.4 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="3">
+<article style="box-sizing: border-box; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius-xl); background: var(--surface); display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<div style="display: flex; align-items: center; gap: 14px; min-width: 0">
+<span aria-hidden="true" style="flex: 0 0 44px; width: 44px; height: 44px; border-radius: 50%; background: {{c.avatarBg}}; color: {{c.avatarInk}}; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700">{{c.initial}}</span>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<span class="text-heading" style="color: var(--ink)">{{c.name}}</span>
+<span class="text-caption" style="color: var(--ink-3)">{{c.channel}}</span>
+</div>
+</div>
+<x-import component-from-global-scope="Inyeon.Badge" tone="{{c.tone}}" dot="{{c.dot}}">{{c.status}}</x-import>
+</div>
+
+<sc-if value="{{c.needsLogin}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--warning-soft)">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span class="text-body-strong" style="color: var(--warning-ink)">로그인이 풀렸어요</span>
+<span class="text-body-sm" style="color: var(--ink-2)">이 프로필은 다시 로그인할 때까지 자동 배정에서 빠져요.</span>
+</div>
+<x-import component-from-global-scope="Inyeon.Button" variant="primary" size="sm" on-click="{{c.relogin}}" loading="{{c.busy}}">크롬 열어 다시 로그인</x-import>
+</div>
+</sc-if>
+
+<dl style="margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 24px">
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">구글 계정</dt><dd class="text-body-sm" style="margin: 0; color: var(--ink)">{{c.email}}</dd></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">채널 ID</dt><dd class="text-mono" style="margin: 0; color: var(--ink-2)">{{c.channelId}}</dd></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">프로필 폴더</dt><dd class="text-mono" style="margin: 0; color: var(--ink-2); word-break: break-all">{{c.folder}}</dd></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">마지막 확인</dt><dd class="text-body-sm" style="margin: 0; color: var(--ink)">{{c.checked}}</dd></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">유튜브 화면 언어</dt><dd class="text-body-sm" style="margin: 0; color: var(--ink)">{{c.lang}}</dd></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><dt class="text-label" style="color: var(--ink-3)">오늘 게시</dt><dd class="text-body-sm" style="margin: 0; color: var(--ink)">{{c.today}}</dd></div>
+</dl>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 16px; border-top: 1px solid var(--line)">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px">
+<span class="text-caption" style="color: var(--ink-3)">쓰는 주제</span>
+<x-import component-from-global-scope="Inyeon.Badge">{{c.topics}}</x-import>
+</div>
+<div style="display: flex; gap: 8px">
+<x-import component-from-global-scope="Inyeon.Button" variant="secondary" size="sm" on-click="{{c.check}}" loading="{{c.checking}}">연결 확인</x-import>
+<x-import component-from-global-scope="Inyeon.Button" variant="ghost" size="sm">크롬 열기</x-import>
+</div>
+</div>
+</article>
+</sc-for>
+</section>
+
+<div style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<x-import component-from-global-scope="Inyeon.Panel" title="새 프로필 추가" hint="이름을 정하면 프로필 폴더를 만들고, 그 폴더로 크롬을 열어 직접 로그인해요">
+<x-import component-from-global-scope="Inyeon.StepList" steps="{{wizSteps}}"></x-import>
+
+<sc-if value="{{wiz0}}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="Inyeon.Field" label="프로필 이름" value="{{newName}}" on-change="{{setNewName}}"></x-import>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--surface-sunken)">
+<span class="text-label" style="color: var(--ink-3)">만들 폴더</span>
+<span class="text-mono" style="color: var(--ink-2); word-break: break-all">{{newFolder}}</span>
+</div>
+<x-import component-from-global-scope="Inyeon.Button" variant="primary" full-width="{{yes}}" on-click="{{wizNext}}">폴더 만들고 다음</x-import>
+</sc-if>
+
+<sc-if value="{{wiz1}}" hint-placeholder-val="{{ false }}">
+<x-import component-from-global-scope="Inyeon.BrowserFrame" profile="{{newProfileLabel}}" url="{{loginUrl}}" min-height="{{browserH}}">
+<sc-if value="{{browserClosed}}" hint-placeholder-val="{{ true }}">
+<p class="text-body-sm" style="margin: auto 0; text-align: center; color: var(--ink-3)">[크롬 열기]를 누르면<br>이 프로필 전용 크롬 창이 열려요</p>
+</sc-if>
+<sc-if value="{{browserOpen}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin: auto 0; text-align: center">
+<span class="text-body-strong" style="color: var(--ink)">구글 로그인</span>
+<span style="width: 70%; height: 38px; border-radius: 10px; background: var(--surface-sunken)"></span>
+<span style="width: 70%; height: 38px; border-radius: 10px; background: var(--surface-sunken)"></span>
+<span class="text-caption" style="color: var(--ink-3)">이 창에서 직접 로그인하세요</span>
+</div>
+</sc-if>
+</x-import>
+<div style="display: flex; gap: 8px">
+<x-import component-from-global-scope="Inyeon.Button" variant="{{openVariant}}" on-click="{{openChrome}}" style="flex: 1 1 0">크롬 열기</x-import>
+<x-import component-from-global-scope="Inyeon.Button" variant="{{doneVariant}}" disabled="{{loginDisabled}}" on-click="{{wizNext}}" style="flex: 1 1 0">로그인했어요</x-import>
+</div>
+<span class="text-caption" style="color: var(--ink-3)">비밀번호와 2단계 인증은 크롬 창에서만 입력해요. 대시보드는 로그인 정보를 저장하지 않고, 로그인된 프로필 폴더만 써요.</span>
+</sc-if>
+
+<sc-if value="{{wiz2}}" hint-placeholder-val="{{ false }}">
+<div class="text-body-sm" style="display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: var(--radius-lg); background: var(--surface-sunken); color: var(--ink-2)">
+<x-import component-from-global-scope="Inyeon.Spinner" size="{{spin16}}"></x-import>
+<span>{{checkText}}</span>
+</div>
+</sc-if>
+
+<sc-if value="{{wizDone}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: var(--radius-lg); background: var(--success-soft)">
+<span class="text-body-strong" style="color: var(--success-ink)">{{newName}} 연결 완료</span>
+<span class="text-body-sm" style="color: var(--ink-2)">채널 '내 테스트 채널 2'가 내 채널 목록에 추가됐어요. 이 채널에 올린 영상에 게시할 수 있어요.</span>
+</div>
+<x-import component-from-global-scope="Inyeon.CheckList" items="{{doneChecks}}"></x-import>
+<x-import component-from-global-scope="Inyeon.Button" variant="secondary" full-width="{{yes}}" on-click="{{wizReset}}">다른 프로필 추가</x-import>
+</sc-if>
+</x-import>
+
+<x-import component-from-global-scope="Inyeon.ReasonBox" tone="accent" label="내 채널은 이렇게 정해져요" items="{{ownRules}}"></x-import>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.timers = [];
+    this.state = {
+      profiles: [
+        { name: '유튜브1', channel: '내 테스트 채널', initial: '1', email: 'te***01@gmail.com', channelId: 'UC4f…9aQe', folder: '~/yt-agent/profiles/youtube1', checked: '오늘 08:02', lang: '한국어', today: '1건', topics: '운명원 연애 사주', ok: true },
+        { name: '유튜브2', channel: '테스트 채널 B', initial: '2', email: 'te***02@gmail.com', channelId: 'UCz8…L1m0', folder: '~/yt-agent/profiles/youtube2', checked: '오늘 09:40', lang: '한국어', today: '0건 · 실패 1건', topics: '운명원 연애 사주', ok: false },
+        { name: '유튜브3', channel: '테스트 채널 C', initial: '3', email: 'te***03@gmail.com', channelId: 'UCq2…7xTd', folder: '~/yt-agent/profiles/youtube3', checked: '어제 22:15', lang: '한국어', today: '0건', topics: '운명원 연애 사주', ok: true }
+      ],
+      busy: {}, checking: {},
+      wiz: 0, browser: false, newName: '유튜브4', checkStep: 0
+    };
+  }
+  componentWillUnmount() { this.timers.forEach((t) => clearTimeout(t)); }
+  later(fn, ms) { this.timers.push(setTimeout(fn, ms)); }
+  relogin(i) {
+    const b = Object.assign({}, this.state.busy); b[i] = true; this.setState({ busy: b });
+    this.later(() => {
+      const ps = this.state.profiles.slice(); ps[i] = Object.assign({}, ps[i], { ok: true, checked: '방금 전', today: '0건' });
+      const b2 = Object.assign({}, this.state.busy); delete b2[i];
+      this.setState({ profiles: ps, busy: b2 });
+    }, 1800);
+  }
+  check(i) {
+    const c = Object.assign({}, this.state.checking); c[i] = true; this.setState({ checking: c });
+    this.later(() => {
+      const ps = this.state.profiles.slice(); ps[i] = Object.assign({}, ps[i], { checked: '방금 전' });
+      const c2 = Object.assign({}, this.state.checking); delete c2[i];
+      this.setState({ profiles: ps, checking: c2 });
+    }, 1200);
+  }
+  wizNext() {
+    const w = this.state.wiz;
+    if (w === 0) { this.setState({ wiz: 1, browser: false }); return; }
+    if (w === 1) {
+      this.setState({ wiz: 2, checkStep: 0 });
+      this.later(() => this.setState({ checkStep: 1 }), 1100);
+      this.later(() => this.setState({ wiz: 3 }), 2200);
+    }
+  }
+  renderVals() {
+    const s = this.state;
+    const slug = (s.newName || '').trim().replace(/유튜브/g, 'youtube').replace(/[^A-Za-z0-9_-]+/g, '-').toLowerCase() || 'profile';
+    const stepState = (i) => (s.wiz > i ? 'done' : (s.wiz === i ? 'active' : 'pending'));
+    const cards = s.profiles.map((p, i) => ({
+      name: p.name, channel: p.channel, initial: p.initial, email: p.email, channelId: p.channelId, folder: p.folder,
+      checked: p.checked, lang: p.lang, today: p.today, topics: p.topics,
+      tone: p.ok ? 'success' : 'warning', dot: true, status: p.ok ? '연결됨' : '로그인 필요',
+      needsLogin: !p.ok,
+      avatarBg: p.ok ? 'var(--accent-soft)' : 'var(--warning-soft)', avatarInk: p.ok ? 'var(--accent-ink)' : 'var(--warning-ink)',
+      relogin: () => this.relogin(i), busy: !!s.busy[i],
+      check: () => this.check(i), checking: !!s.checking[i]
+    }));
+    return {
+      yes: true, spin16: 16, browserH: 150,
+      connectedCount: s.profiles.filter((p) => p.ok).length + (s.wiz === 3 ? 1 : 0),
+      profileCount: s.profiles.length + (s.wiz === 3 ? 1 : 0),
+      cards,
+      wizSteps: [
+        { label: '프로필 폴더 만들기', state: stepState(0) },
+        { label: '크롬 열고 직접 로그인', state: stepState(1) },
+        { label: '유튜브 채널·한국어 화면 확인', state: stepState(2), meta: s.wiz === 2 ? (s.checkStep === 0 ? '채널 찾는 중' : '언어 확인 중') : '' },
+        { label: '연결 완료', state: s.wiz === 3 ? 'done' : 'pending' }
+      ],
+      wiz0: s.wiz === 0, wiz1: s.wiz === 1, wiz2: s.wiz === 2, wizDone: s.wiz === 3,
+      newName: s.newName, setNewName: (e) => this.setState({ newName: e.target.value }),
+      newFolder: '~/yt-agent/profiles/' + slug,
+      wizNext: () => this.wizNext(),
+      wizReset: () => this.setState({ wiz: 0, browser: false, newName: '유튜브5' }),
+      newProfileLabel: (s.newName || '새') + ' 프로필',
+      loginUrl: s.browser ? 'accounts.google.com/signin' : 'about:blank',
+      browserClosed: !s.browser, browserOpen: s.browser,
+      openChrome: () => this.setState({ browser: true }),
+      openVariant: s.browser ? 'secondary' : 'primary',
+      doneVariant: s.browser ? 'primary' : 'secondary',
+      loginDisabled: !s.browser,
+      checkText: s.checkStep === 0 ? 'youtube.com에서 로그인된 채널을 찾는 중…' : '유튜브 화면 언어가 한국어인지 확인하는 중…',
+      doneChecks: [
+        { label: '구글 로그인 유지됨', ok: true },
+        { label: '유튜브 채널 찾음 · 내 테스트 채널 2', ok: true },
+        { label: '유튜브 화면 언어 한국어', ok: true }
+      ],
+      ownRules: [
+        '여기 등록한 계정의 유튜브 채널만 내 채널이 돼요',
+        '실제 게시는 내 채널에 올린 영상에만 돼요. 다른 채널 영상은 초안까지예요',
+        '로그인이 풀린 프로필은 다시 로그인할 때까지 자동 배정에서 빠져요'
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

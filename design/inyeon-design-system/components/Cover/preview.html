@@ -1,0 +1,50 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Inyeon</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--ground); color: var(--ink); font-family: var(--font-sans); overflow: hidden; }
+  .cover { position: relative; height: 288px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 288px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 288px; }
+  .blue { fill: var(--accent); }
+  .deep { fill: var(--ink); }
+  .rose { fill: var(--rose); }
+  .blk { rx: var(--radius-xl); }
+  .pill { rx: 28px; }
+  .thread { fill: none; stroke: var(--rose); stroke-width: 2; stroke-linecap: round; }
+  .words { position: absolute; left: var(--space-8); bottom: var(--space-8); max-width: 440px; }
+  .name { margin: 0; font-size: 112px; line-height: .92; font-weight: 760; letter-spacing: -.05em; color: var(--ink); }
+  .tag { margin: var(--space-3) 0 0 6px; font-size: 14px; line-height: 20px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      accent 152x216 bled off the top (the one hue) · rose pill 152x56 (the human worry) · ink 312x264 bleeding off the right and bottom (headlines and the dark button) — white ground everywhere else, about 40% of 960x288
+  arrangement one tall blue slab with a rose pill beneath it on a space-4 gutter, a big ink slab anchoring the corner
+  pattern     arcs — "Inyeon" is a destined connection: five concentric quarter arcs radiate from the ink slab's corner like threads tying a video to its viewers, in rose over ink
+  scales      gutters space-4 (16); arc pitch space-8 (32); slab corners radius-xl (24); pill rx half its height (28)
+-->
+<rect class="blue blk" x="16" y="-24" width="152" height="216" rx="24"/>
+<rect class="rose pill" x="16" y="208" width="152" height="56" rx="28"/>
+<rect class="deep blk" x="184" y="48" width="312" height="264" rx="24"/>
+<path class="thread" d="M416 288 A64 64 0 0 1 480 224"/>
+<path class="thread" d="M384 288 A96 96 0 0 1 480 192"/>
+<path class="thread" d="M352 288 A128 128 0 0 1 480 160"/>
+<path class="thread" d="M320 288 A160 160 0 0 1 480 128"/>
+<path class="thread" d="M288 288 A192 192 0 0 1 480 96"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Inyeon</h1>
+<p class="tag">결과 옆에 이유까지 보여주는 깔끔한 관제 화면</p>
+</div>
+</div>
+</body>
+</html>

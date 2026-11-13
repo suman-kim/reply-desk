@@ -1,0 +1,20 @@
+<!-- @dsCard group="Status" height=190 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>CheckList</title></head>
+<body>
+<div id="root" class="iy-preview iy-preview-col"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h(I.CheckList, { items: [
+    { label: '길이 40~120자 (지금 91자)', ok: true },
+    { label: '영상 속 장면·말 언급', ok: true },
+    { label: '운명원 언급', ok: true },
+    { label: '링크·해시태그 없음', ok: false },
+    { label: '이용 후기처럼 지어낸 표현 없음', ok: true }
+  ] })
+);
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!-- @dsCard group="Status" height=230 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>StepList</title></head>
+<body>
+<div id="root" class="iy-preview"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h('div', { style: { width: 300 } }, h(I.StepList, { steps: [
+    { label: '크롬 프로필 여는 중', state: 'done' },
+    { label: '댓글 창 찾는 중', state: 'done' },
+    { label: '한 글자씩 입력 중', state: 'active', meta: '34 / 91자' },
+    { label: '게시', state: 'pending' },
+    { label: '내 댓글 확인', state: 'pending' }
+  ] })),
+  h('div', { style: { width: 300 } }, h(I.StepList, { steps: [
+    { label: '크롬 프로필 여는 중', state: 'done' },
+    { label: '댓글 창 찾는 중', state: 'failed', meta: '20초 초과' },
+    { label: '한 글자씩 입력', state: 'pending' },
+    { label: '게시', state: 'pending' },
+    { label: '내 댓글 확인', state: 'pending' }
+  ] }))
+));
+</script>
+</body>
+</html>

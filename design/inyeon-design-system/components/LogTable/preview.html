@@ -1,0 +1,20 @@
+<!-- @dsCard group="Content" height=300 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>LogTable</title></head>
+<body>
+<div id="root" class="iy-preview iy-preview-col"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+function Demo() {
+  var s = React.useState(null);
+  var rows = [
+    { id: 'a', time: '오늘 10:12', topic: '운명원 연애 사주', video: '[테스트] 첫 고백, 언제 하는 게 좋을까요', profile: '유튜브1', comment: '세 번째로 말한 대화 온도 얘기 공감돼요. 운명원 연애사주가 잘 본다던데 고백 타이밍 한번 보고 싶네요.', ok: true },
+    { id: 'b', time: '오늘 09:40', topic: '운명원 연애 사주', video: '[테스트] 장거리 연애 6개월 차', profile: '유튜브2', comment: '주말마다 기차 타는 장면에서 울컥했어요.', ok: false, reason: '댓글 창이 20초 안에 뜨지 않음' }
+  ];
+  return h(I.LogTable, { rows: rows, openCaptureId: s[0], onCapture: function (r) { s[1](s[0] === r.id ? null : r.id); } });
+}
+ReactDOM.createRoot(document.getElementById('root')).render(h(Demo));
+</script>
+</body>
+</html>

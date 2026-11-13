@@ -1,0 +1,20 @@
+<!-- @dsCard group="Status" height=72 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>Badge</title></head>
+<body>
+<div id="root" class="iy-preview"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(h(React.Fragment, null,
+  h(I.Badge, { loading: true }, '초안 작성 중'),
+  h(I.Badge, null, '연애'),
+  h(I.Badge, { tone: 'accent' }, '초안 준비됨'),
+  h(I.Badge, { tone: 'rose' }, '내 채널'),
+  h(I.Badge, { tone: 'success', dot: true }, '진행 중'),
+  h(I.Badge, { tone: 'danger' }, '실패'),
+  h(I.Badge, { tone: 'warning', dot: true }, '일시정지')
+));
+</script>
+</body>
+</html>

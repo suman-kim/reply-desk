@@ -1,0 +1,16 @@
+# 운영체제
+.DS_Store
+
+# 의존성·빌드 결과
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# 비밀 값 (예시는 server/env.example)
+.env
+.env.*
+
+# 크롬 프로필·캡처 (로그인 정보가 들어 있다)
+profiles/
+screenshots/

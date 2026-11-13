@@ -1,0 +1,17 @@
+<!-- @dsCard group="Layout" height=250 -->
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><title>BrowserFrame</title></head>
+<body>
+<div id="root" class="iy-preview iy-preview-col" style="max-width:420px"></div>
+<script>
+var I = window.Inyeon, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root')).render(
+  h(I.BrowserFrame, { profile: '유튜브1 프로필', url: 'youtube.com/watch?v=TEST0001' },
+    h('span', { className: 'text-body-strong' }, '[테스트] 연락이 하루 한 번으로 줄어든 썸남'),
+    h('div', { style: { borderBottom: '2px solid var(--ink)', paddingBottom: 8, fontSize: 13, lineHeight: '20px' } }, '답장이 하루에 한 번으로 줄었다는 얘기 너무 공감돼요|'),
+    h('div', { style: { display: 'flex', justifyContent: 'flex-end' } }, h(I.Badge, { tone: 'accent' }, '입력 중 34 / 91자')))
+);
+</script>
+</body>
+</html>
