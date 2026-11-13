@@ -62,8 +62,37 @@ export function PostControl({
     post.mutate({ topicId: topic.id, videoId: video.id, profileId }, { onSuccess: (a) => setAttemptId(a.id) });
   };
 
+  // 넓으면 왼쪽은 계정·대상·버튼·진행, 오른쪽은 크롬 화면 미리보기 (좁으면 위아래)
+  const browser = showBrowser ? (
+    <BrowserFrame
+      profile={attempt.data?.profileName ? `${attempt.data.profileName} 프로필` : '크롬 프로필'}
+      url={video ? `youtube.com/watch?v=${video.youtubeId}` : 'about:blank'}
+      minHeight={360}
+    >
+      {attempt.data?.hasPreview && attemptId ? (
+        <img
+          className="rd-preview"
+          alt="게시 중인 크롬 화면"
+          src={`/api/posting/attempts/${attemptId}/preview?seq=${previewSeq.data ?? 0}`}
+        />
+      ) : running ? (
+        <div className="rd-box-row text-body-sm" style={{ margin: 'auto 0' }}>
+          <Spinner size={20} />
+          <span>크롬을 여는 중…</span>
+        </div>
+      ) : (
+        <p className="text-body-sm rd-muted" style={{ margin: 'auto 0', textAlign: 'center' }}>
+          [댓글 달기]를 누르면
+          <br />이 창에서 진행 과정이 보여요
+        </p>
+      )}
+    </BrowserFrame>
+  ) : null;
+
   return (
-    <>
+    <div className="rd-cq">
+    <div className={`rd-split${browser ? '' : ' is-single'}`}>
+    <div className="rd-stack-16">
       <div className="rd-stack-8">
         <span className="text-label rd-ink2">게시할 계정</span>
         {topic.profiles.length === 0 ? (
@@ -103,31 +132,6 @@ export function PostControl({
 
       <div aria-live="polite" className="rd-stack-12">
         {steps.length > 0 ? <StepList steps={steps} /> : null}
-        {showBrowser ? (
-          <BrowserFrame
-            profile={attempt.data?.profileName ? `${attempt.data.profileName} 프로필` : '크롬 프로필'}
-            url={video ? `youtube.com/watch?v=${video.youtubeId}` : 'about:blank'}
-            minHeight={220}
-          >
-            {attempt.data?.hasPreview && attemptId ? (
-              <img
-                className="rd-preview"
-                alt="게시 중인 크롬 화면"
-                src={`/api/posting/attempts/${attemptId}/preview?seq=${previewSeq.data ?? 0}`}
-              />
-            ) : running ? (
-              <div className="rd-box-row text-body-sm" style={{ margin: 'auto 0' }}>
-                <Spinner size={20} />
-                <span>크롬을 여는 중…</span>
-              </div>
-            ) : (
-              <p className="text-body-sm rd-muted" style={{ margin: 'auto 0', textAlign: 'center' }}>
-                [댓글 달기]를 누르면
-                <br />이 창에서 진행 과정이 보여요
-              </p>
-            )}
-          </BrowserFrame>
-        ) : null}
         {attempt.data?.status === 'success' ? (
           <div className="rd-band rd-band-success">
             <span className="text-body-strong">게시 완료 · {attempt.data.profileName}</span>
@@ -136,6 +140,9 @@ export function PostControl({
                 댓글 보기
               </a>
             ) : null}
+            <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
+              게시 기록
+            </Link>
           </div>
         ) : null}
         {attempt.data?.status === 'failed' ? (
@@ -146,9 +153,15 @@ export function PostControl({
                 캡처 보기
               </a>
             ) : null}
+            <Link to={`/logs?topic=${topic.id}`} className="text-body-sm">
+              게시 기록
+            </Link>
           </div>
         ) : null}
       </div>
-    </>
+    </div>
+    {browser}
+    </div>
+    </div>
   );
 }

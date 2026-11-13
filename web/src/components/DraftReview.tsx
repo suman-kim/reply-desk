@@ -89,10 +89,12 @@ export function DraftReview({ topic, detail }: { topic: Topic; detail: DraftDeta
         ? editDraft.error.message
         : '고치면 바로 다시 검사해요';
 
+  // 넓으면 왼쪽은 판단 근거(고른 이유·고민·장면), 오른쪽은 초안과 검사 (좁으면 위아래)
   return (
-    <>
+    <div className="rd-cq">
+      <div className={`rd-split${analysis ? '' : ' is-single'}`}>
       {analysis ? (
-        <>
+        <div className="rd-stack-16">
           <ReasonBox tone="accent" label="이 영상을 고른 이유" items={analysis.pickReasons} />
           <ReasonBox tone="rose" label="영상 속 고민 한 줄">
             {analysis.worry}
@@ -106,8 +108,9 @@ export function DraftReview({ topic, detail }: { topic: Topic; detail: DraftDeta
               </div>
             ))}
           </div>
-        </>
+        </div>
       ) : null}
+      <div className="rd-stack-16">
       <Field
         label="댓글 초안"
         multiline
@@ -128,6 +131,8 @@ export function DraftReview({ topic, detail }: { topic: Topic; detail: DraftDeta
       <CheckList items={draft.checkResults.map((r) => ({ label: `${r.label} · ${r.detail}`, ok: r.passed }))} />
       {regenError}
       {regenButtons}
-    </>
+      </div>
+      </div>
+    </div>
   );
 }

@@ -248,9 +248,14 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(openaiCall.prompt).toContain('영상은 볼 수 없어');
   });
 
-  it('다시 불러오면 초안이 있는 영상은 건너뛴다', async () => {
+  it('다시 불러오면 초안이 있는 영상은 건너뛰고, 작성에 실패한 영상만 다시 쓴다', async () => {
     const res = await http().post(`/api/topics/${topicId}/load`).expect(201);
-    expect(res.body.progress).toMatchObject({ total: 0, running: false });
+    // demo00000v3만 실패해 있었다 (가짜 AI는 이 영상의 분석을 늘 실패시킨다)
+    expect(res.body.progress).toMatchObject({ total: 1 });
+    await queue.whenIdle();
+    const again = await http().post(`/api/topics/${topicId}/load`).expect(201);
+    expect(again.body.progress).toMatchObject({ total: 1 });
+    await queue.whenIdle();
   });
 
   it('쓰는 중이면 [다시 생성]을 막고, 서버가 다시 뜨면 쓰다 멈춘 초안을 실패로 바꾼다', async () => {

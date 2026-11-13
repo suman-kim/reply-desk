@@ -3,6 +3,7 @@ import { NeedLoginCount, PendingDraftsCount } from './components/MenuCounts';
 import { AccountsPage } from './pages/AccountsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftsPage } from './pages/DraftsPage';
+import { LogsPage } from './pages/LogsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TopicFormPage } from './pages/TopicFormPage';
 
@@ -36,6 +37,7 @@ export const MENU: MenuItem[] = [
     ],
   },
   { path: '/drafts', label: '초안 목록', page: <DraftsPage />, Count: PendingDraftsCount },
+  { path: '/logs', label: '게시 기록', page: <LogsPage /> },
   { path: '/accounts', label: '계정 관리', page: <AccountsPage />, Count: NeedLoginCount },
   { path: '/settings', label: '설정', page: <SettingsPage /> },
 ];
