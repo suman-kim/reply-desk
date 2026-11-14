@@ -13,6 +13,7 @@ import { videoBadges } from '../components/badges';
 import { DraftReview } from '../components/DraftReview';
 import { PostControl } from '../components/PostControl';
 import { VideoModal, type ModalVideo } from '../components/VideoModal';
+import { VideoThumb } from '../components/VideoThumb';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, Panel, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
 import { formatDuration, formatViews, relativeTime } from '../lib/format';
@@ -463,7 +464,9 @@ function SelectPanel({ topic, videoId, onWatch }: { topic: Topic; videoId: numbe
       ) : v ? (
         <>
           <div className="rd-video-head">
-            <div className="rd-stack" style={{ minWidth: 0 }}>
+            {/* 썸네일: 누르면 영상 보기 창 */}
+            <VideoThumb url={v.thumbnailUrl} title={v.title} durationSec={v.durationSec} onPlay={() => onWatch(v)} />
+            <div className="rd-stack rd-video-head-text">
               <a href={v.url} target="_blank" rel="noreferrer" className="text-body-strong" style={{ fontSize: 15, color: 'var(--ink)' }}>
                 {v.title}
               </a>
