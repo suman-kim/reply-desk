@@ -89,7 +89,7 @@ describe('게시 5단계', () => {
     expect(out).toMatchObject({
       ok: false,
       step: 'open_profile',
-      reason: expect.stringContaining('이미 열려'),
+      reason: expect.stringContaining('[크롬 열기]'),
     });
   });
 

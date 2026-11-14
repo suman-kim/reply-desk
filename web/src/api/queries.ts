@@ -9,6 +9,7 @@ import type {
   DraftProgress,
   Draft,
   LoginCheckView,
+  OpenLoginView,
   PostCheck,
   PostLogRow,
   Profile,
@@ -255,7 +256,7 @@ export function useActions() {
     }),
     /** [크롬 열고 직접 로그인] */
     openLogin: useMutation({
-      mutationFn: (id: number) => api<{ message: string }>('POST', `/profiles/${id}/login`),
+      mutationFn: (id: number) => api<OpenLoginView>('POST', `/profiles/${id}/login`),
     }),
     /** [로그인 확인] */
     checkLogin: useMutation({

@@ -90,6 +90,14 @@ export interface Profile {
   topics: { id: number; name: string }[];
 }
 
+/** [크롬 열기] 결과 */
+export interface OpenLoginView {
+  /** 화면에 보일 한 줄 (다음 할 일) */
+  message: string;
+  /** 원격 연결 없이 열려 있던 크롬을 닫고 다시 열었는지 */
+  restarted: boolean;
+}
+
 /** 로그인 확인 결과 (POST /profiles/:id/check) */
 export interface LoginCheckView {
   /** 고친 프로필 */

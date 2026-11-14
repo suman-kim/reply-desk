@@ -48,7 +48,7 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
 
   it('로그인: 일반 크롬을 열고, [로그인 확인]으로 채널을 내 채널 목록에 넣는다', async () => {
     const open = await http().post(`/api/profiles/${p1.id}/login`).expect(201);
-    expect(open.body.message).toContain('[로그인 확인]');
+    expect(open.body.message).toContain('[연결 확인]');
     expect(browser.manualLogins).toEqual([p1.folderPath]);
 
     // 로그인 안 됨 → 다시 로그인 필요

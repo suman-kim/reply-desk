@@ -75,37 +75,56 @@ export interface LoginCheckResult {
 /** 크롬 다루기 */
 export interface YoutubeBrowser {
   /**
-   * 프로필 폴더로 크롬을 띄워 YouTube 탭을 연다 (게시용)
+   * 프로필 폴더로 크롬을 띄워 YouTube 탭을 연다 (게시용).
+   * [크롬 열기]로 연 크롬이 열려 있으면 그 크롬에 새 탭으로 붙는다.
    * @param profileDir 크롬 프로필 폴더
-   * @param opts.headless 창 없이 띄울지
-   * @throws ProfileInUseError 같은 프로필의 크롬이 이미 열려 있으면
+   * @param opts.headless 새로 띄울 때 창 없이 띄울지 (열린 크롬에 붙을 때는 그 창에서 한다)
+   * @throws ProfileInUseError 같은 프로필의 크롬이 붙을 수 없는 상태로 열려 있으면
    */
   openPage(
     profileDir: string,
     opts: { headless: boolean },
   ): Promise<YoutubePage>;
   /**
-   * 창 없이 띄워 로그인·채널·화면 언어를 읽는다
+   * 로그인·채널·화면 언어를 읽는다.
+   * [크롬 열기]로 연 크롬이 열려 있으면 그 크롬에 새 탭으로 붙어 읽고 그 탭만 닫는다. 없으면 창 없이 띄운다.
    * @param profileDir 크롬 프로필 폴더
-   * @throws ProfileInUseError 같은 프로필의 크롬이 이미 열려 있으면
+   * @throws ProfileInUseError 같은 프로필의 크롬이 붙을 수 없는 상태로 열려 있으면
    */
   checkLogin(profileDir: string): Promise<LoginCheckResult>;
   /**
-   * 사람이 로그인하도록 일반 크롬을 그 프로필로 연다 (자동화 크롬은 구글이 로그인을 막는다)
+   * 사람이 로그인하도록 일반 크롬을 그 프로필로 연다 (자동화 크롬은 구글이 로그인을 막는다).
+   * 원격 연결을 켜서 열므로, 이 창을 닫지 않아도 로그인 확인·게시가 이 크롬에 붙는다.
+   * 그 프로필의 크롬이 원격 연결 없이 열려 있으면 정상 종료한 뒤 다시 연다.
    * @param profileDir 크롬 프로필 폴더
+   * @returns restarted: 열려 있던 크롬을 닫고 다시 열었는지
+   * @throws ChromeNotClosedError 열려 있던 크롬이 제한 시간 안에 끝나지 않으면
    */
-  openForManualLogin(profileDir: string): Promise<void>;
+  openForManualLogin(profileDir: string): Promise<{ restarted: boolean }>;
 }
 
 /** DI 토큰 */
 export const YOUTUBE_BROWSER = Symbol('YOUTUBE_BROWSER');
 
-/** 같은 프로필의 크롬이 이미 열려 있다 */
+/**
+ * 같은 프로필의 크롬이 이미 열려 있는데 붙을 수 없다
+ * (대시보드 밖에서 직접 열었거나, 이 기능 전에 [크롬 열기]로 연 크롬)
+ */
 export class ProfileInUseError extends Error {
   constructor() {
     super(
-      '같은 프로필의 크롬이 이미 열려 있어요 · 그 창을 닫고 다시 시도해 주세요',
+      '이 프로필의 크롬이 이어 쓸 수 없는 상태로 열려 있어요 · 계정 관리에서 [크롬 열기]를 누르면 다시 열려 이어 쓸 수 있어요',
     );
     this.name = 'ProfileInUseError';
+  }
+}
+
+/** [크롬 열기]에서 다시 열려고 닫은 크롬이 끝나지 않았다 (저장하지 않은 글 확인 창 등) */
+export class ChromeNotClosedError extends Error {
+  constructor() {
+    super(
+      '열려 있던 크롬이 끝나지 않았어요 · 그 크롬을 ⌘Q로 직접 종료한 뒤 [크롬 열기]를 다시 눌러 주세요',
+    );
+    this.name = 'ChromeNotClosedError';
   }
 }
