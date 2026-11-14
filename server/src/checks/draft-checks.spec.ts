@@ -178,3 +178,38 @@ describe('광고 표시 검사', () => {
     );
   });
 });
+
+/** 영상을 못 보는 AI: 근거가 댓글뿐이라 시점이 없고, 핵심 단어도 검증에서 모두 빠진 경우 */
+describe('장면 언급: 핵심 단어가 없을 때', () => {
+  const topic = {
+    minLength: 10,
+    maxLength: 200,
+    brandWord: '',
+    bannedWords: [],
+  };
+  const analysis = {
+    sceneKeywords: [],
+    scenes: [
+      {
+        time: null,
+        quote: '아빠가 상황판단이 안되시네',
+        source: 'comment' as const,
+      },
+    ],
+  };
+  /** 장면 언급 결과 */
+  const scene = (text: string) =>
+    runner
+      .run(checkContextOf(text, topic, analysis, null))
+      .results.find((r) => r.code === 'scene_mention')!;
+
+  it('근거 인용의 말을 짚으면 통과한다 (전에는 늘 실패)', () => {
+    expect(scene('아빠가 상황판단이 안되시네라는 댓글 공감돼요').passed).toBe(
+      true,
+    );
+  });
+
+  it('근거와 상관없는 글은 여전히 걸린다', () => {
+    expect(scene('회장님 표정에서 품격이 느껴지네요').passed).toBe(false);
+  });
+});

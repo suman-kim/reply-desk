@@ -1,4 +1,5 @@
 import { stripDisclosure, withDisclosure } from '../checks/ad-disclosure.js';
+import { keywordsFromQuotes } from '../checks/scene-keywords.js';
 import { Injectable } from '@nestjs/common';
 import { AiService } from '../ai/ai.service.js';
 import {
@@ -57,7 +58,11 @@ export function checkContextOf(
     },
     analysis: analysis
       ? {
-          sceneKeywords: analysis.sceneKeywords,
+          // 핵심 단어가 하나도 안 남았으면 근거 장면 인용의 단어로 대신한다 (아니면 장면 언급 검사가 늘 실패)
+          sceneKeywords:
+            analysis.sceneKeywords.length > 0
+              ? analysis.sceneKeywords
+              : keywordsFromQuotes(analysis.scenes.map((s) => s.quote)),
           sceneTimes: analysis.scenes
             .map((s) => s.time)
             .filter((t): t is string => !!t),
