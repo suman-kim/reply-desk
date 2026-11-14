@@ -55,6 +55,6 @@ describe('PostLogDetail (댓글 게시 상세)', () => {
   it('캡처가 없으면 없다고 알린다', () => {
     renderRow({ ...base, hasScreenshot: false });
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    expect(screen.getByText(/캡처가 없어요/)).toBeInTheDocument();
+    expect(screen.getByText('이 게시에는 화면 캡처가 없어요')).toBeInTheDocument();
   });
 });
