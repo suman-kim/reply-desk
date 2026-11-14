@@ -217,6 +217,7 @@ export class FakeAi implements AiProvider {
     // 같은 영상에 이미 단 댓글이 있으면 다른 글로 쓴다 (RD-27: 진짜 AI처럼 겹치지 않게)
     if (req.prompt.includes('[이미 이 영상에 단 댓글]')) {
       return req.schema.parse({
+        worry: '헤어진 지 반년인데 아직도 그 사람 스토리를 몰래 봐요',
         text: '미련 남았다는 말에 스토리만 몇 번 봤는지 모르겠어요ㅠ 운명원에서 재회 궁합 본다던데 저도 한번 물어보고 싶네요.',
         reasons: [
           '"미련" 장면을 다른 말로 짚음',
