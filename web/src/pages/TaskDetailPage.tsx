@@ -8,6 +8,7 @@ import { Icon } from '../components/Icon';
 import { PostControl } from '../components/PostControl';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { VideoModal } from '../components/VideoModal';
+import { ViewerWorry } from '../components/ViewerWorry';
 import { POST_RESULT } from '../components/badges';
 import { Badge, Tabs } from '../ds';
 import { formatDuration, formatLogTime, relativeTime } from '../lib/format';
@@ -115,6 +116,8 @@ function TaskDetail({ topic, videoId }: { topic: Topic; videoId: number }) {
               <div className="rd-colh">
                 <em>B</em>초안 · 게시
               </div>
+              {/* 시청자 고민 한 줄 → 그 사람이 쓴 댓글 초안 (RD-32) */}
+              <ViewerWorry detail={d} />
               <DraftCard topic={topic} detail={d} />
               {d.draft?.state === 'ready' || d.video.commented ? (
                 <PostControl

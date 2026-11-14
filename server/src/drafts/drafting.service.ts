@@ -21,6 +21,8 @@ export const MAX_DRAFT_ATTEMPTS = 2;
 
 /** 작성 결과 */
 export interface WrittenDraft {
+  /** 시청자 고민 한 줄 (AI가 꾸민 시청자 입장의 고민, RD-32) */
+  worry: string;
   /** 댓글 글 */
   text: string;
   /** 이렇게 쓴 이유 */
@@ -126,6 +128,8 @@ export class DraftingService {
         checkContextOf(text, topic, analysis, disclosure),
       );
       last = {
+        // 마지막으로 쓴 댓글과 같은 사람의 고민 (다시 쓰면 고민도 함께 바뀐다)
+        worry: out.worry.trim(),
         text,
         reasons: out.reasons,
         report,

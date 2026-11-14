@@ -231,6 +231,8 @@ export interface Draft {
   videoId: number;
   /** 작성 상태 */
   state: DraftState;
+  /** 시청자 고민 한 줄: AI가 꾸민 시청자 입장의 고민. 이 사람처럼 댓글을 쓴다. 이 기능 전 초안은 빈 글 — RD-32 */
+  worry: string;
   /** 지금 글 */
   text: string;
   /** AI 원본 */

@@ -276,6 +276,8 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       state: 'ready',
       provider: 'ollama',
       model: 'gemma4:12b',
+      // 시청자 고민 한 줄을 초안과 함께 저장한다 (RD-32)
+      worry: '헤어진 지 석 달인데 아직도 그 사람 스토리를 몰래 봐요',
     });
     // 영상을 못 보는 AI에게는 주소를 넘기지 않고 설명·댓글로 분석하게 한다
     const openaiCall = ctx.ai.openai.calls.at(-1)!;
@@ -348,7 +350,9 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       'prompt.analysis',
       'prompt.drafting',
     ]);
+    // 작성 답: 시청자 고민 한 줄을 먼저 꾸민 뒤 댓글과 쓴 이유 (RD-32)
     expect(info.body[1].response.map((f: { name: string }) => f.name)).toEqual([
+      'worry',
       'text',
       'reasons',
     ]);

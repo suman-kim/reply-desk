@@ -39,6 +39,7 @@ function fakeAi(answers: string[]) {
     generate: vi.fn(async (_ai: ResolvedAi, req: { prompt: string }) => {
       prompts.push(req.prompt);
       return {
+        worry: `  썸만 몇 달째인데 이 사람이 인연인지 모르겠어요 (${prompts.length})  `,
         text: answers.shift()!,
         reasons: ['이유 하나입니다', '이유 둘입니다'],
       };
@@ -71,6 +72,8 @@ describe('DraftingService', () => {
     });
     expect(r.report.passed).toBe(true);
     expect(generate).toHaveBeenCalledTimes(1);
+    // 시청자 고민 한 줄은 앞뒤 공백을 지워 함께 준다 (RD-32)
+    expect(r.worry).toBe('썸만 몇 달째인데 이 사람이 인연인지 모르겠어요 (1)');
   });
 
   it('검사에 걸리면 걸린 이유를 붙여 한 번 더 쓴다', async () => {
@@ -83,6 +86,8 @@ describe('DraftingService', () => {
     );
     expect(r.attempts).toBe(2);
     expect(r.report.passed).toBe(true);
+    // 다시 쓰면 고민도 마지막으로 쓴 댓글의 것
+    expect(r.worry).toContain('(2)');
     expect(prompts[1]).toContain('[앞서 쓴 글]');
     expect(prompts[1]).toContain('링크·해시태그 없음');
   });

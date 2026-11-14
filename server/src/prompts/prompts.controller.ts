@@ -54,6 +54,7 @@ const FIELD_LABELS: Record<string, string> = {
   'scenes.quote': '근거 장면 · 인용',
   'scenes.source': '근거 장면 · 출처(영상/댓글)',
   sceneKeywords: '장면 검사용 단어',
+  worry: '시청자 고민 한 줄',
   text: '댓글',
   reasons: '이렇게 쓴 이유',
 };
