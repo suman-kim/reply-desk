@@ -351,5 +351,24 @@ export function useActions() {
       mutationFn: (key: string) => api<SettingView>('DELETE', `/settings/${key}`),
       onSuccess: () => refresh('settings', 'providers', 'today', 'postCheck'),
     }),
+    /**
+     * 설정 여러 개를 한 번에 저장 (설정 화면 아래 [저장]).
+     * 하나씩 차례로 보내고, 실패한 것은 키별 오류로 돌려준다(성공한 것은 그대로 저장됨). 기본값과 같으면 기본값으로 되돌린다.
+     */
+    saveSettings: useMutation({
+      mutationFn: async (entries: { key: string; value: unknown; toDefault: boolean }[]) => {
+        const errors: Record<string, string> = {};
+        for (const e of entries) {
+          try {
+            if (e.toDefault) await api<SettingView>('DELETE', `/settings/${e.key}`);
+            else await api<SettingView>('PUT', `/settings/${e.key}`, { value: e.value });
+          } catch (err) {
+            errors[e.key] = err instanceof Error ? err.message : String(err);
+          }
+        }
+        return { errors };
+      },
+      onSettled: () => refresh('settings', 'providers', 'today', 'postCheck'),
+    }),
   };
 }

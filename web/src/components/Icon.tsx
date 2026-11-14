@@ -25,6 +25,8 @@ export type IconName =
   | 'grid'
   | 'camera'
   | 'chat'
+  | 'copy'
+  | 'trash'
   | 'more';
 
 /** 아이콘 모양 (24×24 선 그림. Lucide 아이콘 모양을 따랐다) */
@@ -106,6 +108,13 @@ const SHAPES: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12.5" r="3.2" />
     </>
   ),
+  copy: (
+    <>
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+    </>
+  ),
+  trash: <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />,
   more: (
     <>
       <circle cx="5" cy="12" r="1.2" />
