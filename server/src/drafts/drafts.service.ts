@@ -124,7 +124,8 @@ export class DraftsService {
 
   /**
    * [영상 불러오기]: 영상을 불러오고, 순위에 든 영상의 초안을 차례로 쓰기 시작한다.
-   * 이미 댓글을 단 영상과 초안이 있는 영상은 건너뛴다.
+   * 이미 댓글을 단 영상과 초안이 있는 영상은 건너뛴다. 초안 작성에 실패한 영상은 다시 쓴다
+   * (AI 서버 과부하·크레딧 부족처럼 지나간 원인이면 다시 불러오기만으로 채워지게).
    * @param topicId 주제 ID
    */
   async load(
@@ -137,7 +138,12 @@ export class DraftsService {
     }
     const list = await this.videos.fetchForTopic(topicId);
     const targets = list
-      .filter((v) => v.rank !== null && !v.commented && v.draftState === 'none')
+      .filter(
+        (v) =>
+          v.rank !== null &&
+          !v.commented &&
+          (v.draftState === 'none' || v.draftState === DraftState.Error),
+      )
       .map((v) => v.id);
     await this.queue.enqueue(topicId, targets, {
       reanalyze: false,

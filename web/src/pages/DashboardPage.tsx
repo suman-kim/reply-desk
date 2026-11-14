@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import {
   useActions,
   useDraftDetail,
   useDraftProgress,
-  useLogs,
   useToday,
   useTopics,
   useVideos,
@@ -14,30 +13,53 @@ import { videoBadges } from '../components/badges';
 import { DraftReview } from '../components/DraftReview';
 import { PostControl } from '../components/PostControl';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, Button, Field, LogTable, Panel, Segmented, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
-import { formatDuration, formatLogTime, formatViews, relativeTime } from '../lib/format';
+import { Badge, Button, Field, Panel, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
+import { formatDuration, formatViews, relativeTime } from '../lib/format';
+
+/** ①②③ 단계 번호 */
+type Step = 1 | 2 | 3;
+
+/** 단계 이름과 한 줄 설명 (단계 표시줄·이전/다음 버튼) */
+const STEPS: { n: Step; title: string; hint: string }[] = [
+  { n: 1, title: '영상 불러오기', hint: '키워드로 영상을 모으고 초안까지 써 둬요' },
+  { n: 2, title: '영상 선택', hint: '고른 이유와 초안을 보고 고쳐요' },
+  { n: 3, title: '댓글 달기', hint: '크롬으로 한 글자씩 입력해 게시해요' },
+];
 
 /**
- * 대시보드: 헤더 · 주제 사이드바 · ①②③ 세 칸 · 게시 기록 (계획서 '화면 구조')
- * 고른 주제와 영상은 주소(?topic=&video=)에 담아, 새로 고쳐도 같은 화면이 열린다.
+ * 대시보드: 주제 사이드바 · ①②③ 단계(한 번에 한 화면, 이전·다음으로 넘김) (계획서 '화면 구조').
+ * 게시 기록은 따로 '게시 기록' 메뉴(LogsPage)에 둔다.
+ * 고른 주제·영상·단계는 주소(?topic=&video=&step=)에 담아, 새로 고쳐도 같은 화면이 열린다.
  */
 export function DashboardPage() {
   const [params, setParams] = useSearchParams();
   const topics = useTopics();
   const topicId = Number(params.get('topic')) || topics.data?.[0]?.id || null;
   const videoId = Number(params.get('video')) || null;
+  const stepParam = Number(params.get('step'));
+  const step: Step = stepParam === 2 || stepParam === 3 ? stepParam : 1;
   const topic = topics.data?.find((t) => t.id === topicId) ?? null;
 
-  /** 주소의 값을 바꾼다 */
-  const select = (next: { topic?: number; video?: number | null }) => {
+  /**
+   * 주소의 값을 바꾼다. 주제를 바꾸면 영상과 단계는 처음으로.
+   * @param next.topic 주제
+   * @param next.video 영상 (null이면 고르지 않음)
+   * @param next.step 단계
+   */
+  const select = (next: { topic?: number; video?: number | null; step?: Step }) => {
     const p = new URLSearchParams(params);
     if (next.topic !== undefined) {
       p.set('topic', String(next.topic));
       p.delete('video');
+      p.delete('step');
     }
     if (next.video !== undefined) {
       if (next.video) p.set('video', String(next.video));
       else p.delete('video');
+    }
+    if (next.step !== undefined) {
+      if (next.step === 1) p.delete('step');
+      else p.set('step', String(next.step));
     }
     setParams(p, { replace: true });
   };
@@ -76,7 +98,16 @@ export function DashboardPage() {
               홍보할 대상 하나가 주제 하나예요 · 왼쪽 [+ 새 주제]로 만들어 주세요
             </EmptyBox>
           ) : null}
-          {topic ? <TopicWorkspace topic={topic} videoId={videoId} onSelectVideo={(id) => select({ video: id })} /> : null}
+          {topic ? (
+            <TopicWorkspace
+              topic={topic}
+              videoId={videoId}
+              step={step}
+              onSelectVideo={(id) => select({ video: id })}
+              onPickVideo={(id) => select({ video: id, step: 2 })}
+              onStep={(n) => select({ step: n })}
+            />
+          ) : null}
         </main>
       </div>
     </div>
@@ -84,12 +115,29 @@ export function DashboardPage() {
 }
 
 /**
- * 고른 주제의 일하는 자리: 주제 머리 · 운영 규칙 · ①②③ · 게시 기록
+ * 고른 주제의 일하는 자리: 주제 머리 · 운영 규칙 · 단계 표시줄 · 지금 단계 화면 · 이전/다음 (게시 기록은 '게시 기록' 메뉴)
  * @param props.topic 주제
  * @param props.videoId 고른 영상
- * @param props.onSelectVideo 영상을 고를 때
+ * @param props.step 지금 단계
+ * @param props.onSelectVideo 영상을 고를 때 (단계는 그대로)
+ * @param props.onPickVideo ①에서 카드를 눌러 고를 때 (②로 넘어간다)
+ * @param props.onStep 단계를 바꿀 때
  */
-function TopicWorkspace({ topic, videoId, onSelectVideo }: { topic: Topic; videoId: number | null; onSelectVideo: (id: number | null) => void }) {
+function TopicWorkspace({
+  topic,
+  videoId,
+  step,
+  onSelectVideo,
+  onPickVideo,
+  onStep,
+}: {
+  topic: Topic;
+  videoId: number | null;
+  step: Step;
+  onSelectVideo: (id: number | null) => void;
+  onPickVideo: (id: number) => void;
+  onStep: (n: Step) => void;
+}) {
   const { updateTopic } = useActions();
   const today = useToday();
   const videos = useVideos(topic.id);
@@ -145,28 +193,112 @@ function TopicWorkspace({ topic, videoId, onSelectVideo }: { topic: Topic; video
         </div>
       ) : null}
 
-      <div className="rd-columns">
-        <div className="rd-col-1">
-          <LoadPanel topic={topic} selectedId={selected?.id ?? null} onSelect={onSelectVideo} />
-        </div>
-        <div className="rd-col-2">
-          <SelectPanel topic={topic} videoId={selected?.id ?? null} onSelect={onSelectVideo} />
-        </div>
-        <div className="rd-col-3">
-          <PostPanel topic={topic} videoId={selected?.id ?? null} />
-        </div>
-      </div>
+      <StepBar topic={topic} videoId={selected?.id ?? null} videoCount={videos.data?.length ?? null} step={step} onStep={onStep} />
 
-      <LogPanel topicId={topic.id} />
+      {step === 1 ? <LoadPanel topic={topic} selectedId={selected?.id ?? null} onSelect={onPickVideo} /> : null}
+      {step === 2 ? <SelectPanel topic={topic} videoId={selected?.id ?? null} onSelect={onSelectVideo} /> : null}
+      {step === 3 ? <PostPanel topic={topic} videoId={selected?.id ?? null} /> : null}
+
+      <StepNav step={step} canGo={(n) => n === 1 || !!selected} onStep={onStep} />
     </>
   );
 }
 
 /**
- * ① 영상 불러오기
+ * 단계 표시줄: ① ② ③을 한 줄에 두고, 단계마다 지금 상태를 한 줄로 보인다. 눌러서 바로 옮길 수 있다.
+ * 영상을 고르기 전에는 ②·③이 잠긴다.
+ * @param props.topic 주제
+ * @param props.videoId 고른 영상
+ * @param props.videoCount 불러온 영상 수 (불러오기 전 null)
+ * @param props.step 지금 단계
+ * @param props.onStep 단계를 바꿀 때
+ */
+function StepBar({
+  topic,
+  videoId,
+  videoCount,
+  step,
+  onStep,
+}: {
+  topic: Topic;
+  videoId: number | null;
+  videoCount: number | null;
+  step: Step;
+  onStep: (n: Step) => void;
+}) {
+  const detail = useDraftDetail(topic.id, videoId);
+  const title = detail.data?.video.title;
+  /** 단계마다 지금 상태 한 줄 */
+  const status: Record<Step, string> = {
+    1: videoCount === null ? '불러오는 중…' : videoCount > 0 ? `영상 ${videoCount}개` : '아직 불러오지 않음',
+    2: !videoId ? '영상을 골라 주세요' : (title ?? '불러오는 중…'),
+    3: !videoId ? '영상을 골라 주세요' : (detail.data?.status?.label ?? (detail.data?.draft ? '초안 확인' : '초안 없음')),
+  };
+
+  return (
+    <nav aria-label="단계" className="rd-stepbar">
+      {STEPS.map((s) => {
+        const locked = s.n !== 1 && !videoId;
+        const state = s.n === step ? 'is-current' : s.n < step ? 'is-done' : '';
+        return (
+          <button
+            key={s.n}
+            type="button"
+            className={`rd-stepbar-item ${state}`}
+            aria-current={s.n === step ? 'step' : undefined}
+            disabled={locked}
+            title={locked ? '①에서 영상을 먼저 골라 주세요' : s.hint}
+            onClick={() => onStep(s.n)}
+          >
+            <span className="rd-stepbar-num">{s.n}</span>
+            <span className="rd-stepbar-text">
+              <span className="text-body-strong">{s.title}</span>
+              <span className="text-caption rd-stepbar-status">{status[s.n]}</span>
+            </span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
+ * 이전·다음 버튼. 다음으로 갈 수 없으면 이유를 한 줄로 보인다.
+ * 단계의 주요 버튼(영상 불러오기, 댓글 달기)보다 눈에 덜 띄게 보조 버튼으로 둔다.
+ * @param props.step 지금 단계
+ * @param props.canGo 그 단계로 갈 수 있는지
+ * @param props.onStep 단계를 바꿀 때
+ */
+function StepNav({ step, canGo, onStep }: { step: Step; canGo: (n: Step) => boolean; onStep: (n: Step) => void }) {
+  const prev = STEPS.find((s) => s.n === step - 1);
+  const next = STEPS.find((s) => s.n === step + 1);
+  const nextBlocked = next && !canGo(next.n);
+  return (
+    <div className="rd-stepnav">
+      <div>
+        {prev ? (
+          <Button variant="ghost" onClick={() => onStep(prev.n)}>
+            ← 이전 · {prev.title}
+          </Button>
+        ) : null}
+      </div>
+      <div className="rd-stepnav-next">
+        {nextBlocked ? <span className="text-caption rd-block-reason">영상을 먼저 골라 주세요</span> : null}
+        {next ? (
+          <Button variant="secondary" disabled={nextBlocked} onClick={() => onStep(next.n)}>
+            다음 · {next.title} →
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ① 영상 불러오기. 카드를 누르면 그 영상으로 ② 영상 선택으로 넘어간다.
  * @param props.topic 주제
  * @param props.selectedId 고른 영상
- * @param props.onSelect 영상을 고를 때
+ * @param props.onSelect 카드를 눌러 영상을 고를 때
  */
 function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: number | null; onSelect: (id: number) => void }) {
   const { load } = useActions();
@@ -205,7 +337,7 @@ function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: 
       ) : null}
       {has ? (
         <div className="rd-list-head">
-          <span className="text-caption rd-muted">{videos.data!.length}개 영상</span>
+          <span className="text-caption rd-muted">{videos.data!.length}개 영상 · 카드를 누르면 ② 영상 선택으로 넘어가요</span>
           <span className="text-caption rd-ink2" style={{ fontWeight: 600 }}>
             {sortLabel}
           </span>
@@ -214,7 +346,7 @@ function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: 
       {videos.isPending ? <LoadingBox>영상 목록을 불러오는 중…</LoadingBox> : null}
       {videos.error ? <ErrorBand error={videos.error} onRetry={() => void videos.refetch()} /> : null}
       {videos.data && !has ? <EmptyBox>[영상 불러오기]를 누르면 영상 목록이 여기 떠요</EmptyBox> : null}
-      <div className="rd-stack">
+      <div className="rd-video-grid">
         {videos.data?.map((v) => (
           <VideoCard
             key={v.id}
@@ -317,70 +449,5 @@ function PostPanel({ topic, videoId }: { topic: Topic; videoId: number | null })
         />
       )}
     </Panel>
-  );
-}
-
-/**
- * 게시 기록 (이 주제 / 전체). 게시 중인 행은 ③ 칸에서 보여 주고 여기에는 끝난 것만 둔다.
- * @param props.topicId 주제 ID
- */
-function LogPanel({ topicId }: { topicId: number }) {
-  const [scope, setScope] = useState<'topic' | 'all'>('topic');
-  const [openId, setOpenId] = useState<string | null>(null);
-  const logs = useLogs(scope === 'topic' ? topicId : null);
-  const rows = useMemo(
-    () =>
-      (logs.data ?? [])
-        .filter((r) => r.status !== 'running')
-        .map((r) => ({
-          id: String(r.id),
-          time: formatLogTime(r.startedAt),
-          topic: scope === 'all' ? (r.topic?.name ?? '지운 주제') : undefined,
-          video: r.video ? (
-            <a href={`https://www.youtube.com/watch?v=${r.video.youtubeId}`} target="_blank" rel="noreferrer">
-              {r.video.title}
-            </a>
-          ) : (
-            '지운 영상'
-          ),
-          profile: r.profileName ?? '지운 프로필',
-          comment: r.commentUrl ? (
-            <a href={r.commentUrl} target="_blank" rel="noreferrer">
-              {r.commentText}
-            </a>
-          ) : (
-            r.commentText
-          ),
-          ok: r.status === 'success',
-          reason: r.failureReason ?? undefined,
-          capture: r.hasScreenshot ? `/api/posting/attempts/${r.id}/capture` : undefined,
-        })),
-    [logs.data, scope],
-  );
-
-  return (
-    <div id="log" style={{ scrollMarginTop: 24 }}>
-      <Panel title="게시 기록" hint="어느 영상에, 어느 프로필로, 무슨 댓글을 달았는지 결과까지 최근 순으로 보여줘요">
-        <div>
-          <Segmented
-            label="기록 범위"
-            value={scope}
-            onChange={(v) => setScope(v as 'topic' | 'all')}
-            options={[
-              { value: 'topic', label: '이 주제' },
-              { value: 'all', label: '전체' },
-            ]}
-          />
-        </div>
-        {logs.error ? <ErrorBand error={logs.error} onRetry={() => void logs.refetch()} /> : null}
-        <LogTable
-          rows={rows}
-          // 캡처가 있는 기록이 있을 때만 [캡처 보기]를 둔다 (표는 실패 행마다 버튼을 붙인다)
-          onCapture={rows.some((r) => r.capture) ? (row) => setOpenId(openId === row.id ? null : row.id) : undefined}
-          openCaptureId={openId}
-          emptyText={logs.isPending ? '불러오는 중…' : '아직 기록이 없어요 · ③에서 [댓글 달기]를 누르면 여기 쌓여요'}
-        />
-      </Panel>
-    </div>
   );
 }

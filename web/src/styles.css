@@ -94,10 +94,44 @@ a:hover { color: var(--ink); }
 .rd-rules strong { color: var(--ink-2); font-weight: 600; }
 
 /* 세 칸: ① 1 : ② 1.25 : ③ 1, 좁으면 위아래로 */
-.rd-columns { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: flex-start; }
-.rd-col-1 { flex: 1 1 300px; min-width: 0; }
-.rd-col-2 { flex: 1.25 1 360px; min-width: 0; }
-.rd-col-3 { flex: 1 1 300px; min-width: 0; }
+/* ①②③ 단계 표시줄: 한 줄에 셋, 지금 단계는 강조, 지난 단계는 완료 표시 */
+.rd-stepbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 6px; border-radius: var(--radius-xl, 20px); background: var(--surface-sunken); }
+.rd-stepbar-item {
+  display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 56px; padding: 10px 14px;
+  border: 0; border-radius: var(--radius-lg, 16px); background: transparent; text-align: left; cursor: pointer; color: var(--ink-2);
+  font-family: var(--font-sans); transition: background-color .15s;
+}
+.rd-stepbar-item:hover:not(:disabled) { background: var(--surface-hover); }
+.rd-stepbar-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rd-stepbar-item:disabled { cursor: not-allowed; opacity: .55; }
+.rd-stepbar-item.is-current { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(17, 19, 24, .08); }
+.rd-stepbar-num {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface); color: var(--ink-2); font-weight: 700; font-size: 13px; border: 1px solid var(--line, #EBECF0);
+}
+.rd-stepbar-item.is-current .rd-stepbar-num { background: var(--accent); color: #fff; border-color: var(--accent); }
+.rd-stepbar-item.is-done .rd-stepbar-num { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+.rd-stepbar-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rd-stepbar-status { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) {
+  .rd-stepbar-text .rd-stepbar-status { display: none; }
+  .rd-stepbar-item { padding: 8px; gap: 8px; }
+}
+
+/* 이전·다음 */
+.rd-stepnav { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rd-stepnav-next { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+
+/* ① 영상 카드: 넓은 화면에서는 여러 줄로 */
+.rd-video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 10px; }
+
+/* ②·③ 안쪽: 넓으면 두 칸, 좁으면 위아래 (패널 폭 기준) */
+.rd-cq { container-type: inline-size; }
+.rd-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+@container (min-width: 820px) {
+  .rd-split:not(.is-single) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
+}
+.rd-stack-16 { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* 안내 상자: 빈 상태 · 불러오는 중 · 오류 · 주의 · 완료 */
 .rd-box {
@@ -232,3 +266,7 @@ button.rd-grid-row:focus-visible { outline: 2px solid var(--accent); outline-off
 .rd-link-button { border: 0; background: none; padding: 0; color: var(--accent-ink); cursor: pointer; font-weight: 600; }
 .rd-link-button:disabled { color: var(--ink-3); cursor: progress; }
 .rd-link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* 게시 기록 거르기: 주제 고르기 + 결과 */
+.rd-log-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
+.rd-log-topic { flex: 0 1 320px; }
