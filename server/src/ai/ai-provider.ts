@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ModelPricing } from './providers/model-pricing.js';
 
 /**
  * AI 제공자 공통 정의.
@@ -65,7 +66,11 @@ export interface AiModelList {
   models: (AiModelOption & {
     /** 추천 모델인지 (이 앱에서 써 본 것) */
     recommended: boolean;
+    /** 가격·무료 여부·한 줄 설명 (가격표에 없으면 null) */
+    pricing: ModelPricing | null;
   })[];
+  /** 가격표 출처와 확인한 날 (Ollama는 null) */
+  pricingSource: { url: string; checkedAt: string } | null;
   /** 추천 목록을 보이는 이유 같은 안내 한 줄. 없으면 null */
   note: string | null;
 }

@@ -447,9 +447,24 @@ export interface AiModelList {
     label: string;
     /** 추천 모델인지 */
     recommended: boolean;
+    /** 가격·무료 여부·한 줄 설명 (가격표에 없으면 null) */
+    pricing: {
+      /** 입력 100만 토큰 가격 (달러) */
+      inputPerM: number;
+      /** 출력 100만 토큰 가격 (달러) */
+      outputPerM: number;
+      /** 무료로 쓸 수 있는지 */
+      free: boolean;
+      /** 어떤 모델인지 한 줄 */
+      summary: string;
+      /** 알아 둘 것 (가격 인상 예정 등) */
+      note?: string;
+    } | null;
   }[];
   /** 추천 목록인 이유 같은 안내 한 줄 */
   note: string | null;
+  /** 가격표 출처와 확인한 날 (Ollama는 null) */
+  pricingSource: { url: string; checkedAt: string } | null;
 }
 
 export interface AiProviderInfo {
