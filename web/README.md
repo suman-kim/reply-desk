@@ -7,7 +7,6 @@
 ```sh
 # 서버 먼저 (../server)
 cd ../server && npm run db:up && npm run start:dev
-# 키 없이 둘러보려면 데모 데이터: npm run seed:demo
 
 # 화면
 cd ../web

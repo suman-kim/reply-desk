@@ -18,14 +18,14 @@ const STATUS_BADGE = {
  */
 export function AccountsPage() {
   const profiles = useProfiles();
-  const connected = profiles.data?.filter((p) => p.loginStatus === 'ok').length ?? 0;
+  const connected = profiles.data?.filter((p) => p.loginStatus === 'ok').length;
 
   return (
     <div className="rd-page">
       <PageHeader
         title="계정 관리"
         description="댓글을 게시할 크롬 프로필과 유튜브 계정을 연결해요. 등록한 계정의 채널이 곧 '내 채널'이에요."
-        right={<StatPill label="연결된 계정" value={connected} max={Math.max(1, profiles.data?.length ?? 0)} />}
+        right={profiles.data && connected !== undefined ? <StatPill label="연결된 계정" value={connected} max={Math.max(1, profiles.data.length)} /> : undefined}
       />
       <div className="rd-accounts">
         <section aria-label="등록된 프로필" className="rd-cards">
