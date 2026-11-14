@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useActions, useProfiles } from '../api/queries';
 import type { LoginCheckView, OpenLoginView, Profile } from '../api/types';
 import { Icon } from '../components/Icon';
+import { Modal } from '../components/Modal';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, CheckList, Glyph, Spinner, StatPill } from '../ds';
 import { relativeTime } from '../lib/format';
@@ -24,11 +25,19 @@ const langText = (lang: string | null) => (lang ? (lang.startsWith('ko') ? '한�
 
 /**
  * 계정 관리 (/accounts, RD-26): 댓글을 게시할 크롬 프로필과 유튜브 계정을 연결한다. 등록한 계정의 채널이 곧 '내 채널'이다.
- * 왼쪽은 프로필 카드(핵심만, [자세히]로 채널 ID·폴더), 오른쪽은 새 프로필 연결 4단계.
+ * 왼쪽은 프로필 카드(핵심만, [자세히]로 채널 ID·폴더), 오른쪽은 '내 채널은 이렇게 정해져요'.
+ * 새 프로필 연결 4단계는 머리의 [새 프로필 추가]로 여는 창(모달)에서 한다 (RD-30).
  */
 export function AccountsPage() {
   const profiles = useProfiles();
   const connected = profiles.data?.filter((p) => p.loginStatus === 'ok').length;
+  /** 새 프로필 추가 창을 열었는지 */
+  const [adding, setAdding] = useState(false);
+  const addButton = (
+    <Button variant="primary" leading={<Icon name="plus" size={16} />} onClick={() => setAdding(true)}>
+      새 프로필 추가
+    </Button>
+  );
 
   return (
     <div className="rd-page rd-accounts-page">
@@ -37,16 +46,28 @@ export function AccountsPage() {
           <h1 className="text-display">계정 관리</h1>
           <p className="text-body-sm">댓글을 게시할 크롬 프로필과 유튜브 계정을 연결해요. 여기 등록한 계정의 채널이 곧 ‘내 채널’이에요.</p>
         </div>
-        {profiles.data && connected !== undefined ? <StatPill label="연결된 계정" value={connected} max={Math.max(1, profiles.data.length)} /> : null}
+        <div className="rd-row">
+          {profiles.data && connected !== undefined ? <StatPill label="연결된 계정" value={connected} max={Math.max(1, profiles.data.length)} /> : null}
+          {addButton}
+        </div>
       </header>
       <div className="rd-agrid">
         <div className="rd-stack-16">
           <section aria-label="등록된 프로필" className="rd-stack-16">
             {profiles.isPending ? <LoadingBox>프로필을 불러오는 중…</LoadingBox> : null}
             {profiles.error ? <ErrorBand error={profiles.error} onRetry={() => void profiles.refetch()} /> : null}
-            {profiles.data?.length === 0 ? <EmptyBox>아직 프로필이 없어요 · [새 프로필 추가]에서 만들어 주세요</EmptyBox> : null}
+            {profiles.data?.length === 0 ? (
+              <EmptyBox>
+                <span className="rd-stack-12" style={{ alignItems: 'center' }}>
+                  <span>아직 프로필이 없어요 · 댓글을 게시할 계정을 먼저 연결해 주세요</span>
+                  {addButton}
+                </span>
+              </EmptyBox>
+            ) : null}
             {profiles.data?.map((p) => <ProfileCard key={p.id} profile={p} />)}
           </section>
+        </div>
+        <div className="rd-accounts-side">
           <section className="rd-note-box" aria-label="내 채널은 이렇게 정해져요">
             <h2 className="text-body-strong" style={{ margin: 0 }}>
               내 채널은 이렇게 정해져요
@@ -58,8 +79,19 @@ export function AccountsPage() {
             </ol>
           </section>
         </div>
-        <NewProfileWizard />
       </div>
+
+      {/* 새 프로필 추가 (RD-30): 닫았다 열면 처음 단계부터. 만든 프로필은 이미 목록에 있어 카드에서 이어서 로그인할 수 있다 */}
+      <Modal
+        open={adding}
+        label="새 프로필 추가"
+        title="새 프로필 추가"
+        subtitle="이름을 정하면 프로필 폴더를 만들고, 그 폴더로 크롬을 열어 직접 로그인해요."
+        width="narrow"
+        onClose={() => setAdding(false)}
+      >
+        <NewProfileWizard onDone={() => setAdding(false)} />
+      </Modal>
     </div>
   );
 }
@@ -236,9 +268,10 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 const WIZARD_STEPS = ['이름 정하기', '크롬에서 로그인', '채널 · 언어 확인', '연결 완료'];
 
 /**
- * 새 프로필 추가: 이름 정하기(폴더 만들기) → 크롬 열고 직접 로그인 → 채널·한국어 화면 확인 → 연결 완료
+ * 새 프로필 추가 (창 안): 이름 정하기(폴더 만들기) → 크롬 열고 직접 로그인 → 채널·한국어 화면 확인 → 연결 완료
+ * @param props.onDone 창 닫기 (연결을 마치고 [목록으로]를 누를 때)
  */
-function NewProfileWizard() {
+function NewProfileWizard({ onDone }: { onDone: () => void }) {
   const { createProfile, openLogin, checkLogin } = useActions();
   const { topic } = useSelectedTopic();
   const [name, setName] = useState('');
@@ -250,6 +283,13 @@ function NewProfileWizard() {
   // 0 이름 · 1 로그인 · 2 확인 중 · 3 완료 (화면 언어 경고는 완료 뒤에 띠로 보인다)
   const step = !profile ? 0 : result?.profile.loginStatus === 'ok' ? 3 : checkLogin.isPending ? 2 : 1;
   const slug = name.trim().replace(/유튜브/g, 'youtube').replace(/[^A-Za-z0-9_-]/g, '').toLowerCase();
+  const nameRef = useRef<HTMLInputElement>(null);
+  // 창이 열리면(처음·[하나 더 추가]) 바로 이름을 칠 수 있게. 창이 다 열린 다음 틀에 맞춘다
+  useEffect(() => {
+    if (step !== 0) return;
+    const frame = requestAnimationFrame(() => nameRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [step]);
 
   const reset = () => {
     setName('');
@@ -269,14 +309,7 @@ function NewProfileWizard() {
     });
 
   return (
-    <aside className="rd-card rd-wizard" aria-label="새 프로필 추가">
-      <div className="rd-stack">
-        <h2 className="text-title" style={{ margin: 0 }}>
-          새 프로필 추가
-        </h2>
-        <span className="text-caption rd-muted">이름을 정하면 프로필 폴더를 만들고, 그 폴더로 크롬을 열어 직접 로그인해요.</span>
-      </div>
-
+    <div className="rd-wizard">
       <ol className="rd-wz" aria-label="단계">
         {WIZARD_STEPS.map((label, i) => {
           const state = i < step || step === 3 ? 'done' : i === step ? 'now' : '';
@@ -302,7 +335,7 @@ function NewProfileWizard() {
             <label className="text-label rd-ink" htmlFor="rd-pname">
               프로필 이름
             </label>
-            <input id="rd-pname" className="dk-input" value={name} placeholder="예: 유튜브4" onChange={(e) => setName(e.target.value)} />
+            <input ref={nameRef} id="rd-pname" className="dk-input" value={name} placeholder="예: 유튜브4" onChange={(e) => setName(e.target.value)} />
             <span className="text-caption rd-muted">
               폴더 이름은 영문으로 만들어요{slug ? <> · <span className="text-mono">{slug}</span></> : ' (유튜브4 → youtube4)'}
             </span>
@@ -378,6 +411,9 @@ function NewProfileWizard() {
                   {topic.name} 주제 설정으로
                 </Link>
               ) : null}
+              <Button variant={topic ? 'secondary' : 'primary'} onClick={onDone}>
+                목록으로
+              </Button>
               <Button variant="ghost" onClick={reset}>
                 하나 더 추가
               </Button>
@@ -385,6 +421,6 @@ function NewProfileWizard() {
           </>
         ) : null}
       </div>
-    </aside>
+    </div>
   );
 }
