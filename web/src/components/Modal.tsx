@@ -1,12 +1,12 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '../ds';
 
-/** 창 너비: wide(영상 보기, 플레이어+댓글) · medium(작업·댓글 게시 상세, 한 단) */
-export type ModalWidth = 'wide' | 'medium';
+/** 창 너비: wide(영상 보기, 플레이어+댓글) · medium(작업·댓글 게시 상세, 한 단) · narrow(입력 한 줄씩 하는 단계, 예: 새 프로필 추가) */
+export type ModalWidth = 'wide' | 'medium' | 'narrow';
 
 /**
  * 가운데 창. 브라우저 기본 <dialog>라 Esc·바깥(어두운 바탕) 누르기·[닫기]로 닫히고, 초점이 창 안에 머문다.
- * 영상 보기 창·작업 상세·댓글 게시 상세가 함께 쓴다.
+ * 영상 보기 창·작업 상세·댓글 게시 상세·새 프로필 추가가 함께 쓴다.
  * @param props.open 열지 (false면 닫는다)
  * @param props.label 창 이름 (화면 읽기 프로그램용)
  * @param props.title 머리 제목
