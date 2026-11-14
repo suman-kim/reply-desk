@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import type { Topic } from './api/types';
 import type { IconName } from './components/Icon';
 import { NeedLoginCount, TopicPendingCount } from './components/MenuCounts';
-import { paths, sectionFromPath, type TopicSection } from './nav/paths';
+import { paths, sectionFromPath, videoFromPath, type TopicSection } from './nav/paths';
 import { AccountsPage } from './pages/AccountsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DraftsPage } from './pages/DraftsPage';
@@ -66,6 +66,8 @@ export interface Place {
   label: string;
   /** 고른 주제 안의 화면이면 그 화면 (주제 이름을 앞에 붙인다) */
   section: TopicSection | null;
+  /** 메뉴 화면 안의 화면이면 그 메뉴 화면 (작업 상세 → 대시보드) */
+  parent?: { label: string; section: TopicSection };
 }
 
 /**
@@ -76,6 +78,7 @@ export function placeOf(pathname: string): Place {
   const path = pathname.replace(/\/+$/, '') || '/';
   if (path === paths.home) return { label: '주제 고르기', section: null };
   if (path === paths.newTopic) return { label: '새 주제 만들기', section: null };
+  if (videoFromPath(path) !== null) return { label: '작업 상세', section: 'dashboard', parent: { label: '대시보드', section: 'dashboard' } };
   const section = sectionFromPath(path);
   const topicItem = section ? TOPIC_MENU.find((m) => m.section === section) : undefined;
   if (topicItem) return { label: topicItem.label, section: topicItem.section };

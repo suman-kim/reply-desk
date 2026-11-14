@@ -5,6 +5,7 @@
  * - `/` : 주제를 고르기 전(홈). 주제 카드에서 고른다
  * - `/topics/new` : 새 주제 만들기
  * - `/t/:topicId/dashboard | drafts | logs | settings` : 고른 주제의 메뉴
+ * - `/t/:topicId/videos/:videoId` : 작업 상세 (영상 하나의 판단 근거 · 초안 · 게시, RD-26). 메뉴로는 '대시보드' 안이다
  * - `/accounts`, `/settings` : 공통 메뉴 (주제와 상관없음)
  */
 
@@ -46,6 +47,12 @@ export const paths = {
    * @param query 주소 뒤 값 (예: { video: 12 })
    */
   topic: (topicId: number, section: TopicSection = 'dashboard', query?: Query) => `/t/${topicId}/${section}${toSearch(query)}`,
+  /**
+   * 작업 상세 (영상 하나)
+   * @param topicId 주제 ID
+   * @param videoId 영상 ID
+   */
+  video: (topicId: number, videoId: number) => `/t/${topicId}/videos/${videoId}`,
 };
 
 /** 주소가 가리키는 주제: 숫자 = 그 주제, 'none' = 주제를 고르기 전(홈), undefined = 주제와 상관없는 화면 */
@@ -66,15 +73,36 @@ export function topicFromPath(pathname: string): PathTopic {
  * @param pathname 지금 주소
  */
 export function sectionFromPath(pathname: string): TopicSection | null {
+  // 작업 상세는 대시보드(영상 목록) 안의 화면이다
+  if (videoFromPath(pathname) !== null) return 'dashboard';
   const m = /^\/t\/\d+\/([a-z]+)\/?$/.exec(pathname);
   const s = m?.[1] as TopicSection | undefined;
   return s && TOPIC_SECTIONS.includes(s) ? s : null;
 }
 
 /**
+ * 주소에서 작업 상세의 영상을 읽는다 (작업 상세가 아니면 null)
+ * @param pathname 지금 주소 (예: /t/3/videos/12)
+ */
+export function videoFromPath(pathname: string): number | null {
+  const m = /^\/t\/\d+\/videos\/(\d+)\/?$/.exec(pathname);
+  return m ? Number(m[1]) : null;
+}
+
+/**
+ * 대시보드 예전 주소(?video=&step=, RD-26 전 ①②③)를 작업 상세로 바꾼다. 영상이 없으면 null
+ * @param topicId 주제 ID
+ * @param search 주소 뒤 값 (?…)
+ */
+export function legacyDashboardPath(topicId: number, search: string): string | null {
+  const video = Number(new URLSearchParams(search).get('video')) || null;
+  return video ? paths.video(topicId, video) : null;
+}
+
+/**
  * 예전 주소(RD-25 전)를 새 주소로 바꾼다. 즐겨찾기·열어 둔 탭이 그대로 열리게 한다. 바꿀 것이 없으면 null.
- * - `/?topic=3&video=9&step=2` → `/t/3/dashboard?video=9&step=2`
- * - `/drafts?topic=3&video=9` → `/t/3/drafts?video=9` (주제가 없으면 홈)
+ * - `/?topic=3&video=9&step=2` → `/t/3/videos/9` (영상이 없으면 `/t/3/dashboard`)
+ * - `/drafts?topic=3&video=9` → `/t/3/videos/9` (영상이 없으면 `/t/3/drafts`, 주제가 없으면 홈)
  * - `/logs?topic=3` → `/t/3/logs` (주제가 없으면 홈)
  * - `/topics/3/edit` → `/t/3/settings`
  * @param pathname 주소
@@ -84,8 +112,16 @@ export function legacyPath(pathname: string, search: string): string | null {
   const q = new URLSearchParams(search);
   const topic = Number(q.get('topic')) || null;
   const path = pathname.replace(/\/+$/, '') || '/';
-  if (path === '/') return topic ? paths.topic(topic, 'dashboard', { video: q.get('video'), step: q.get('step') }) : null;
-  if (path === '/drafts') return topic ? paths.topic(topic, 'drafts', { video: q.get('video') }) : paths.home;
+  if (path === '/') {
+    if (!topic) return null;
+    const video = Number(q.get('video')) || null;
+    return video ? paths.video(topic, video) : paths.topic(topic, 'dashboard');
+  }
+  if (path === '/drafts') {
+    if (!topic) return paths.home;
+    const video = Number(q.get('video')) || null;
+    return video ? paths.video(topic, video) : paths.topic(topic, 'drafts');
+  }
   if (path === '/logs') return topic ? paths.topic(topic, 'logs') : paths.home;
   const edit = /^\/topics\/(\d+)\/edit$/.exec(path);
   if (edit) return paths.topic(Number(edit[1]), 'settings');

@@ -29,6 +29,15 @@ export function relativeTime(iso: string | null, now: Date = new Date()): string
 }
 
 /**
+ * 오늘(이 컴퓨터 날짜) 일인지
+ * @param iso 시각
+ * @param now 기준 시각
+ */
+export function isToday(iso: string, now: Date = new Date()): boolean {
+  return new Date(iso).toDateString() === now.toDateString();
+}
+
+/**
  * 영상 길이 (예: 12:48, 1:02:03)
  * @param sec 초
  */
@@ -63,6 +72,17 @@ export function countChars(text: string): number {
   let n = 0;
   for (const _ of segmenter.segment(text.trim())) n++;
   return n;
+}
+
+/**
+ * 길이 검사에 쓰는 본문 글자 수: 광고 표시를 뺀 글을 센다 (서버 길이 검사와 같다)
+ * @param text 댓글 전체
+ * @param disclosure 이 댓글에 필요한 광고 표시 (내 채널 영상이면 null)
+ */
+export function bodyChars(text: string, disclosure: string | null): number {
+  const mark = disclosure?.trim();
+  const body = mark ? text.split(mark).join(' ').replace(/\s+/g, ' ').trim() : text;
+  return countChars(body);
 }
 
 /**

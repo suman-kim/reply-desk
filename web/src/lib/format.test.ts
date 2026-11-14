@@ -1,4 +1,4 @@
-import { countChars, formatDateTime, formatDuration, formatElapsed, formatLogTime, formatViews, relativeTime, shortWatchUrl } from './format';
+import { bodyChars, countChars, formatDateTime, formatDuration, formatElapsed, formatLogTime, formatViews, isToday, relativeTime, shortWatchUrl } from './format';
 
 describe('화면 숫자·시각', () => {
   const now = new Date('2026-11-13T05:00:00Z'); // 한국 시간 14:00
@@ -41,5 +41,20 @@ describe('화면에 보일 글자', () => {
 
   it('날짜와 시각 (한국 시간)', () => {
     expect(formatDateTime('2026-11-13T08:48:35.940Z')).toBe('2026. 11. 13. 17:48');
+  });
+});
+
+describe('isToday', () => {
+  it('같은 날이면 참, 다른 날이면 거짓', () => {
+    const now = new Date(2026, 10, 14, 9, 0);
+    expect(isToday(new Date(2026, 10, 14, 0, 5).toISOString(), now)).toBe(true);
+    expect(isToday(new Date(2026, 10, 13, 23, 59).toISOString(), now)).toBe(false);
+  });
+});
+
+describe('bodyChars (길이 검사 본문)', () => {
+  it('광고 표시는 세지 않는다 (내 채널이면 그대로)', () => {
+    expect(bodyChars('[광고] 공감돼요', '[광고]')).toBe(4);
+    expect(bodyChars('[광고] 공감돼요', null)).toBe(9);
   });
 });

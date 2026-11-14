@@ -40,8 +40,8 @@ export function PostLogDetail({ row }: { row: PostLogRow }) {
         <div className="rd-band rd-band-danger" role="alert">
           <span className="text-body-sm">{row.failureReason ?? '원인을 남기지 못했어요'}</span>
           {row.video && row.topic ? (
-            <Link to={paths.topic(row.topic.id, 'drafts', { video: row.video.id })} className="text-body-sm">
-              작업 목록에서 다시 게시
+            <Link to={paths.video(row.topic.id, row.video.id)} className="text-body-sm">
+              작업 상세에서 다시 게시
             </Link>
           ) : null}
         </div>

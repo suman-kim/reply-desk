@@ -128,8 +128,13 @@ describe('왼쪽 사이드 메뉴', () => {
     expect(screen.getByRole('heading', { name: '어느 주제부터 볼까요?' })).toBeInTheDocument();
   });
 
-  it('예전 주소(/?topic=)는 새 주소로 넘긴다', () => {
+  it('예전 주소(/?topic=)는 새 주소로 넘긴다 (영상이 있으면 작업 상세로)', () => {
     renderAt('/?topic=1&video=9');
+    expect(screen.getByRole('status', { name: '지금 주소' })).toHaveTextContent('/t/1/videos/9');
+  });
+
+  it('예전 주소(/?topic=)에 영상이 없으면 대시보드로', () => {
+    renderAt('/?topic=1');
     expect(screen.getByRole('status', { name: '지금 주소' })).toHaveTextContent('/t/1/dashboard');
   });
 });

@@ -9,10 +9,9 @@ import type { LiveEvent } from '../live/apply-event';
 import { NoticeRules, type Notice } from '../live/notify-rules';
 import { paths } from '../nav/paths';
 import { topicMatchBadge } from './badges';
-import { DraftDetailModal, type TaskRef } from './DraftDetailModal';
 import { StatusBadge } from './StatusBadge';
 import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
-import { TaskShellContext, useTaskShell, type BrowserNotify, type TaskShellValue } from './task-shell-context';
+import { TaskShellContext, useTaskShell, type BrowserNotify, type TaskRef, type TaskShellValue } from './task-shell-context';
 
 /** 화면에 띄운 알림 (작업이면 영상 제목을 붙인다) */
 type ShownNotice = Notice & {
@@ -60,7 +59,6 @@ function writeFlag(key: string, on: boolean): void {
 export function TaskShellProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const [panelOpen, setPanelOpen] = useState(() => readFlag(PANEL_KEY));
-  const [task, setTask] = useState<TaskRef | null>(null);
   const [notices, setNotices] = useState<ShownNotice[]>([]);
   const supported = typeof window !== 'undefined' && 'Notification' in window;
   const [permission, setPermission] = useState<NotificationPermission>(supported ? Notification.permission : 'denied');
@@ -82,15 +80,21 @@ export function TaskShellProvider({ children }: { children: ReactNode }) {
   const dismiss = useCallback((id: number) => setNotices((list) => list.filter((n) => n.id !== id)), []);
 
   /**
-   * 알림의 [보기]: 작업이면 작업 창, 아니면 그 화면으로
+   * 작업 상세 화면으로 (RD-26: 작업은 창 대신 한 화면에서 본다)
+   * @param t 주제·영상
+   */
+  const openTask = useCallback((t: TaskRef) => void navigate(paths.video(t.topicId, t.videoId)), [navigate]);
+
+  /**
+   * 알림의 [보기]: 작업이면 작업 상세, 아니면 그 화면으로
    * @param n 알림
    */
   const act = useCallback(
     (n: Notice) => {
-      if (n.target) setTask(n.target);
+      if (n.target) openTask(n.target);
       else if (n.href) void navigate(n.href);
     },
-    [navigate],
+    [navigate, openTask],
   );
 
   const show = useCallback(
@@ -145,8 +149,8 @@ export function TaskShellProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<TaskShellValue>(
-    () => ({ panelOpen, togglePanel, openTask: setTask, onLiveEvent, browserNotify }),
-    [panelOpen, togglePanel, onLiveEvent, browserNotify],
+    () => ({ panelOpen, togglePanel, openTask, onLiveEvent, browserNotify }),
+    [panelOpen, togglePanel, openTask, onLiveEvent, browserNotify],
   );
 
   return (
@@ -181,7 +185,6 @@ export function TaskShellProvider({ children }: { children: ReactNode }) {
           </div>
         ))}
       </div>
-      {task ? <DraftDetailModal sel={task} onClose={() => setTask(null)} /> : null}
     </TaskShellContext.Provider>
   );
 }
@@ -244,20 +247,14 @@ export function TaskPanel({ topic }: { topic: Topic }) {
         {rows.slice(0, PANEL_ROWS).map((r) => {
           const match = topicMatchBadge(r.topicMatch);
           return (
-            <button
-              key={r.id}
-              type="button"
-              className="rd-task-row"
-              aria-haspopup="dialog"
-              onClick={() => shell.openTask({ topicId: r.topic.id, videoId: r.video.id })}
-            >
+            <Link key={r.id} className="rd-task-row" to={paths.video(r.topic.id, r.video.id)}>
               <span className="rd-row-tight">
                 <StatusBadge status={r.status} label={r.statusLabel} />
                 {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
               </span>
               <span className="text-body-sm rd-clamp">{r.video.title}</span>
               <span className="text-caption rd-muted">{formatLogTime(r.updatedAt)}</span>
-            </button>
+            </Link>
           );
         })}
       </div>

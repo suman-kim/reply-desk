@@ -48,6 +48,16 @@ export function TopBar({ live, navOpen, onOpenNav }: { live: LiveStatus; navOpen
             <span className="rd-crumb-sep" aria-hidden="true">
               /
             </span>
+            {place.parent ? (
+              <>
+                <Link to={paths.topic(topic.id, place.parent.section)} className="rd-crumb-topic">
+                  {place.parent.label}
+                </Link>
+                <span className="rd-crumb-sep" aria-hidden="true">
+                  /
+                </span>
+              </>
+            ) : null}
           </>
         ) : null}
         <span className="rd-crumb-here" aria-current="page">

@@ -12,6 +12,7 @@ import { legacyPath, paths } from './nav/paths';
 import { useSelectedTopic } from './nav/selected-topic';
 import { SelectedTopicProvider } from './nav/SelectedTopicProvider';
 import { HomePage } from './pages/HomePage';
+import { TaskDetailPage } from './pages/TaskDetailPage';
 import { TopicFormPage } from './pages/TopicFormPage';
 import { TopicLayout } from './pages/TopicLayout';
 
@@ -82,6 +83,8 @@ function Routed() {
                 {TOPIC_MENU.map((m) => (
                   <Route key={m.section} path={m.section} element={m.page} />
                 ))}
+                {/* 작업 상세 (영상 하나): 영상 목록·작업 목록·작업 패널·알림이 여기로 온다 */}
+                <Route path="videos/:videoId" element={<TaskDetailPage />} />
               </Route>
               {COMMON_MENU.map((m) => (
                 <Route key={m.path} path={m.path} element={m.page} />

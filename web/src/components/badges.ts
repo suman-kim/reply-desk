@@ -2,20 +2,56 @@ import type { DraftListStatus, PostStatus, PostStep, TopicMatch, VideoItem } fro
 import type { Tone, VideoBadge } from '../ds';
 
 /**
- * ① 영상 카드 배지 (계획서: 초안 작성 중, 초안 준비됨, 내 채널, 댓글 완료)
- * 검사 미통과·작성 실패도 카드에서 바로 보이게 더했다.
+ * 영상의 상태 배지 하나 (영상 목록 행 · 카드). 작업 목록과 같은 이름을 쓴다:
+ * 게시 완료(성공) · 초안 작성 중(진행) · 작성 실패(실패) · 검사 미통과(주의) · 게시 대기(중립 점). 초안이 없으면 null
+ * @param v 영상
+ */
+export function videoStatus(v: Pick<VideoItem, 'commented' | 'draftState' | 'checkPassed'>): VideoBadge | null {
+  if (v.commented) return { tone: 'success', label: '게시 완료' };
+  if (v.draftState === 'writing') return { tone: 'info', label: '초안 작성 중', loading: true };
+  if (v.draftState === 'error') return { tone: 'danger', label: '작성 실패' };
+  if (v.draftState === 'ready') return v.checkPassed ? { tone: 'neutral', label: '게시 대기', dot: true } : { tone: 'warning', label: '검사 미통과' };
+  return null;
+}
+
+/**
+ * 영상 카드 배지: 상태 하나 + 내 채널
  * @param v 영상
  */
 export function videoBadges(v: VideoItem): VideoBadge[] {
   const out: VideoBadge[] = [];
-  if (v.commented) out.push({ tone: 'success', label: '댓글 완료' });
-  else if (v.draftState === 'writing') out.push({ tone: 'info', label: '초안 작성 중', loading: true });
-  else if (v.draftState === 'error') out.push({ tone: 'danger', label: '작성 실패' });
-  else if (v.draftState === 'ready') {
-    out.push(v.checkPassed ? { tone: 'neutral', label: '초안 준비됨', dot: true } : { tone: 'warning', label: '검사 미통과' });
-  }
+  const status = videoStatus(v);
+  if (status) out.push(status);
   if (v.isMine) out.push({ tone: 'accent', label: '내 채널' });
   return out;
+}
+
+/** 영상 목록 거르기 (계획안: 초안 없음 · 초안 있음 · 게시 완료 · 매칭 낮음) */
+export type VideoFilter = 'all' | 'none' | 'has' | 'done' | 'low';
+
+/**
+ * 영상이 거르기에 드는지
+ * - 게시 완료: 댓글을 단 영상
+ * - 초안 있음: 아직 달지 않았고 초안이 있거나 쓰는 중
+ * - 초안 없음: 아직 달지 않았고 초안이 없거나 작성에 실패
+ * - 매칭 낮음: 분석한 매칭 %가 기준보다 낮음
+ * @param v 영상
+ * @param f 거르기
+ */
+export function inVideoFilter(v: Pick<VideoItem, 'commented' | 'draftState' | 'topicMatch'>, f: VideoFilter): boolean {
+  if (f === 'all') return true;
+  if (f === 'done') return v.commented;
+  if (f === 'has') return !v.commented && (v.draftState === 'ready' || v.draftState === 'writing');
+  if (f === 'none') return !v.commented && (v.draftState === 'none' || v.draftState === 'error');
+  return !!v.topicMatch && !v.topicMatch.matched;
+}
+
+/**
+ * 게시 대기인지 (초안이 검사를 통과했고 아직 달지 않음): 작업 상세의 '다음 영상' 차례
+ * @param v 영상
+ */
+export function isReadyToPost(v: Pick<VideoItem, 'commented' | 'draftState' | 'checkPassed'>): boolean {
+  return !v.commented && v.draftState === 'ready' && v.checkPassed;
 }
 
 /** 작업 목록 상태 → 배지 색 (색 규칙: 성공 · 주의 · 실패 · 진행 · 중립). 게시 대기는 문제가 아니라 할 일이라 중립 */
