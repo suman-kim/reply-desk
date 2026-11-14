@@ -21,7 +21,7 @@ function renderWith(ui: React.ReactElement) {
 }
 
 const ready: DraftDetail = {
-  video, status: { code: 'check_failed', label: '검사 미통과' }, attempts: [],
+  video, status: { code: 'check_failed', label: '검사 미통과' }, attempts: [], morePerVideo: false,
   topicMatch: { percent: 82, reason: '연락 텀 이야기라 연애 사주와 가까움', matched: true, threshold: 50 },
   analysis: { id: 1, topicMatch: 82, topicMatchReason: '연락 텀 이야기라 연애 사주와 가까움', pickReasons: ['조회수가 오르는 중'], scenes: [{ time: '04:12', quote: '확신이 없어서예요', source: 'video' }], provider: 'gemini', model: 'gemini-x' },
   draft: {
@@ -62,9 +62,12 @@ describe('DraftCard (작업 상세 B칸 초안)', () => {
     expect(screen.getByText('장면을 짚음')).toBeInTheDocument();
   });
 
-  it('게시한 초안은 고칠 수 없고, 아래 [새 초안 쓰고 한 번 더 달기]를 가리킨다 (RD-27)', () => {
+  it("설정 '같은 영상에 댓글 더 달기'를 켰으면 게시한 초안은 고칠 수 없고, 아래 [새 초안 쓰고 한 번 더 달기]를 가리킨다 (RD-27)", () => {
     renderWith(
-      <DraftCard topic={topic} detail={{ ...ready, status: { code: 'posted', label: '게시 완료' }, video: { ...video, commented: true, commentCount: 1 } }} />,
+      <DraftCard
+        topic={topic}
+        detail={{ ...ready, morePerVideo: true, status: { code: 'posted', label: '게시 완료' }, video: { ...video, commented: true, commentCount: 1 } }}
+      />,
     );
     expect(screen.getByLabelText('댓글 초안')).toHaveAttribute('readonly');
     // 같은 버튼은 게시 완료 카드에만 둔다
@@ -73,10 +76,31 @@ describe('DraftCard (작업 상세 B칸 초안)', () => {
     expect(screen.queryByText(/영상당 1개/)).toBeNull();
   });
 
-  it('예전에 댓글을 단 영상이어도 새 초안은 고칠 수 있다', () => {
-    renderWith(<DraftCard topic={topic} detail={{ ...ready, video: { ...video, commented: false, commentCount: 1 } }} />);
+  it('설정을 켰으면 예전에 댓글을 단 영상이어도 새 초안은 고칠 수 있다', () => {
+    renderWith(<DraftCard topic={topic} detail={{ ...ready, morePerVideo: true, video: { ...video, commented: false, commentCount: 1 } }} />);
     expect(screen.getByLabelText('댓글 초안')).not.toHaveAttribute('readonly');
     expect(screen.getByRole('button', { name: '다시 생성' })).toBeEnabled();
+  });
+
+  it('기본(영상당 1개)이면 댓글을 단 영상의 초안은 고칠 수 없고 다시 쓰지도 않는다', () => {
+    renderWith(
+      <DraftCard topic={topic} detail={{ ...ready, status: { code: 'posted', label: '게시 완료' }, video: { ...video, commented: true, commentCount: 1 } }} />,
+    );
+    expect(screen.getByLabelText('댓글 초안')).toHaveAttribute('readonly');
+    expect(screen.queryByRole('button', { name: '다시 생성' })).toBeNull();
+    expect(screen.getByText(/영상당 1개만 달아요/)).toBeInTheDocument();
+    expect(screen.queryByText(/새 초안 쓰고 한 번 더 달기/)).toBeNull();
+  });
+
+  it('기본(영상당 1개)이면 다른 주제에서 댓글을 단 영상은 [초안 작성]을 막고 이유를 보인다', () => {
+    renderWith(
+      <DraftCard
+        topic={topic}
+        detail={{ ...ready, analysis: null, topicMatch: null, status: null, draft: null, video: { ...video, commented: true, commentCount: 1 } }}
+      />,
+    );
+    expect(screen.getByRole('button', { name: '초안 작성' })).toBeDisabled();
+    expect(screen.getByText(/이미 댓글을 단 영상이라 초안을 쓰지 않아요/)).toBeInTheDocument();
   });
 });
 

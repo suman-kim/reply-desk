@@ -4,6 +4,8 @@ import { In, Repository } from 'typeorm';
 import { Draft } from '../drafts/draft.entity.js';
 import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
 import { PostQuotaService } from '../posting/post-quota.service.js';
+import { POSTING_MORE_PER_VIDEO } from '../settings/setting-definitions.js';
+import { SettingsService } from '../settings/settings.service.js';
 import type { Profile } from '../profiles/profile.entity.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicStatus } from '../topics/topic.entity.js';
@@ -28,7 +30,8 @@ export interface PostCheckResult {
 
 /**
  * 게시 가능 여부 판단. DB에서 값을 모아 block-rules의 규칙에 넘긴다.
- * 실제 게시(다음 작업)도 시작 직전에 이 판단을 다시 부르고, DB의 부분 유일 인덱스가 마지막으로 막는다.
+ * 실제 게시도 시작 직전에 이 판단을 다시 부르고, DB의 부분 유일 인덱스가 마지막으로 막는다
+ * (같은 영상 동시 게시·같은 초안 두 번 게시. 영상당 1개는 이 판단의 already_commented 규칙이 막는다).
  */
 @Injectable()
 export class PostGuardService {
@@ -39,6 +42,7 @@ export class PostGuardService {
    * @param videos 영상 서비스
    * @param profiles 프로필 서비스
    * @param quota 오늘 게시 수
+   * @param settings 설정 (같은 영상에 댓글 더 달기)
    */
   constructor(
     @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
@@ -48,6 +52,7 @@ export class PostGuardService {
     private readonly videos: VideosService,
     private readonly profiles: ProfilesService,
     private readonly quota: PostQuotaService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -94,6 +99,15 @@ export class PostGuardService {
         })
       : false;
 
+    // 이 영상에 이미 댓글을 달았는지 (주제·계정 상관없이)와 '같은 영상에 댓글 더 달기' 설정
+    const alreadyCommented = video
+      ? await this.attempts.existsBy({
+          videoId: video.id,
+          status: PostStatus.Success,
+        })
+      : false;
+    const morePerVideo = await this.settings.get(POSTING_MORE_PER_VIDEO);
+
     const topicPosted = today.byTopic[topicId] ?? 0;
     const block = findBlockReason({
       video: video ? { id: video.id, isMine: video.isMine } : null,
@@ -104,6 +118,8 @@ export class PostGuardService {
             text: draft.text,
           }
         : null,
+      alreadyCommented,
+      morePerVideo,
       draftPosted,
       postingNow,
       total: { posted: today.posted, cap: today.cap },

@@ -36,8 +36,10 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
   }
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
-  // 게시한 초안은 고칠 수 없고, 같은 영상에 더 달려면 새 초안을 쓴다 (RD-27: 초안 하나에 댓글 하나)
+  // 게시 완료면 고칠 수 없다. 설정 '같은 영상에 댓글 더 달기'를 켰으면 새 초안으로 더 달고, 끄면(기본) 영상당 1개 (RD-27)
   const posted = detail.status?.code === 'posted';
+  // 영상당 1개(기본)인데 이미 댓글을 단 영상이면 초안도 새로 쓰지 않는다 (서버도 막는다)
+  const videoDone = !detail.morePerVideo && video.commented;
   const regen = (reanalyze: boolean) => regenerate.mutate({ topicId: topic.id, videoId: video.id, reanalyze });
   // 게시한 초안이면 아래 '게시 완료' 카드의 [새 초안 쓰고 한 번 더 달기]로 새로 쓴다 (같은 버튼을 두 번 두지 않는다)
   const regenButtons = posted ? null : (
@@ -74,9 +76,12 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
           <span className="text-caption rd-muted">[초안 작성]을 누르면 영상을 분석하고 주제에 맞는 댓글 초안을 써요</span>
         </div>
         {regenError}
-        <Button variant="primary" size="lg" fullWidth loading={regenerate.isPending} onClick={() => regen(false)}>
+        <Button variant="primary" size="lg" fullWidth loading={regenerate.isPending} disabled={videoDone} onClick={() => regen(false)}>
           초안 작성
         </Button>
+        {videoDone ? (
+          <span className="text-caption rd-block-reason">이미 댓글을 단 영상이라 초안을 쓰지 않아요 · 영상당 1개만 달아요</span>
+        ) : null}
       </div>
     );
   }
@@ -123,7 +128,9 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
   const bad = n < topic.minLength || n > topic.maxLength;
   const failed = draft.checkResults.filter((r) => !r.passed).length;
   const saveNote = posted
-    ? '게시한 초안이라 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 아래 [새 초안 쓰고 한 번 더 달기]를 눌러요'
+    ? detail.morePerVideo
+      ? '게시한 초안이라 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 아래 [새 초안 쓰고 한 번 더 달기]를 눌러요'
+      : '이미 댓글을 단 영상이라 고칠 수 없어요 · 영상당 1개만 달아요'
     : editDraft.isPending || dirty
       ? '저장하고 다시 검사하는 중…'
       : editDraft.error

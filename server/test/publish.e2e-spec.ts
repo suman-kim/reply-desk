@@ -214,9 +214,10 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .post(`/api/topics/${topicId}/videos/${cards.demo00000v2.id}/post`)
       .send({})
       .expect(409);
+    // 기본은 영상당 1개: 설정 켜는 곳을 알려 준다 (RD-27)
     expect(again.body).toMatchObject({
-      code: 'draft_already_posted',
-      message: expect.stringContaining('새 초안 쓰고 한 번 더 달기'),
+      code: 'already_commented',
+      message: expect.stringContaining('같은 영상에 댓글 더 달기'),
     });
 
     // 다른 채널 영상: 사람이 광고 표시를 지워도 막지 않는다 (RD-28)
@@ -238,13 +239,34 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .expect(200);
   });
 
-  it('같은 영상에 한 번 더 (RD-27): 새 초안은 이미 단 댓글을 받아 다른 글로 쓰고, 다시 게시하면 기록이 둘 남는다', async () => {
+  it('같은 영상에 한 번 더 (RD-27): 기본은 막고, 설정을 켜면 새 초안은 이미 단 댓글을 받아 다른 글로 쓰고, 다시 게시하면 기록이 둘 남는다', async () => {
     const v = cards.demo00000v2.id;
     const first = await http()
       .get(`/api/topics/${topicId}/videos/${v}/draft`)
       .expect(200);
     expect(first.body.status.code).toBe('posted');
+    expect(first.body.morePerVideo).toBe(false);
     const firstText = first.body.draft.text as string;
+
+    // 기본(영상당 1개)이면 이미 단 영상에는 새 초안도 쓰지 않는다
+    const refused = await http()
+      .post(`/api/topics/${topicId}/videos/${v}/draft`)
+      .send({})
+      .expect(409);
+    expect(refused.body.message).toContain('같은 영상에 댓글 더 달기');
+
+    // 설정 → 게시 → '같은 영상에 댓글 더 달기' 켜기
+    await http()
+      .put('/api/settings/posting.morePerVideo')
+      .send({ value: true })
+      .expect(200);
+    const opened = await http()
+      .get(`/api/topics/${topicId}/videos/${v}/draft`)
+      .expect(200);
+    expect(opened.body).toMatchObject({
+      morePerVideo: true,
+      status: { code: 'posted' },
+    });
 
     // [새 초안 쓰고 한 번 더 달기] = 다시 생성
     await http()
@@ -308,6 +330,13 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
         .filter((a: { status: string }) => a.status === 'success')
         .map((a: { commentText: string }) => a.commentText),
     ).toEqual([fresh.body.draft.aiText, firstText]);
+
+    // 다시 끄면 이 영상은 영상당 1개 규칙으로 막힌다 (다음 시험을 위해 기본값으로 되돌린다)
+    await http().delete('/api/settings/posting.morePerVideo').expect(200);
+    const off = await http()
+      .get(`/api/topics/${topicId}/post-check?videoId=${v}`)
+      .expect(200);
+    expect(off.body.block.code).toBe('already_commented');
   });
 
   it('실패: 로그인이 풀렸으면 그 단계에서 멈추고, 캡처를 남기고, 프로필을 다시 로그인 필요로 바꾼다', async () => {

@@ -41,7 +41,7 @@ function renderWith(ui: React.ReactElement, seed: (c: QueryClient) => void) {
 
 describe('PostControl (작업 상세 B칸 댓글 달기, RD-27)', () => {
   it('예전 초안을 게시했어도 새 초안이면 완료 화면이 아니라 [댓글 달기]를 보인다', () => {
-    renderWith(<PostControl topic={topic} video={video} draftId={2} attempts={[attempt(10, 1)]} />, (c) =>
+    renderWith(<PostControl topic={topic} video={video} draftId={2} attempts={[attempt(10, 1)]} morePerVideo />, (c) =>
       c.setQueryData(keys.postCheck(1, 2, null), {
         allowed: true,
         block: null,
@@ -54,9 +54,9 @@ describe('PostControl (작업 상세 B칸 댓글 달기, RD-27)', () => {
     expect(screen.queryByText(/게시 완료/)).toBeNull();
   });
 
-  it('지금 초안을 게시했으면 완료 화면과 [새 초안 쓰고 한 번 더 달기]를 보인다', () => {
+  it("설정 '같은 영상에 댓글 더 달기'를 켜고 지금 초안을 게시했으면 완료 화면과 [새 초안 쓰고 한 번 더 달기]를 보인다", () => {
     renderWith(
-      <PostControl topic={topic} video={{ ...video, commented: true }} draftId={2} attempts={[attempt(11, 2), attempt(10, 1)]} />,
+      <PostControl topic={topic} video={{ ...video, commented: true }} draftId={2} attempts={[attempt(11, 2), attempt(10, 1)]} morePerVideo />,
       (c) =>
         c.setQueryData(keys.attempt(11), {
           id: 11,
@@ -74,6 +74,30 @@ describe('PostControl (작업 상세 B칸 댓글 달기, RD-27)', () => {
     );
     expect(screen.getByText('게시 완료 · 유튜브1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '새 초안 쓰고 한 번 더 달기' })).toBeEnabled();
-    expect(screen.queryByText(/영상당 1개/)).toBeNull();
+    expect(screen.queryByText(/영상당 댓글 1개/)).toBeNull();
+  });
+
+  it('기본(설정 꺼짐)은 영상당 1개: 완료 화면에 더 달기 버튼 대신 설정 안내와 [설정 열기]를 보인다', () => {
+    renderWith(
+      <PostControl topic={topic} video={{ ...video, commented: true }} draftId={1} attempts={[attempt(10, 1)]} morePerVideo={false} />,
+      (c) =>
+        c.setQueryData(keys.attempt(10), {
+          id: 10,
+          status: 'success',
+          profileName: '유튜브1',
+          steps: [],
+          typing: null,
+          failureReason: null,
+          commentUrl: 'https://www.youtube.com/watch?v=yt2&lc=x',
+          startedAt: '2026-11-14T08:00:00Z',
+          finishedAt: '2026-11-14T08:01:00Z',
+          hasPreview: false,
+          hasCapture: false,
+        }),
+    );
+    expect(screen.getByText('게시 완료 · 유튜브1')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '새 초안 쓰고 한 번 더 달기' })).toBeNull();
+    expect(screen.getByText(/영상당 댓글 1개만 달아요/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '설정 열기' })).toHaveAttribute('href', '/settings');
   });
 });

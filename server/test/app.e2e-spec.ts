@@ -161,7 +161,8 @@ describe('reply-desk API (e2e)', () => {
     const done = await http()
       .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
       .expect(200);
-    expect(done.body.block.code).toBe('draft_already_posted');
+    // 기본은 영상당 1개 (설정 '같은 영상에 댓글 더 달기'가 꺼져 있음, RD-27)
+    expect(done.body.block.code).toBe('already_commented');
     expect(done.body.today).toMatchObject({
       posted: 1,
       cap: 10,
@@ -191,7 +192,7 @@ describe('reply-desk API (e2e)', () => {
       .send({ text: '고친 글' })
       .expect(409);
 
-    // 같은 영상에 새 초안을 쓰면 다시 게시 대기로 돌아오고, 게시할 수 있다 (RD-27)
+    // 같은 영상의 새 초안 (RD-27)
     const nextDraft = await ds.getRepository(Draft).insert({
       topicId: t,
       videoId: mine.id,
@@ -199,6 +200,29 @@ describe('reply-desk API (e2e)', () => {
       text: '새 댓글',
       checkPassed: true,
     });
+    // 기본(영상당 1개): 새 초안이 있어도 영상 단위로 게시 완료이고 막힌다
+    const stillDone = await http()
+      .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
+      .expect(200);
+    expect(stillDone.body.block.code).toBe('already_commented');
+    expect(
+      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
+    ).toMatchObject({ commented: true, commentCount: 1 });
+    expect(
+      (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
+    ).toBe(1);
+    const lockedRows = await http().get(`/api/drafts?topicId=${t}`).expect(200);
+    expect(
+      lockedRows.body.rows.find(
+        (r: { id: number }) => r.id === nextDraft.identifiers[0].id,
+      ),
+    ).toMatchObject({ status: 'posted' });
+
+    // 설정 '같은 영상에 댓글 더 달기'를 켜면 새 초안은 게시 대기로 돌아오고, 게시할 수 있다
+    await http()
+      .put('/api/settings/posting.morePerVideo')
+      .send({ value: true })
+      .expect(200);
     const reopened = await http()
       .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
       .expect(200);
@@ -228,6 +252,8 @@ describe('reply-desk API (e2e)', () => {
     expect(
       (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
     ).toMatchObject({ commented: true, commentCount: 2 });
+    // 다음 시험을 위해 기본값(꺼짐)으로 되돌린다
+    await http().delete('/api/settings/posting.morePerVideo').expect(200);
 
     // 7. 게시 기록과 오늘 현황 (같은 영상에 단 댓글 2개)
     const logs = await http().get(`/api/posting/logs?topicId=${t}`).expect(200);

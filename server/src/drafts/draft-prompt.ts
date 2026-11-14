@@ -224,9 +224,7 @@ export function buildDraftPrompt(
   const parts = [
     renderTemplate(templates.user, draftPromptValues(topic, video, analysis)),
     postedCommentsBlock(extras.posted ?? []),
-    extras.style
-      ? styleBlock(extras.style, topic, sceneWordsOf(analysis))
-      : '',
+    extras.style ? styleBlock(extras.style, topic, sceneWordsOf(analysis)) : '',
     avoidBlock(extras.avoid ?? []),
     retry ? renderTemplate(templates.retry, draftRetryValues(retry)) : '',
   ];

@@ -4,6 +4,7 @@ import { Draft } from '../drafts/draft.entity.js';
 import { PostAttempt } from '../posting/post-attempt.entity.js';
 import { PostingModule } from '../posting/posting.module.js';
 import { ProfilesModule } from '../profiles/profiles.module.js';
+import { SettingsModule } from '../settings/settings.module.js';
 import { TopicsModule } from '../topics/topics.module.js';
 import { VideosModule } from '../videos/videos.module.js';
 import { PostGuardService } from './post-guard.service.js';
@@ -17,6 +18,7 @@ import { RulesController } from './rules.controller.js';
     VideosModule,
     ProfilesModule,
     PostingModule,
+    SettingsModule,
   ],
   controllers: [RulesController],
   providers: [PostGuardService],

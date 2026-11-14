@@ -20,6 +20,7 @@ const STEP_STATE = { done: 'done', running: 'active', failed: 'failed', waiting:
  * @param props.video 영상
  * @param props.draftId 지금 초안 ID (이 초안의 게시만 이어서 보여 준다, RD-27)
  * @param props.attempts 이 영상의 댓글 게시 (최근 순, 예전 초안 것도 섞여 있다)
+ * @param props.morePerVideo 설정 '같은 영상에 댓글 더 달기'. 끄면(기본) 영상당 1개라 완료 뒤 설정 안내를, 켜면 [새 초안 쓰고 한 번 더 달기]를 보인다
  * @param props.next 게시를 마친 뒤 '다음 할 일' 맨 앞 버튼 (다음 영상으로)
  */
 export function PostControl({
@@ -27,12 +28,14 @@ export function PostControl({
   video,
   draftId,
   attempts,
+  morePerVideo,
   next,
 }: {
   topic: Topic;
   video: VideoItem;
   draftId: number | null;
   attempts: DraftDetail['attempts'];
+  morePerVideo: boolean;
   next?: ReactNode;
 }) {
   const { post, regenerate } = useActions();
@@ -102,21 +105,32 @@ export function PostControl({
               </Link>
             </div>
           </div>
-          {/* 같은 영상에 댓글 더 달기 (RD-27): 새 초안을 써서 평소처럼 검사하고 게시한다 */}
-          <div className="rd-pc-more">
-            <span className="text-caption rd-muted">
-              게시한 초안은 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 새 초안을 써요 (이미 단 댓글과 겹치지 않게 써요)
-            </span>
-            <Button
-              variant="secondary"
-              loading={regenerate.isPending}
-              leading={<Icon name="plus" size={16} />}
-              onClick={() => regenerate.mutate({ topicId: topic.id, videoId: video.id, reanalyze: false })}
-            >
-              새 초안 쓰고 한 번 더 달기
-            </Button>
-            {regenerate.error ? <span className="dk-field-error">{regenerate.error.message}</span> : null}
-          </div>
+          {/* 같은 영상에 댓글 더 달기 (RD-27): 설정을 켜면 새 초안을 써서 평소처럼 검사하고 게시한다. 끄면(기본) 영상당 1개 */}
+          {morePerVideo ? (
+            <div className="rd-pc-more">
+              <span className="text-caption rd-muted">
+                게시한 초안은 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 새 초안을 써요 (이미 단 댓글과 겹치지 않게 써요)
+              </span>
+              <Button
+                variant="secondary"
+                loading={regenerate.isPending}
+                leading={<Icon name="plus" size={16} />}
+                onClick={() => regenerate.mutate({ topicId: topic.id, videoId: video.id, reanalyze: false })}
+              >
+                새 초안 쓰고 한 번 더 달기
+              </Button>
+              {regenerate.error ? <span className="dk-field-error">{regenerate.error.message}</span> : null}
+            </div>
+          ) : (
+            <div className="rd-pc-more">
+              <span className="text-caption rd-muted">
+                영상당 댓글 1개만 달아요 · 같은 영상에 더 달려면 설정 → 게시에서 '같은 영상에 댓글 더 달기'를 켜요
+              </span>
+              <Link to={paths.settings} className="dk-btn dk-btn-ghost dk-btn-md">
+                설정 열기
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );

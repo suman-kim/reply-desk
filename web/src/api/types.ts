@@ -139,7 +139,7 @@ export interface VideoItem {
   source: 'search' | 'manual';
   /** 내 채널 영상 */
   isMine: boolean;
-  /** 이 주제의 최근 초안을 게시함 (배지: 게시 완료). 새 초안을 쓰면 다시 거짓 — RD-27 */
+  /** 게시 완료 (배지). 기본은 이 영상에 댓글을 단 것(주제 상관없이), 설정 '같은 영상에 댓글 더 달기'를 켜면 이 주제의 최근 초안을 게시한 것 — RD-27 */
   commented: boolean;
   /** 이 영상에 단 댓글 수 (주제·계정 상관없이) — RD-27 */
   commentCount: number;
@@ -290,6 +290,8 @@ export interface DraftDetail {
   draft: Draft | null;
   /** 목록 상태 */
   status: { code: DraftListStatus; label: string } | null;
+  /** 설정 '같은 영상에 댓글 더 달기' (켜져 있으면 게시 완료 뒤 [새 초안 쓰고 한 번 더 달기]를 보인다) — RD-27 */
+  morePerVideo: boolean;
   /** 이 영상의 댓글 게시 (최근 순) */
   attempts: {
     /** 게시 시도 ID */

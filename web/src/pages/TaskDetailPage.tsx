@@ -127,6 +127,7 @@ function TaskDetail({ topic, videoId }: { topic: Topic; videoId: number }) {
                   video={d.video}
                   draftId={d.draft?.id ?? null}
                   attempts={d.attempts}
+                  morePerVideo={d.morePerVideo}
                   next={
                     near.next ? (
                       <Link to={paths.video(topic.id, near.next.id)} state={state} className="dk-btn dk-btn-primary dk-btn-md rd-next-btn">
