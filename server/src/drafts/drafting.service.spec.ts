@@ -125,6 +125,35 @@ describe('DraftingService', () => {
     expect(r).toMatchObject({ text: GOOD, attempts: 2 });
   });
 
+  it('같은 영상에 이미 단 댓글을 프롬프트로 넘기고, 같은 글을 쓰면 한 번 더 쓴다 (RD-27)', async () => {
+    const OTHER =
+      '4분쯤 확신이 없어서라는 말이 남 얘기 같지 않았어요. 운명원에서 둘 궁합 보면 답이 좀 나올까 싶네요 진짜로요.';
+    const { ai, prompts } = fakeAi([GOOD, OTHER]);
+    const r = await new DraftingService(ai, checks, settings).write(
+      topic,
+      video,
+      analysis,
+      null,
+      { posted: [GOOD] },
+    );
+    expect(prompts[0]).toContain(`[이미 이 영상에 단 댓글]\n- ${GOOD}`);
+    expect(prompts[0]).toContain('겹치지 않게');
+    expect(prompts[1]).toContain('이미 단 댓글과 다름');
+    expect(r).toMatchObject({ text: OTHER, attempts: 2 });
+    expect(r.report.passed).toBe(true);
+  });
+
+  it('이미 단 댓글이 없으면 그 안내를 붙이지 않는다', async () => {
+    const { ai, prompts } = fakeAi([GOOD]);
+    await new DraftingService(ai, checks, settings).write(
+      topic,
+      video,
+      analysis,
+      null,
+    );
+    expect(prompts[0]).not.toContain('[이미 이 영상에 단 댓글]');
+  });
+
   it('검사에 걸리면 걸린 이유를 붙여 한 번 더 쓴다', async () => {
     const { ai, prompts } = fakeAi([BAD, GOOD]);
     const r = await new DraftingService(ai, checks, settings).write(

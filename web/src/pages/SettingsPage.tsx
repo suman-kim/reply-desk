@@ -21,7 +21,7 @@ type SettingsTab = 'post' | 'ai' | 'ollama' | 'prompt';
 
 /** 탭 이름과 그 탭의 설정 키 */
 const TABS: { value: SettingsTab; label: string; keys: string[] }[] = [
-  { value: 'post', label: '게시', keys: ['posting.dailyCapTotal', 'posting.headless', 'youtube.searchCacheMinutes'] },
+  { value: 'post', label: '게시', keys: ['posting.dailyCapTotal', 'posting.headless', 'posting.morePerVideo', 'youtube.searchCacheMinutes'] },
   { value: 'ai', label: 'AI', keys: ['ai.analysis', 'analysis.topicMatchThreshold', 'ai.drafting'] },
   { value: 'ollama', label: 'Ollama', keys: ['ai.ollamaBaseUrl', 'ai.ollamaNumCtx'] },
   { value: 'prompt', label: '프롬프트', keys: ['prompt.analysis', 'prompt.drafting'] },
@@ -172,6 +172,7 @@ export function SettingsPage() {
               <>
                 <NumberRow {...row('posting.dailyCapTotal')} short="한국 시간 하루 기준" width={140} />
                 <HeadlessRow {...row('posting.headless')} />
+                <MorePerVideoRow {...row('posting.morePerVideo')} />
                 <NumberRow {...row('youtube.searchCacheMinutes')} short="유튜브 검색 할당량을 아껴요" suffix="분" width={140} />
               </>
             ) : null}
@@ -287,6 +288,31 @@ function HeadlessRow({ setting, value, changed, error, onChange }: RowProps) {
           options={[
             { value: 'show', label: '보이기 (시연용)' },
             { value: 'hide', label: '숨기기' },
+          ]}
+        />
+      </div>
+      {error ? <span className="dk-field-error">{error}</span> : null}
+      <span className="text-caption rd-muted">{setting.help}</span>
+    </FormRow>
+  );
+}
+
+/**
+ * 같은 영상에 댓글 더 달기 (RD-27): 끄면(기본) 영상당 1개, 켜면 댓글을 단 영상에도 새 초안으로 더 단다
+ * @param props 설정 한 줄 값
+ */
+function MorePerVideoRow({ setting, value, changed, error, onChange }: RowProps) {
+  if (!setting) return null;
+  return (
+    <FormRow label="같은 영상에 댓글 더 달기" changed={changed}>
+      <div>
+        <Segmented
+          label="같은 영상에 댓글 더 달기"
+          value={value ? 'on' : 'off'}
+          onChange={(v) => onChange(v === 'on')}
+          options={[
+            { value: 'off', label: '끄기 · 영상당 1개' },
+            { value: 'on', label: '켜기 · 새 초안으로 더 달기' },
           ]}
         />
       </div>

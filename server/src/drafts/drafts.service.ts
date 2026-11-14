@@ -10,6 +10,7 @@ import { requiredDisclosure } from '../checks/ad-disclosure.js';
 import { CheckRunnerService } from '../checks/check-runner.service.js';
 import { EventsService } from '../events/events.service.js';
 import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
+import { postedCommentsOf } from '../posting/posted-comments.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
 import { Video } from '../videos/video.entity.js';
@@ -19,7 +20,10 @@ import {
   type VideoItem,
 } from '../videos/videos.service.js';
 import { watchUrl } from '../videos/youtube/youtube-parsers.js';
-import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
+import {
+  POSTING_MORE_PER_VIDEO,
+  TOPIC_MATCH_THRESHOLD,
+} from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AnalysisService } from './analysis.service.js';
 import { recentDraftsOf } from './variety/recent-drafts.js';
@@ -31,6 +35,7 @@ import {
   DRAFT_STATUS_LABELS,
   DraftListStatus,
   draftListStatus,
+  isPosted,
 } from './draft-status.js';
 import { Draft, DraftState } from './draft.entity.js';
 import { checkContextOf } from './drafting.service.js';
@@ -49,15 +54,19 @@ export interface DraftDetail {
   draft: Draft | null;
   /** 목록 상태 (초안이 없으면 null) */
   status: { code: DraftListStatus; label: string } | null;
-  /** 이 영상의 게시 기록 (최근 순) */
+  /** 설정 '같은 영상에 댓글 더 달기'. 켜져 있으면 게시 완료 뒤 [새 초안 쓰고 한 번 더 달기]를 보인다 (RD-27) */
+  morePerVideo: boolean;
+  /** 이 영상의 게시 기록 (최근 순, 주제 상관없이). 어느 초안을 게시했는지(draftId)와 단 댓글 글(commentText)도 준다 (RD-27) */
   attempts: Pick<
     PostAttempt,
     | 'id'
+    | 'draftId'
     | 'status'
     | 'failedStep'
     | 'failureReason'
     | 'startedAt'
     | 'commentUrl'
+    | 'commentText'
   >[];
 }
 
@@ -185,6 +194,15 @@ export class DraftsService {
         '이 영상의 초안을 쓰는 중이에요 · 잠시만 기다려 주세요',
       );
     }
+    // 영상당 1개(기본)면 이미 댓글을 단 영상에는 새 초안을 쓰지 않는다 (게시할 수 없어 AI 비용만 든다, RD-27)
+    if (
+      video.commentCount > 0 &&
+      !(await this.settings.get(POSTING_MORE_PER_VIDEO))
+    ) {
+      throw new ConflictException(
+        "이미 댓글을 단 영상이라 새 초안을 쓰지 않아요 · 영상당 1개만 달아요 (설정 → 게시에서 '같은 영상에 댓글 더 달기'를 켜면 더 달 수 있어요)",
+      );
+    }
     await this.queue.enqueue(topicId, [videoId], {
       reanalyze,
       trackProgress: false,
@@ -208,33 +226,42 @@ export class DraftsService {
    */
   async detail(topicId: number, videoId: number): Promise<DraftDetail> {
     const video = await this.videos.getForTopic(topicId, videoId);
-    const [analysis, draft, attempts, threshold] = await Promise.all([
-      this.analysis.latest(topicId, videoId),
-      this.drafts.findOne({
-        where: { topicId, videoId },
-        order: { createdAt: 'DESC', id: 'DESC' },
-      }),
-      this.attempts.find({
-        select: {
-          id: true,
-          status: true,
-          failedStep: true,
-          failureReason: true,
-          startedAt: true,
-          commentUrl: true,
-        },
-        where: { videoId },
-        order: { startedAt: 'DESC', id: 'DESC' },
-        take: 20,
-      }),
-      this.settings.get(TOPIC_MATCH_THRESHOLD),
-    ]);
+    const [analysis, draft, attempts, threshold, morePerVideo] =
+      await Promise.all([
+        this.analysis.latest(topicId, videoId),
+        this.drafts.findOne({
+          where: { topicId, videoId },
+          order: { createdAt: 'DESC', id: 'DESC' },
+        }),
+        this.attempts.find({
+          select: {
+            id: true,
+            draftId: true,
+            status: true,
+            failedStep: true,
+            failureReason: true,
+            startedAt: true,
+            commentUrl: true,
+            commentText: true,
+          },
+          where: { videoId },
+          order: { startedAt: 'DESC', id: 'DESC' },
+          take: 20,
+        }),
+        this.settings.get(TOPIC_MATCH_THRESHOLD),
+        this.settings.get(POSTING_MORE_PER_VIDEO),
+      ]);
+    // 게시 완료·실패는 이 초안의 시도로 본다 (RD-27: 예전 초안의 기록은 새 초안의 상태에 넣지 않는다)
+    const lastOfDraft = draft
+      ? attempts.find((a) => a.draftId === draft.id)
+      : undefined;
     const status = draft
       ? draftListStatus({
           state: draft.state,
           checkPassed: draft.checkPassed,
-          commented: video.commented,
-          lastPostFailed: attempts[0]?.status === PostStatus.Failed,
+          // video.commented는 설정에 따라 영상 단위(기본) 또는 최근 초안 단위로 이미 정해져 있다 (isPosted)
+          posted: video.commented,
+          lastPostFailed: lastOfDraft?.status === PostStatus.Failed,
         })
       : null;
     return {
@@ -245,6 +272,7 @@ export class DraftsService {
       status: status
         ? { code: status, label: DRAFT_STATUS_LABELS[status] }
         : null,
+      morePerVideo,
       attempts,
     };
   }
@@ -265,6 +293,12 @@ export class DraftsService {
         'text: 다 쓴 초안만 고칠 수 있어요 · 작성이 끝나거나 [다시 생성]한 뒤 고쳐 주세요',
       ]);
     }
+    // 게시한 초안은 그대로 둔다 (게시 기록과 같은 글로 남게, RD-27). 더 달려면 새 초안을 쓴다
+    if (await this.attempts.existsBy({ draftId, status: PostStatus.Success })) {
+      throw new ConflictException(
+        '게시한 초안은 고칠 수 없어요 · [새 초안 쓰고 한 번 더 달기]로 새로 써 주세요',
+      );
+    }
     const topic = await this.topics.findOrFail(draft.topicId);
     const analysis = draft.analysisId
       ? await this.dataSource
@@ -282,13 +316,15 @@ export class DraftsService {
     );
     // 같은 주제의 최근 초안과 너무 비슷하거나 말버릇이 겹치면 검사에서 걸린다 (RD-33)
     const recent = await recentDraftsOf(this.drafts, draft.topicId, draft.id);
+    // 이 영상에 이미 단 댓글과 같은 글이면 검사에서 걸린다 (RD-27)
+    const posted = await postedCommentsOf(this.attempts, draft.videoId);
     const report = this.checks.run(
       checkContextOf(
         text,
         topic,
         analysis as VideoAnalysis | null,
         disclosure,
-        recent.map((r) => r.text),
+        { recentTexts: recent.map((r) => r.text), posted },
       ),
     );
     await this.drafts.update(draftId, {
@@ -330,7 +366,7 @@ export class DraftsService {
     ) as Record<DraftListStatus, number>;
     if (latest.length === 0) return { rows: [], counts };
 
-    const [drafts, threshold] = await Promise.all([
+    const [drafts, threshold, morePerVideo] = await Promise.all([
       this.drafts.find({
         where: { id: In(latest.map((l) => l.id)) },
         // 초안을 쓸 때 쓴 분석 (주제 매칭 퍼센트)
@@ -338,38 +374,54 @@ export class DraftsService {
         order: { updatedAt: 'DESC', id: 'DESC' },
       }),
       this.settings.get(TOPIC_MATCH_THRESHOLD),
+      this.settings.get(POSTING_MORE_PER_VIDEO),
     ]);
     const videoIds = [...new Set(drafts.map((d) => d.videoId))];
-    const [myChannels, attempts] = await Promise.all([
+    const [myChannels, attempts, videoPosts] = await Promise.all([
       this.profiles.myChannelIds(),
+      // 초안마다 마지막 게시 시도와, 그 초안을 게시했으면 댓글 주소 (RD-27: 영상이 아니라 초안 단위)
       this.dataSource.query(
-        `SELECT DISTINCT ON (video_id) video_id, status,
-                EXISTS (SELECT 1 FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success') AS commented,
-                (SELECT s.comment_url FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success'
+        `SELECT DISTINCT ON (draft_id) draft_id, status,
+                EXISTS (SELECT 1 FROM post_attempt s WHERE s.draft_id = a.draft_id AND s.status = 'success') AS posted,
+                (SELECT s.comment_url FROM post_attempt s WHERE s.draft_id = a.draft_id AND s.status = 'success'
                   ORDER BY s.started_at DESC, s.id DESC LIMIT 1) AS comment_url
-         FROM post_attempt a WHERE video_id = ANY($1)
-         ORDER BY video_id, started_at DESC, id DESC`,
-        [videoIds],
+         FROM post_attempt a WHERE draft_id = ANY($1)
+         ORDER BY draft_id, started_at DESC, id DESC`,
+        [drafts.map((d) => d.id)],
       ) as Promise<
         {
-          video_id: number;
+          draft_id: number;
           status: PostStatus;
-          commented: boolean;
+          posted: boolean;
           comment_url: string | null;
         }[]
       >,
+      // 영상마다 마지막으로 단 댓글 주소 (영상당 1개일 때 영상 단위로 게시 완료를 본다, RD-27)
+      this.dataSource.query(
+        `SELECT DISTINCT ON (video_id) video_id, comment_url
+         FROM post_attempt WHERE video_id = ANY($1) AND status = 'success'
+         ORDER BY video_id, started_at DESC, id DESC`,
+        [videoIds],
+      ) as Promise<{ video_id: number; comment_url: string | null }[]>,
     ]);
-    const postBy = new Map(attempts.map((a) => [Number(a.video_id), a]));
+    const postBy = new Map(attempts.map((a) => [Number(a.draft_id), a]));
+    const videoPostBy = new Map(videoPosts.map((v) => [Number(v.video_id), v]));
 
     const q = filter.q?.trim().toLowerCase();
     const rows: DraftListRow[] = [];
     for (const d of drafts) {
-      const post = postBy.get(d.videoId);
+      const post = postBy.get(d.id);
+      const videoPost = videoPostBy.get(d.videoId);
       const isMine = myChannels.has(d.video!.channelId);
       const status = draftListStatus({
         state: d.state,
         checkPassed: d.checkPassed,
-        commented: post?.commented ?? false,
+        // 기본은 영상 단위(영상당 1개), 설정을 켜면 초안 단위 (RD-27)
+        posted: isPosted({
+          morePerVideo,
+          videoCommented: !!videoPost,
+          draftPosted: post?.posted ?? false,
+        }),
         lastPostFailed: post?.status === PostStatus.Failed,
       });
       if (
@@ -397,7 +449,10 @@ export class DraftsService {
         text: d.text,
         provider: d.provider,
         model: d.model,
-        commentUrl: post?.comment_url ?? null,
+        // 이 초안으로 단 댓글. 영상당 1개(기본)면 다른 주제에서 단 그 영상의 댓글도 보여 준다
+        commentUrl:
+          post?.comment_url ??
+          (morePerVideo ? null : (videoPost?.comment_url ?? null)),
         topicMatch: listTopicMatch(d.analysis ?? null, threshold),
         edited: d.edited,
         status,

@@ -10,7 +10,10 @@ import {
   Profile,
   type ProfileLoginStatus,
 } from '../profiles/profile.entity.js';
-import { DAILY_CAP_TOTAL } from '../settings/setting-definitions.js';
+import {
+  DAILY_CAP_TOTAL,
+  POSTING_MORE_PER_VIDEO,
+} from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { TopicProfile } from './topic-profile.entity.js';
 import { Topic } from './topic.entity.js';
@@ -34,7 +37,7 @@ export class TopicsService {
    * @param topicProfiles 주제-프로필 연결 저장소
    * @param dataSource 트랜잭션·집계 쿼리용
    * @param quota 오늘 게시 수
-   * @param settings 공용 설정 (전체 하루 상한)
+   * @param settings 공용 설정 (전체 하루 상한·같은 영상에 댓글 더 달기)
    */
   constructor(
     @InjectRepository(Topic) private readonly repo: Repository<Topic>,
@@ -212,26 +215,32 @@ export class TopicsService {
 
   /**
    * 주제별 게시 대기 초안 수.
-   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 댓글을 안 단 것만 센다.
+   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 게시 완료가 아닌 것만 센다.
+   * 게시 완료는 기본(영상당 1개)이면 그 영상에 댓글을 단 것(주제 상관없이), 설정 '같은 영상에 댓글 더 달기'를 켜면
+   * 그 초안을 게시한 것으로 본다 (RD-27: 켜면 예전에 댓글을 단 영상의 새 초안도 센다).
    */
   private async pendingDraftCounts(
     topicIds: number[],
   ): Promise<Map<number, number>> {
+    const more = await this.settings.get(POSTING_MORE_PER_VIDEO);
     const rows: { topic_id: number; n: string }[] = await this.dataSource.query(
       `
       SELECT d.topic_id, COUNT(*) AS n
       FROM (
-        SELECT DISTINCT ON (topic_id, video_id) topic_id, video_id, state, check_passed
+        SELECT DISTINCT ON (topic_id, video_id) id, topic_id, video_id, state, check_passed
         FROM draft
         WHERE topic_id = ANY($1)
         ORDER BY topic_id, video_id, created_at DESC, id DESC
       ) d
       WHERE d.state = 'ready'
         AND d.check_passed
-        AND NOT EXISTS (SELECT 1 FROM post_attempt a WHERE a.video_id = d.video_id AND a.status = 'success')
+        AND NOT EXISTS (
+          SELECT 1 FROM post_attempt a
+          WHERE a.status = 'success' AND (CASE WHEN $2::boolean THEN a.draft_id = d.id ELSE a.video_id = d.video_id END)
+        )
       GROUP BY d.topic_id
       `,
-      [topicIds],
+      [topicIds, more],
     );
     return new Map(rows.map((r) => [Number(r.topic_id), Number(r.n)]));
   }

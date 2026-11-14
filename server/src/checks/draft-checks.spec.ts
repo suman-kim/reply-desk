@@ -16,6 +16,7 @@ function ctx(
   return {
     text,
     recent: { texts: [], overused: [] },
+    postedTexts: [],
     topic: {
       minLength: 40,
       maxLength: 120,
@@ -252,6 +253,53 @@ describe('최근 초안과 다름 (RD-33)', () => {
     ).toMatchObject({
       passed: true,
       detail: '말버릇 겹치지 않음',
+    });
+  });
+});
+
+describe('이미 단 댓글과 다름 (RD-27)', () => {
+  const topic = {
+    minLength: 10,
+    maxLength: 200,
+    brandWord: '운명원',
+    bannedWords: [],
+  };
+  const analysis = {
+    sceneKeywords: ['확신'],
+    scenes: [{ time: '04:12', quote: '', source: 'video' as const }],
+  };
+  const runner = new CheckRunnerService(DEFAULT_CHECKS);
+  /** 중복 검사 결과 (없으면 undefined) */
+  const dup = (
+    text: string,
+    posted: string[],
+    disclosure: string | null = null,
+  ) =>
+    runner
+      .run(checkContextOf(text, topic, analysis, disclosure, { posted }))
+      .results.find((r) => r.code === 'not_duplicate');
+
+  it('이 영상에 단 댓글이 없으면 검사하지 않는다', () => {
+    expect(dup(GOOD, [])).toBeUndefined();
+  });
+
+  it('띄어쓰기·줄바꿈만 다른 같은 글이면 걸린다', () => {
+    expect(dup(GOOD, [`  ${GOOD.replace(' ', '\n')}  `])).toMatchObject({
+      passed: false,
+      detail: '이 영상에 이미 단 댓글과 같아요 · 다르게 고쳐 주세요',
+    });
+  });
+
+  it('맨 앞 광고 표시만 다른 글도 같은 글로 본다', () => {
+    expect(dup(withDisclosure(GOOD, '[광고]'), [GOOD], '[광고]')?.passed).toBe(
+      false,
+    );
+  });
+
+  it('다른 글이면 통과', () => {
+    expect(dup(GOOD, ['전혀 다른 댓글이에요'])).toMatchObject({
+      passed: true,
+      detail: '달라요',
     });
   });
 });

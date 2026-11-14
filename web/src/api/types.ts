@@ -139,8 +139,10 @@ export interface VideoItem {
   source: 'search' | 'manual';
   /** 내 채널 영상 */
   isMine: boolean;
-  /** 댓글 완료 */
+  /** 게시 완료 (배지). 기본은 이 영상에 댓글을 단 것(주제 상관없이), 설정 '같은 영상에 댓글 더 달기'를 켜면 이 주제의 최근 초안을 게시한 것 — RD-27 */
   commented: boolean;
+  /** 이 영상에 단 댓글 수 (주제·계정 상관없이) — RD-27 */
+  commentCount: number;
   /** 최근 초안 상태 */
   draftState: DraftState | 'none';
   /** 최근 초안 검사 통과 */
@@ -288,14 +290,26 @@ export interface DraftDetail {
   draft: Draft | null;
   /** 목록 상태 */
   status: { code: DraftListStatus; label: string } | null;
+  /** 설정 '같은 영상에 댓글 더 달기' (켜져 있으면 게시 완료 뒤 [새 초안 쓰고 한 번 더 달기]를 보인다) — RD-27 */
+  morePerVideo: boolean;
   /** 이 영상의 댓글 게시 (최근 순) */
   attempts: {
+    /** 게시 시도 ID */
     id: number;
+    /** 게시한 초안 ID (지운 초안이면 null) — RD-27 */
+    draftId: number | null;
+    /** 결과 */
     status: PostStatus;
+    /** 실패한 단계 */
     failedStep: PostStep | null;
+    /** 실패 원인 */
     failureReason: string | null;
+    /** 시작 시각 */
     startedAt: string;
+    /** 게시된 댓글 주소 */
     commentUrl: string | null;
+    /** 게시한(하려던) 댓글 글 — RD-27 */
+    commentText: string;
   }[];
 }
 

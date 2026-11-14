@@ -44,6 +44,8 @@ export interface DraftExtras {
   style?: DraftStyle;
   /** 같은 주제의 최근 초안 글 (말버릇 피하기·비슷함 검사) */
   recentTexts?: string[];
+  /** 이 영상에 이미 단 댓글 글, 최근 순 (겹치지 않게 쓰기·같은 글 막기, RD-27) */
+  posted?: string[];
 }
 
 export interface WrittenDraft {
@@ -69,7 +71,7 @@ export interface WrittenDraft {
  * @param topic 주제
  * @param analysis 영상 분석 (없으면 장면 언급 검사가 실패한다)
  * @param disclosure 붙인 광고 표시 (다른 채널 영상). 길이 등은 이 표시를 뺀 본문으로 센다. 내 채널 영상이거나 표시가 없으면 null
- * @param recentTexts 같은 주제의 최근 초안 글 (너무 비슷하거나 말버릇이 겹치면 검사에서 걸린다, RD-33)
+ * @param history 견줄 이전 글: 같은 주제의 최근 초안(너무 비슷하거나 말버릇이 겹치면 걸린다, RD-33)과 이 영상에 이미 단 댓글(같은 글이면 걸린다, RD-27)
  */
 export function checkContextOf(
   text: string,
@@ -77,17 +79,18 @@ export function checkContextOf(
     Partial<Pick<Topic, 'keywords'>>,
   analysis: Pick<VideoAnalysis, 'sceneKeywords' | 'scenes'> | null,
   disclosure: string | null,
-  recentTexts: string[] = [],
+  history: Pick<DraftExtras, 'recentTexts' | 'posted'> = {},
 ): CheckContext {
   /** 맨 앞 광고 표시를 뺀 본문 */
   const body = (t: string) => (disclosure ? stripDisclosure(t, disclosure) : t);
-  const texts = recentTexts.map(body);
+  const texts = (history.recentTexts ?? []).map(body);
   return {
     text: body(text),
     recent: {
       texts,
       overused: recentPatterns(texts, mustUseWords(topic, analysis)).overused,
     },
+    postedTexts: (history.posted ?? []).map(body),
     topic: {
       minLength: topic.minLength,
       maxLength: topic.maxLength,
@@ -132,7 +135,7 @@ export class DraftingService {
    * @param video 영상
    * @param analysis 영상 분석
    * @param disclosure 필요한 광고 표시 (다른 채널 영상). 코드가 맨 앞에 붙인다. 내 채널 영상이면 null
-   * @param extras 글 모양·최근 초안 (다양하게 쓰기, RD-33)
+   * @param extras 글 모양·최근 초안(다양하게 쓰기, RD-33)과 이 영상에 이미 단 댓글(겹치지 않게 쓰고 같은 글은 검사에서 막기, RD-27)
    */
   async write(
     topic: Topic,
@@ -161,6 +164,7 @@ export class DraftingService {
           prompt: buildDraftPrompt(topic, video, analysis, retry, prompt, {
             style: extras.style,
             avoid,
+            posted: extras.posted,
           }),
           schema: draftSchema,
           timeoutMs: DRAFT_TIMEOUT_MS,
@@ -174,7 +178,7 @@ export class DraftingService {
         ? withDisclosure(out.text.trim(), disclosure)
         : out.text.trim();
       const report = this.checks.run(
-        checkContextOf(text, topic, analysis, disclosure, recentTexts),
+        checkContextOf(text, topic, analysis, disclosure, extras),
       );
       last = {
         // 마지막으로 쓴 댓글과 같은 사람의 고민 (다시 쓰면 고민도 함께 바뀐다)

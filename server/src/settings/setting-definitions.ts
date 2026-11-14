@@ -51,6 +51,15 @@ export const POSTING_HEADLESS = define({
   defaultValue: false,
 });
 
+/** 같은 영상에 댓글을 더 달 수 있는지 (RD-27) */
+export const POSTING_MORE_PER_VIDEO = define({
+  key: 'posting.morePerVideo',
+  label: '같은 영상에 댓글 더 달기',
+  help: '끄면(기본) 영상당 댓글 1개만 달아요. 켜면 댓글을 단 영상에도 [새 초안 쓰고 한 번 더 달기]로 새 초안을 써서 계정과 상관없이 더 달 수 있어요. 어느 쪽이든 같은 초안은 두 번 게시하지 않고, 이미 단 댓글과 같은 글은 자동 검사에서 걸러요.',
+  schema: z.boolean(),
+  defaultValue: false,
+});
+
 /** 영상 분석에 쓸 AI */
 export const AI_ANALYSIS = define({
   key: 'ai.analysis',
@@ -136,6 +145,7 @@ export const PROMPT_DRAFTING = define({
 export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   DAILY_CAP_TOTAL,
   POSTING_HEADLESS,
+  POSTING_MORE_PER_VIDEO,
   YOUTUBE_SEARCH_CACHE_MINUTES,
   AI_ANALYSIS,
   AI_DRAFTING,

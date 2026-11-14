@@ -265,6 +265,34 @@ export class VarietyCheck implements DraftCheck {
   }
 }
 
+/**
+ * 비교용 글: 앞뒤·사이 공백을 하나로 모은다 (띄어쓰기·줄바꿈만 다른 글도 같은 글로 본다)
+ * @param text 글
+ */
+const normalized = (text: string) => text.replace(/\s+/g, ' ').trim();
+
+/** 8. 이미 단 댓글과 다름: 같은 영상에 같은 글을 두 번 달지 않는다 (RD-27). 단 댓글이 없으면 건너뛴다 */
+export class NotDuplicateCheck implements DraftCheck {
+  readonly code = 'not_duplicate';
+
+  appliesTo(ctx: CheckContext): boolean {
+    return ctx.postedTexts.length > 0;
+  }
+
+  run(ctx: CheckContext): CheckResult {
+    // 둘 다 맨 앞 광고 표시를 뺀 본문으로 비교한다 (표시만 다른 글도 같은 글)
+    const mine = normalized(ctx.text);
+    return ctx.postedTexts.some((t) => normalized(t) === mine)
+      ? result(
+          this,
+          '이미 단 댓글과 다름',
+          false,
+          '이 영상에 이미 단 댓글과 같아요 · 다르게 고쳐 주세요',
+        )
+      : result(this, '이미 단 댓글과 다름', true, '달라요');
+  }
+}
+
 /** 기본 검사 목록. 화면의 체크리스트 순서와 같다 */
 export const DEFAULT_CHECKS: DraftCheck[] = [
   new LengthCheck(),
@@ -274,4 +302,5 @@ export const DEFAULT_CHECKS: DraftCheck[] = [
   new NoFakeReviewCheck(),
   new BannedWordsCheck(),
   new VarietyCheck(),
+  new NotDuplicateCheck(),
 ];

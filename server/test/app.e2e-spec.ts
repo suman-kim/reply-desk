@@ -126,7 +126,7 @@ describe('reply-desk API (e2e)', () => {
     expect(otherOk.body).toMatchObject({ allowed: true, block: null });
 
     // 5. 검사를 통과한 초안이 생기면 열리고, 자동 배정으로 유튜브1이 이번 차례
-    await ds.getRepository(Draft).insert({
+    const mineDraft = await ds.getRepository(Draft).insert({
       topicId: t,
       videoId: mine.id,
       state: DraftState.Ready,
@@ -147,8 +147,10 @@ describe('reply-desk API (e2e)', () => {
       (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
     ).toBe(2);
 
-    // 6. 게시 성공 기록이 생기면 영상당 1개 규칙으로 막히고, 오늘 게시 수가 오른다
+    // 6. 그 초안의 게시 성공 기록이 생기면 초안당 1개 규칙으로 막히고, 오늘 게시 수가 오른다
+    const mineDraftId = mineDraft.identifiers[0].id as number;
     await ds.getRepository(PostAttempt).insert({
+      draftId: mineDraftId,
       topicId: t,
       videoId: mine.id,
       profileId: profile.body.id,
@@ -159,6 +161,7 @@ describe('reply-desk API (e2e)', () => {
     const done = await http()
       .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
       .expect(200);
+    // 기본은 영상당 1개 (설정 '같은 영상에 댓글 더 달기'가 꺼져 있음, RD-27)
     expect(done.body.block.code).toBe('already_commented');
     expect(done.body.today).toMatchObject({
       posted: 1,
@@ -170,22 +173,91 @@ describe('reply-desk API (e2e)', () => {
       (await http().get(`/api/topics/${t}`).expect(200)).body,
     ).toMatchObject({ postedToday: 1, pendingDrafts: 1 }); // 남은 것: 다른 채널 영상
     expect(
-      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body
-        .commented,
-    ).toBe(true);
+      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
+    ).toMatchObject({ commented: true, commentCount: 1 });
 
-    // DB가 같은 영상의 두 번째 성공을 직접 막는다
+    // DB가 같은 초안의 두 번째 성공을 직접 막는다
     await expect(
       ds.getRepository(PostAttempt).insert({
+        draftId: mineDraftId,
         videoId: mine.id,
         commentText: '두 번째',
         status: PostStatus.Success,
       }),
-    ).rejects.toThrow(/uq_post_attempt_video_success/);
+    ).rejects.toThrow(/uq_post_attempt_draft_success/);
 
-    // 7. 게시 기록과 오늘 현황
+    // 게시한 초안은 고칠 수 없다 (게시 기록과 같은 글로 남게)
+    await http()
+      .patch(`/api/drafts/${mineDraftId}`)
+      .send({ text: '고친 글' })
+      .expect(409);
+
+    // 같은 영상의 새 초안 (RD-27)
+    const nextDraft = await ds.getRepository(Draft).insert({
+      topicId: t,
+      videoId: mine.id,
+      state: DraftState.Ready,
+      text: '새 댓글',
+      checkPassed: true,
+    });
+    // 기본(영상당 1개): 새 초안이 있어도 영상 단위로 게시 완료이고 막힌다
+    const stillDone = await http()
+      .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
+      .expect(200);
+    expect(stillDone.body.block.code).toBe('already_commented');
+    expect(
+      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
+    ).toMatchObject({ commented: true, commentCount: 1 });
+    expect(
+      (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
+    ).toBe(1);
+    const lockedRows = await http().get(`/api/drafts?topicId=${t}`).expect(200);
+    expect(
+      lockedRows.body.rows.find(
+        (r: { id: number }) => r.id === nextDraft.identifiers[0].id,
+      ),
+    ).toMatchObject({ status: 'posted' });
+
+    // 설정 '같은 영상에 댓글 더 달기'를 켜면 새 초안은 게시 대기로 돌아오고, 게시할 수 있다
+    await http()
+      .put('/api/settings/posting.morePerVideo')
+      .send({ value: true })
+      .expect(200);
+    const reopened = await http()
+      .get(`/api/topics/${t}/post-check?videoId=${mine.id}`)
+      .expect(200);
+    expect(reopened.body).toMatchObject({ allowed: true, block: null });
+    expect(
+      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
+    ).toMatchObject({ commented: false, commentCount: 1 });
+    expect(
+      (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
+    ).toBe(2);
+    const draftRows = await http().get(`/api/drafts?topicId=${t}`).expect(200);
+    expect(
+      draftRows.body.rows.find(
+        (r: { id: number }) => r.id === nextDraft.identifiers[0].id,
+      ).status,
+    ).toBe('pending');
+    // 다른 초안이면 같은 영상에 두 번째 성공도 들어간다 (예전 기록은 그대로)
+    await ds.getRepository(PostAttempt).insert({
+      draftId: nextDraft.identifiers[0].id as number,
+      topicId: t,
+      videoId: mine.id,
+      profileId: profile.body.id,
+      commentText: '새 댓글',
+      status: PostStatus.Success,
+      finishedAt: new Date(),
+    });
+    expect(
+      (await http().get(`/api/topics/${t}/videos/${mine.id}`).expect(200)).body,
+    ).toMatchObject({ commented: true, commentCount: 2 });
+    // 다음 시험을 위해 기본값(꺼짐)으로 되돌린다
+    await http().delete('/api/settings/posting.morePerVideo').expect(200);
+
+    // 7. 게시 기록과 오늘 현황 (같은 영상에 단 댓글 2개)
     const logs = await http().get(`/api/posting/logs?topicId=${t}`).expect(200);
-    expect(logs.body).toHaveLength(1);
+    expect(logs.body).toHaveLength(2);
     expect(logs.body[0]).toMatchObject({
       profileName: '유튜브1',
       status: 'success',
@@ -199,7 +271,7 @@ describe('reply-desk API (e2e)', () => {
     expect(logs.body[0].finishedAt).toEqual(expect.any(String));
     expect(
       (await http().get('/api/posting/today').expect(200)).body,
-    ).toMatchObject({ posted: 1, cap: 10 });
+    ).toMatchObject({ posted: 2, cap: 10 });
   });
 
   it('링크 직접 추가: 새 영상은 manual로, 이미 있는 영상은 그대로 둔다', async () => {

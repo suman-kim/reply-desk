@@ -10,8 +10,12 @@ export interface PostGuardContext {
   video: { id: number; isMine: boolean } | null;
   /** 그 영상의 최근 초안. 없으면 null (text: 게시될 댓글) */
   draft: { state: DraftState; checkPassed: boolean; text: string } | null;
-  /** 이미 댓글을 단 영상인지 (주제와 상관없이 전체) */
+  /** 이 영상에 이미 댓글을 달았는지 (주제·계정 상관없이 전체) */
   alreadyCommented: boolean;
+  /** 설정 '같은 영상에 댓글 더 달기'. 끄면(기본) 영상당 1개, 켜면 새 초안으로 더 달 수 있다 (RD-27) */
+  morePerVideo: boolean;
+  /** 그 영상의 최근 초안을 이미 게시했는지 (같은 초안은 두 번 게시하지 않는다, RD-27) */
+  draftPosted: boolean;
   /** 이 영상을 지금 게시하는 중인지 */
   postingNow: boolean;
   /** 오늘 전체 게시 수와 상한 */
@@ -70,10 +74,16 @@ export const BLOCK_RULES: BlockRule[] = [
       return '초안 작성에 실패했어요 · [다시 생성]을 눌러 주세요';
     return null;
   }),
-  // 3. 이미 댓글을 단 영상 (영상당 1개)
+  // 3. 이미 댓글을 단 영상 (영상당 1개). 설정 '같은 영상에 댓글 더 달기'를 켜면 건너뛴다 (RD-27)
   rule('already_commented', (c) =>
-    c.alreadyCommented
-      ? '이미 댓글을 단 영상이에요 · 영상당 1개만 달 수 있어요'
+    c.alreadyCommented && !c.morePerVideo
+      ? "이미 댓글을 단 영상이에요 · 영상당 1개만 달아요 (설정 → 게시에서 '같은 영상에 댓글 더 달기'를 켜면 새 초안으로 더 달 수 있어요)"
+      : null,
+  ),
+  // 3-1. 이 초안은 이미 게시함 (초안 하나에 댓글 하나, RD-27)
+  rule('draft_already_posted', (c) =>
+    c.draftPosted
+      ? '이 초안은 이미 게시했어요 · [새 초안 쓰고 한 번 더 달기]로 새 댓글을 써 주세요'
       : null,
   ),
   // 4. 자동 검사 미통과

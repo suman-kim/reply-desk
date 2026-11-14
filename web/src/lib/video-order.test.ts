@@ -6,7 +6,7 @@ function v(id: number, over: Partial<VideoItem> = {}): VideoItem {
   return {
     id, youtubeId: `y${id}`, url: '', title: `영상 ${id}`, channelTitle: '', publishedAt: `2026-11-0${id}T00:00:00Z`,
     viewCount: id * 100, durationSec: 60, thumbnailUrl: null, rank: null, source: 'search', isMine: false,
-    commented: false, draftState: 'none', checkPassed: false, searchPosition: id, matchedKeywords: [], topicMatch: null,
+    commented: false, commentCount: 0, draftState: 'none', checkPassed: false, searchPosition: id, matchedKeywords: [], topicMatch: null,
     ...over,
   };
 }

@@ -8,6 +8,8 @@ function ok(): PostGuardContext {
     video: { id: 1, isMine: true },
     draft: { state: DraftState.Ready, checkPassed: true, text: '좋은 댓글' },
     alreadyCommented: false,
+    morePerVideo: false,
+    draftPosted: false,
     postingNow: false,
     total: { posted: 0, cap: 10 },
     topic: {
@@ -32,15 +34,40 @@ describe('게시 차단 규칙', () => {
   });
 
   it('여러 개에 걸리면 계획서 순서대로 먼저 걸린 하나만 보여 준다', () => {
-    // 3(이미 댓글), 4(검사 미통과), 5(상한)에 모두 걸린 상황
+    // 3(이미 단 영상), 3-1(이미 게시한 초안), 4(검사 미통과), 5(상한)에 모두 걸린 상황
     const ctx: PostGuardContext = {
       ...ok(),
       alreadyCommented: true,
+      draftPosted: true,
       video: { id: 1, isMine: false },
       draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' },
       total: { posted: 10, cap: 10 },
     };
     expect(findBlockReason(ctx)?.code).toBe('already_commented');
+  });
+
+  it('영상당 1개 (기본): 이미 댓글을 단 영상이면 새 초안이어도 막고, 설정 켜는 곳을 알려 준다', () => {
+    expect(findBlockReason({ ...ok(), alreadyCommented: true })).toMatchObject({
+      code: 'already_commented',
+      message: expect.stringContaining('같은 영상에 댓글 더 달기'),
+    });
+  });
+
+  it("'같은 영상에 댓글 더 달기'를 켜면 이미 단 영상도 새 초안으로 열린다 (RD-27)", () => {
+    expect(
+      findBlockReason({ ...ok(), alreadyCommented: true, morePerVideo: true }),
+    ).toBeNull();
+  });
+
+  it('설정을 켜도 같은 초안은 두 번 게시하지 않는다 (RD-27)', () => {
+    expect(
+      findBlockReason({
+        ...ok(),
+        alreadyCommented: true,
+        morePerVideo: true,
+        draftPosted: true,
+      })?.code,
+    ).toBe('draft_already_posted');
   });
 
   it.each<[string, Partial<PostGuardContext>]>([
@@ -51,6 +78,7 @@ describe('게시 차단 규칙', () => {
       { draft: { state: DraftState.Writing, checkPassed: false, text: '' } },
     ],
     ['already_commented', { alreadyCommented: true }],
+    ['draft_already_posted', { draftPosted: true }],
     [
       'check_failed',
       { draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' } },

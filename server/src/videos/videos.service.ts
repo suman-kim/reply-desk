@@ -24,7 +24,11 @@ import { YOUTUBE_SEARCH_CACHE_MINUTES } from '../settings/setting-definitions.js
 import { SettingsService } from '../settings/settings.service.js';
 import { conditionsKey, planSearch, type SearchMode } from './search-plan.js';
 import { matchKeywords } from './keyword-match.js';
-import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
+import {
+  POSTING_MORE_PER_VIDEO,
+  TOPIC_MATCH_THRESHOLD,
+} from '../settings/setting-definitions.js';
+import { isPosted } from '../drafts/draft-status.js';
 
 /** ① 칸 영상 카드 한 장 */
 export interface VideoItem {
@@ -54,8 +58,10 @@ export interface VideoItem {
   source: TopicVideoSource;
   /** 내 채널 영상인지 (배지: 내 채널) */
   isMine: boolean;
-  /** 이미 댓글을 단 영상인지 (배지: 댓글 완료, 주제와 상관없이 전체) */
+  /** 게시 완료인지 (배지: 게시 완료). 기본은 이 영상에 댓글을 달았는지(주제 상관없이), 설정 '같은 영상에 댓글 더 달기'를 켜면 이 주제의 최근 초안을 게시했는지 (RD-27) */
   commented: boolean;
+  /** 이 영상에 단 댓글 수 (게시 성공 기록 수, 주제·계정 상관없이) */
+  commentCount: number;
   /** 최근 초안 상태 (배지: 초안 작성 중·초안 준비됨). 초안이 없으면 none */
   draftState: DraftState | 'none';
   /** 최근 초안이 자동 검사를 통과했는지 */
@@ -141,7 +147,7 @@ export class VideosService {
    * @param youtube YouTube API 클라이언트
    * @param videos 영상 저장소
    * @param topicVideos 주제별 영상 저장소
-   * @param attempts 게시 기록 저장소 (댓글 완료 여부)
+   * @param attempts 게시 기록 저장소 (게시 완료 여부·댓글 수)
    * @param dataSource 트랜잭션·집계 쿼리용
    * @param topics 주제 서비스
    * @param profiles 프로필 서비스 (내 채널 목록)
@@ -561,7 +567,7 @@ export class VideosService {
     return new Map(rows.map((r) => [r.youtubeId, r.id]));
   }
 
-  /** 카드에 필요한 배지 값(내 채널·댓글 완료·초안 상태·주제와 매칭)을 붙인다 */
+  /** 카드에 필요한 배지 값(내 채널·게시 완료·댓글 수·초안 상태·주제와 매칭)을 붙인다 */
   private async toItems(
     topicId: number,
     rows: TopicVideo[],
@@ -569,20 +575,26 @@ export class VideosService {
     const videoIds = rows.map((r) => r.videoId);
     if (videoIds.length === 0) return [];
 
-    const [myChannels, commentedRows, drafts, analyses, threshold] =
+    const [myChannels, successRows, drafts, analyses, threshold, more] =
       await Promise.all([
         this.profiles.myChannelIds(),
+        // 게시 성공 기록: 영상별 댓글 수와, 최근 초안을 게시했는지 (RD-27)
         this.attempts.find({
-          select: { videoId: true },
+          select: { videoId: true, draftId: true },
           where: { videoId: In(videoIds), status: PostStatus.Success },
         }),
         this.dataSource.query(
-          `SELECT DISTINCT ON (video_id) video_id, state, check_passed
+          `SELECT DISTINCT ON (video_id) id, video_id, state, check_passed
          FROM draft WHERE topic_id = $1 AND video_id = ANY($2)
          ORDER BY video_id, created_at DESC, id DESC`,
           [topicId, videoIds],
         ) as Promise<
-          { video_id: number; state: DraftState; check_passed: boolean }[]
+          {
+            id: number;
+            video_id: number;
+            state: DraftState;
+            check_passed: boolean;
+          }[]
         >,
         // 이 주제에서 영상마다 가장 최근 분석의 매칭 퍼센트
         this.dataSource.query(
@@ -592,8 +604,14 @@ export class VideosService {
           [topicId, videoIds],
         ) as Promise<{ video_id: number; topic_match: number | null }[]>,
         this.settings.get(TOPIC_MATCH_THRESHOLD),
+        this.settings.get(POSTING_MORE_PER_VIDEO),
       ]);
-    const commented = new Set(commentedRows.map((r) => r.videoId));
+    const postedDrafts = new Set(
+      successRows.flatMap((r) => (r.draftId ? [r.draftId] : [])),
+    );
+    const commentCount = new Map<number, number>();
+    for (const r of successRows)
+      commentCount.set(r.videoId, (commentCount.get(r.videoId) ?? 0) + 1);
     const draftBy = new Map(drafts.map((d) => [Number(d.video_id), d]));
     const matchBy = new Map(
       analyses
@@ -618,7 +636,13 @@ export class VideosService {
         rank: r.rank,
         source: r.source,
         isMine: myChannels.has(v.channelId),
-        commented: commented.has(v.id),
+        // 기본은 영상 단위(영상당 1개), 설정을 켜면 최근 초안 단위 (RD-27)
+        commented: isPosted({
+          morePerVideo: more,
+          videoCommented: (commentCount.get(v.id) ?? 0) > 0,
+          draftPosted: !!d && postedDrafts.has(Number(d.id)),
+        }),
+        commentCount: commentCount.get(v.id) ?? 0,
         draftState: d?.state ?? 'none',
         checkPassed: d?.check_passed ?? false,
         searchPosition: r.searchPosition,

@@ -15,27 +15,34 @@ const STEP_STATE = { done: 'done', running: 'active', failed: 'failed', waiting:
  * 작업 상세 B칸의 '댓글 달기' 카드 (RD-26).
  * 게시 전: 게시할 계정 · 게시 대상 · [댓글 달기] (막히면 사유 한 줄)
  * 게시 중: 진행 5단계(입력은 글자 수) · 크롬 화면 미리보기
- * 게시 후: 완료 표시 · 걸린 시간 · 다음 할 일(다음 영상 · 댓글 보기 · 게시 목록) / 실패면 원인 · 캡처 · [다시 시도]
+ * 게시 후: 완료 표시 · 걸린 시간 · 다음 할 일(다음 영상 · 댓글 보기 · 게시 목록 · 새 초안 쓰고 한 번 더 달기) / 실패면 원인 · 캡처 · [다시 시도]
  * @param props.topic 주제 (쓸 프로필)
  * @param props.video 영상
- * @param props.attempts 이 영상의 댓글 게시 (최근 결과를 이어서 보여 준다)
+ * @param props.draftId 지금 초안 ID (이 초안의 게시만 이어서 보여 준다, RD-27)
+ * @param props.attempts 이 영상의 댓글 게시 (최근 순, 예전 초안 것도 섞여 있다)
+ * @param props.morePerVideo 설정 '같은 영상에 댓글 더 달기'. 끄면(기본) 영상당 1개라 완료 뒤 설정 안내를, 켜면 [새 초안 쓰고 한 번 더 달기]를 보인다
  * @param props.next 게시를 마친 뒤 '다음 할 일' 맨 앞 버튼 (다음 영상으로)
  */
 export function PostControl({
   topic,
   video,
+  draftId,
   attempts,
+  morePerVideo,
   next,
 }: {
   topic: Topic;
   video: VideoItem;
+  draftId: number | null;
   attempts: DraftDetail['attempts'];
+  morePerVideo: boolean;
   next?: ReactNode;
 }) {
-  const { post } = useActions();
+  const { post, regenerate } = useActions();
   const [choice, setChoice] = useState<string>('auto');
-  // 처음에는 이 영상의 최근 게시를 이어서 보여 준다 (영상이 바뀌면 부모가 key로 새로 만든다)
-  const [attemptId, setAttemptId] = useState<number | null>(attempts[0]?.id ?? null);
+  // 처음에는 지금 초안의 최근 게시를 이어서 보여 준다. 예전 초안의 '게시 완료'는 잇지 않는다
+  // (영상·초안이 바뀌면 부모가 key로 새로 만든다)
+  const [attemptId, setAttemptId] = useState<number | null>(() => attempts.find((x) => x.draftId === draftId)?.id ?? null);
 
   const profileId = choice === 'auto' ? null : Number(choice);
   const check = usePostCheck(topic.id, video.id, profileId);
@@ -98,7 +105,32 @@ export function PostControl({
               </Link>
             </div>
           </div>
-          <span className="text-caption rd-muted">이미 댓글을 단 영상이라 초안은 더 고칠 수 없어요 · 영상당 1개만 달 수 있어요</span>
+          {/* 같은 영상에 댓글 더 달기 (RD-27): 설정을 켜면 새 초안을 써서 평소처럼 검사하고 게시한다. 끄면(기본) 영상당 1개 */}
+          {morePerVideo ? (
+            <div className="rd-pc-more">
+              <span className="text-caption rd-muted">
+                게시한 초안은 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 새 초안을 써요 (이미 단 댓글과 겹치지 않게 써요)
+              </span>
+              <Button
+                variant="secondary"
+                loading={regenerate.isPending}
+                leading={<Icon name="plus" size={16} />}
+                onClick={() => regenerate.mutate({ topicId: topic.id, videoId: video.id, reanalyze: false })}
+              >
+                새 초안 쓰고 한 번 더 달기
+              </Button>
+              {regenerate.error ? <span className="dk-field-error">{regenerate.error.message}</span> : null}
+            </div>
+          ) : (
+            <div className="rd-pc-more">
+              <span className="text-caption rd-muted">
+                영상당 댓글 1개만 달아요 · 같은 영상에 더 달려면 설정 → 게시에서 '같은 영상에 댓글 더 달기'를 켜요
+              </span>
+              <Link to={paths.settings} className="dk-btn dk-btn-ghost dk-btn-md">
+                설정 열기
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     );

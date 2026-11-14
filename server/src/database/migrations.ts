@@ -6,6 +6,7 @@ import { PostAttemptSuccessCapture1794570000000 } from './migrations/17945700000
 import { AnalysisTopicMatch1794580000000 } from './migrations/1794580000000-AnalysisTopicMatch.js';
 import { TopicVideoRelevanceKeywords1794590000000 } from './migrations/1794590000000-TopicVideoRelevanceKeywords.js';
 import { DropAdDisclosureCheck1794600000000 } from './migrations/1794600000000-DropAdDisclosureCheck.js';
+import { PostAttemptSuccessPerDraft1794610000000 } from './migrations/1794610000000-PostAttemptSuccessPerDraft.js';
 import { DraftViewerWorry1794620000000 } from './migrations/1794620000000-DraftViewerWorry.js';
 import { DraftStyle1794630000000 } from './migrations/1794630000000-DraftStyle.js';
 
@@ -23,6 +24,7 @@ export const MIGRATIONS = [
   AnalysisTopicMatch1794580000000,
   TopicVideoRelevanceKeywords1794590000000,
   DropAdDisclosureCheck1794600000000,
+  PostAttemptSuccessPerDraft1794610000000,
   DraftViewerWorry1794620000000,
   DraftStyle1794630000000,
 ];

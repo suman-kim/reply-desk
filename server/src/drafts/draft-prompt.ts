@@ -179,13 +179,37 @@ export function sceneWordsOf(
 }
 
 /**
+ * 이미 단 댓글 안내 (RD-27). 같은 영상에 댓글을 더 달 때 자료 뒤에 코드가 붙인다
+ * (설정에서 고친 프롬프트 틀과 상관없이 붙는다). 단 댓글이 없으면 빈 글.
+ * @param posted 이 영상에 이미 단 댓글 글 (최근 순)
+ */
+export function postedCommentsBlock(posted: string[]): string {
+  if (posted.length === 0) return '';
+  return [
+    '[이미 이 영상에 단 댓글]',
+    ...posted.map((t) => `- ${t.replace(/\s+/g, ' ').trim()}`),
+    '위 댓글과 겹치지 않게 다른 장면이나 다른 말로 써 줘.',
+  ].join('\n');
+}
+
+/** 초안마다 코드가 자료 뒤에 붙이는 것 (설정에서 고친 틀과 상관없이 붙는다) */
+export interface DraftPromptExtras {
+  /** 이번 글 모양 (RD-33). 없으면 붙이지 않는다 */
+  style?: DraftStyle;
+  /** 최근 초안에서 자주 나온 말 → 쓰지 말라고 알린다 (RD-33) */
+  avoid?: string[];
+  /** 이 영상에 이미 단 댓글 글, 최근 순 → 겹치지 않게 쓰라고 알린다 (RD-27) */
+  posted?: string[];
+}
+
+/**
  * 작성 프롬프트(자료)를 만든다.
  * @param topic 주제 (말투·글자 수·브랜드)
  * @param video 영상
  * @param analysis 영상 분석
  * @param retry 앞 시도가 검사에 걸렸으면 그 글과 걸린 이유
  * @param templates 자료 틀과 다시 쓸 때 틀 (설정 prompt.drafting)
- * @param variety 이번 글 모양과 최근 초안에서 피할 말 (RD-33). 설정의 틀과 상관없이 코드가 붙인다
+ * @param extras 이미 단 댓글(RD-27)·이번 글 모양·최근 초안에서 피할 말(RD-33). 설정의 틀과 상관없이 코드가 붙인다
  */
 export function buildDraftPrompt(
   topic: Parameters<typeof draftPromptValues>[0],
@@ -194,15 +218,14 @@ export function buildDraftPrompt(
     Partial<Pick<VideoAnalysis, 'sceneKeywords'>>,
   retry?: { text: string; failed: CheckResult[] },
   templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
-  variety: { style?: DraftStyle; avoid?: string[] } = {},
+  extras: DraftPromptExtras = {},
 ): string {
-  // 자료 → 이번 글 모양 → 피할 말 → (다시 쓸 때) 고칠 점
+  // 자료 → 이미 단 댓글 → 이번 글 모양 → 피할 말 → (다시 쓸 때) 고칠 점
   const parts = [
     renderTemplate(templates.user, draftPromptValues(topic, video, analysis)),
-    variety.style
-      ? styleBlock(variety.style, topic, sceneWordsOf(analysis))
-      : '',
-    avoidBlock(variety.avoid ?? []),
+    postedCommentsBlock(extras.posted ?? []),
+    extras.style ? styleBlock(extras.style, topic, sceneWordsOf(analysis)) : '',
+    avoidBlock(extras.avoid ?? []),
     retry ? renderTemplate(templates.retry, draftRetryValues(retry)) : '',
   ];
   return parts.filter(Boolean).join('\n\n');
