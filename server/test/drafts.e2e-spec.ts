@@ -100,6 +100,18 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       '읽씹 3일째인데 이거 보고 위로받고 갑니다',
     ]);
     expect(analysis.sceneKeywords).toEqual(['스토리', '미련']);
+    // 주제와 매칭: AI가 매긴 퍼센트와 이유, 기준(기본 50%) 이상이면 매칭됨
+    expect(analysis).toMatchObject({
+      topicMatch: 82,
+      topicMatchReason: '재회 연락을 기다리는 이야기라 연애 사주 주제와 가까움',
+    });
+    expect(analysis).not.toHaveProperty('worry');
+    expect(d.body.topicMatch).toEqual({
+      percent: 82,
+      reason: '재회 연락을 기다리는 이야기라 연애 사주 주제와 가까움',
+      matched: true,
+      threshold: 50,
+    });
     // 숫자는 코드가 채운다
     expect(analysis.pickReasons[0]).toMatch(
       /^(어제|\d+(시간|분) 전) 올라와 조회수가 오르는 중 \(4,870회\)$/,
@@ -120,6 +132,32 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       'no_fake_review',
     ]);
     expect(status).toEqual({ code: 'pending', label: '게시 대기' });
+
+    // 작업 목록 행에도 매칭 퍼센트
+    const rows = (
+      await http().get(`/api/drafts?topicId=${topicId}`).expect(200)
+    ).body.rows;
+    expect(
+      rows.find((r: { video: Card }) => r.video.id === cards.demo00000v2.id)
+        .topicMatch,
+    ).toEqual({ percent: 82, matched: true, threshold: 50 });
+
+    // 기준을 올리면 '매칭 낮음'으로 보인다 (초안·게시는 막지 않는다)
+    await http()
+      .put('/api/settings/analysis.topicMatchThreshold')
+      .send({ value: 90 })
+      .expect(200);
+    const strict = await http()
+      .get(`/api/topics/${topicId}/videos/${cards.demo00000v2.id}/draft`)
+      .expect(200);
+    expect(strict.body.topicMatch).toMatchObject({
+      matched: false,
+      threshold: 90,
+    });
+    expect(strict.body.status.code).toBe('pending');
+    await http()
+      .delete('/api/settings/analysis.topicMatchThreshold')
+      .expect(200);
 
     // 게시 판단도 열린다
     const check = await http()
@@ -311,6 +349,17 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(info.body[1].response.map((f: { name: string }) => f.name)).toEqual([
       'text',
       'reasons',
+    ]);
+    // 분석 답에는 고민 대신 주제 매칭 퍼센트와 이유
+    expect(info.body[0].response.map((f: { name: string }) => f.name)).toEqual([
+      'topicMatch',
+      'topicMatchReason',
+      'pickReasons',
+      'scenes',
+      'scenes.time',
+      'scenes.quote',
+      'scenes.source',
+      'sceneKeywords',
     ]);
 
     const current = (await http().get('/api/settings').expect(200)).body.find(

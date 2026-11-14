@@ -15,3 +15,12 @@ describe('영상 카드 배지', () => {
     expect(labels(v(over))).toEqual(expected);
   });
 });
+
+describe('주제 매칭 배지 (작업 목록 행)', () => {
+  it('기준 이상은 매칭 %, 미만은 매칭 낮음 %, 판단 전은 없음', async () => {
+    const { topicMatchBadge } = await import('./badges');
+    expect(topicMatchBadge({ percent: 82, matched: true, threshold: 50 })).toEqual({ tone: 'success', label: '매칭 82%' });
+    expect(topicMatchBadge({ percent: 32, matched: false, threshold: 50 })).toEqual({ tone: 'warning', label: '매칭 낮음 32%' });
+    expect(topicMatchBadge(null)).toBeNull();
+  });
+});

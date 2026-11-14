@@ -14,6 +14,9 @@ import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
 import { Video } from '../videos/video.entity.js';
 import { VideosService, type VideoItem } from '../videos/videos.service.js';
+import { watchUrl } from '../videos/youtube/youtube-parsers.js';
+import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { AnalysisService } from './analysis.service.js';
 import {
   DraftQueueService,
@@ -24,9 +27,9 @@ import {
   DraftListStatus,
   draftListStatus,
 } from './draft-status.js';
-import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { Draft, DraftState } from './draft.entity.js';
 import { checkContextOf } from './drafting.service.js';
+import { toTopicMatch, type TopicMatchView } from './topic-match.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
 
 /** ② 칸 / 초안 상세 패널에 필요한 값 */
@@ -35,6 +38,8 @@ export interface DraftDetail {
   video: VideoItem;
   /** 최근 분석 (없으면 null) */
   analysis: VideoAnalysis | null;
+  /** 주제와 매칭 (퍼센트·이유·기준 이상인지). 분석이 없거나 이 기능 전 분석이면 null */
+  topicMatch: TopicMatchView | null;
   /** 최근 초안 (없으면 null) */
   draft: Draft | null;
   /** 목록 상태 (초안이 없으면 null) */
@@ -86,6 +91,8 @@ export interface DraftListRow {
   model: string | null;
   /** 게시된 댓글 주소 (게시 완료일 때) */
   commentUrl: string | null;
+  /** 주제와 매칭 (퍼센트·기준 이상인지). 분석이 없거나 이 기능 전 분석이면 null */
+  topicMatch: Omit<TopicMatchView, 'reason'> | null;
   /** 사람이 고쳤는지 */
   edited: boolean;
   /** 상태 */
@@ -127,6 +134,7 @@ export class DraftsService {
    * @param videos 영상 서비스
    * @param profiles 프로필 서비스 (내 채널)
    * @param events 실시간 이벤트 (고친 초안을 다른 화면에 알린다)
+   * @param settings 공용 설정 (주제 매칭 기준)
    */
   constructor(
     @InjectRepository(Draft) private readonly drafts: Repository<Draft>,
@@ -140,6 +148,7 @@ export class DraftsService {
     private readonly videos: VideosService,
     private readonly profiles: ProfilesService,
     private readonly events: EventsService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -192,7 +201,7 @@ export class DraftsService {
    */
   async detail(topicId: number, videoId: number): Promise<DraftDetail> {
     const video = await this.videos.getForTopic(topicId, videoId);
-    const [analysis, draft, attempts] = await Promise.all([
+    const [analysis, draft, attempts, threshold] = await Promise.all([
       this.analysis.latest(topicId, videoId),
       this.drafts.findOne({
         where: { topicId, videoId },
@@ -211,6 +220,7 @@ export class DraftsService {
         order: { startedAt: 'DESC', id: 'DESC' },
         take: 20,
       }),
+      this.settings.get(TOPIC_MATCH_THRESHOLD),
     ]);
     const status = draft
       ? draftListStatus({
@@ -223,6 +233,7 @@ export class DraftsService {
     return {
       video,
       analysis,
+      topicMatch: toTopicMatch(analysis, threshold),
       draft,
       status: status
         ? { code: status, label: DRAFT_STATUS_LABELS[status] }
@@ -304,11 +315,15 @@ export class DraftsService {
     ) as Record<DraftListStatus, number>;
     if (latest.length === 0) return { rows: [], counts };
 
-    const drafts = await this.drafts.find({
-      where: { id: In(latest.map((l) => l.id)) },
-      relations: { topic: true, video: true },
-      order: { updatedAt: 'DESC', id: 'DESC' },
-    });
+    const [drafts, threshold] = await Promise.all([
+      this.drafts.find({
+        where: { id: In(latest.map((l) => l.id)) },
+        // 초안을 쓸 때 쓴 분석 (주제 매칭 퍼센트)
+        relations: { topic: true, video: true, analysis: true },
+        order: { updatedAt: 'DESC', id: 'DESC' },
+      }),
+      this.settings.get(TOPIC_MATCH_THRESHOLD),
+    ]);
     const videoIds = [...new Set(drafts.map((d) => d.videoId))];
     const [myChannels, attempts] = await Promise.all([
       this.profiles.myChannelIds(),
@@ -368,6 +383,7 @@ export class DraftsService {
         provider: d.provider,
         model: d.model,
         commentUrl: post?.comment_url ?? null,
+        topicMatch: listTopicMatch(d.analysis ?? null, threshold),
         edited: d.edited,
         status,
         statusLabel: DRAFT_STATUS_LABELS[status],
@@ -377,4 +393,22 @@ export class DraftsService {
     }
     return { rows: rows.slice(0, filter.limit), counts };
   }
+}
+
+/**
+ * 작업 목록 행의 매칭 값 (이유는 상세 창에서만 보인다)
+ * @param analysis 초안을 쓸 때 쓴 분석
+ * @param threshold 기준 퍼센트
+ */
+function listTopicMatch(
+  analysis: VideoAnalysis | null,
+  threshold: number,
+): Omit<TopicMatchView, 'reason'> | null {
+  const match = toTopicMatch(analysis, threshold);
+  if (!match) return null;
+  return {
+    percent: match.percent,
+    matched: match.matched,
+    threshold: match.threshold,
+  };
 }

@@ -177,8 +177,10 @@ export interface EvidenceScene {
 export interface Analysis {
   /** 분석 ID */
   id: number;
-  /** 고민 한 줄 */
-  worry: string;
+  /** 주제와 매칭 퍼센트 (0~100, AI 판단). 이 기능 전에 한 분석은 null */
+  topicMatch: number | null;
+  /** 매칭 퍼센트를 그렇게 매긴 이유 */
+  topicMatchReason: string | null;
   /** 고른 이유 */
   pickReasons: string[];
   /** 근거 장면 */
@@ -187,6 +189,18 @@ export interface Analysis {
   provider: string;
   /** 모델 */
   model: string;
+}
+
+/** 주제와 매칭 (서버가 설정의 기준으로 판단한 값) */
+export interface TopicMatch {
+  /** 매칭 퍼센트 (0~100) */
+  percent: number;
+  /** AI가 그렇게 매긴 이유 한 줄 */
+  reason: string;
+  /** 기준 이상인지 ('주제와 매칭됨') */
+  matched: boolean;
+  /** 판단에 쓴 기준 퍼센트 (설정 '주제 매칭 기준') */
+  threshold: number;
 }
 
 /** 자동 검사 결과 한 줄 */
@@ -250,6 +264,8 @@ export interface DraftDetail {
   video: VideoItem;
   /** 최근 분석 */
   analysis: Analysis | null;
+  /** 주제와 매칭 (분석이 없거나 이 기능 전 분석이면 null) */
+  topicMatch: TopicMatch | null;
   /** 최근 초안 */
   draft: Draft | null;
   /** 목록 상태 */
@@ -399,6 +415,8 @@ export interface DraftListRow {
   model: string | null;
   /** 게시된 댓글 주소 (게시 완료일 때) */
   commentUrl: string | null;
+  /** 주제와 매칭 (이유는 상세 창에서만. 분석이 없거나 이 기능 전 분석이면 null) */
+  topicMatch: Omit<TopicMatch, 'reason'> | null;
   /** 고쳤는지 */
   edited: boolean;
   /** 상태 */

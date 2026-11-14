@@ -14,7 +14,7 @@ import { DraftsService } from './drafts.service.js';
 
 /** [다시 생성] 요청 */
 const regenerateSchema = z.object({
-  /** 분석(고른 이유·고민·근거 장면)부터 다시 할지. 기본은 초안만 다시 */
+  /** 분석(주제 매칭·고른 이유·근거 장면)부터 다시 할지. 기본은 초안만 다시 */
   reanalyze: z.boolean().default(false),
 });
 

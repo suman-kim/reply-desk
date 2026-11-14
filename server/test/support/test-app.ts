@@ -193,7 +193,8 @@ export class FakeAi implements AiProvider {
       videoUrl: req.videoUrl,
       prompt: req.prompt,
     });
-    if (req.prompt.includes('[시청자 고민]')) {
+    // 작성 요청에만 [근거 장면]이 있다 (분석 요청에는 없다)
+    if (req.prompt.includes('[근거 장면]')) {
       return req.schema.parse({
         text: '스토리 계속 본다는 게 미련 신호라니 저도 매일 확인하는데… 운명원 연애사주로 재회운 본다던데 저도 궁금해지네요.',
         reasons: [
@@ -206,7 +207,8 @@ export class FakeAi implements AiProvider {
       throw new AiError('테스트용 분석 실패 · [다시 생성]을 눌러 주세요', true);
     }
     return req.schema.parse({
-      worry: '이별 후 상대에게 다시 연락이 올지 궁금함',
+      topicMatch: 82,
+      topicMatchReason: '재회 연락을 기다리는 이야기라 연애 사주 주제와 가까움',
       pickReasons: [
         '{올린때} 올라와 조회수가 오르는 중 ({조회수})',
         '재회 고민이 분명해 사주 관심으로 이어지기 쉬움',

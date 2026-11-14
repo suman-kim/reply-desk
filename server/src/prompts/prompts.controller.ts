@@ -46,7 +46,8 @@ export interface PromptInfo {
 
 /** 답의 칸 우리말 이름 (설정 화면) */
 const FIELD_LABELS: Record<string, string> = {
-  worry: '고민 한 줄',
+  topicMatch: '주제와 매칭 (%)',
+  topicMatchReason: '매칭 이유',
   pickReasons: '이 영상을 고른 이유',
   scenes: '근거 장면',
   'scenes.time': '근거 장면 · 시점',

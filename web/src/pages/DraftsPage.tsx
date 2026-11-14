@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useDraftDetail, useDrafts, useTopics } from '../api/queries';
 import type { DraftListRow, DraftListStatus } from '../api/types';
-import { POST_RESULT, STATUS_LABELS, STATUS_TONE } from '../components/badges';
+import { POST_RESULT, STATUS_LABELS, STATUS_TONE, topicMatchBadge } from '../components/badges';
 import { DraftReview } from '../components/DraftReview';
 import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
@@ -135,11 +135,14 @@ export function DraftsPage() {
 function DraftRow({ row: r, selected, onOpen }: { row: DraftListRow; selected: boolean; onOpen: () => void }) {
   /** 행 안 링크는 새 탭만 열고 창은 열지 않는다 */
   const stop = (e: React.MouseEvent) => e.stopPropagation();
+  const match = topicMatchBadge(r.topicMatch);
 
   return (
     <div className="rd-grid-row rd-row-click" data-selected={selected || undefined} onClick={onOpen}>
       <span className="rd-row-tight">
         <Badge tone={STATUS_TONE[r.status]}>{r.statusLabel}</Badge>
+        {/* 주제와 매칭 (가장 중요한 판단) */}
+        {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
         {r.video.isMine ? <Badge tone="rose">내 채널</Badge> : null}
       </span>
       <span className="rd-cell-sub">

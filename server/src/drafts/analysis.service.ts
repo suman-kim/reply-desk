@@ -19,6 +19,7 @@ import {
   verifyScenes,
 } from './analysis-prompt.js';
 import { watchUrl } from '../videos/youtube/youtube-parsers.js';
+import { clampPercent } from './topic-match.js';
 import { VideoAnalysis } from './video-analysis.entity.js';
 
 /** 분석 제한 시간 (영상을 직접 보면 오래 걸린다) */
@@ -109,7 +110,8 @@ export class AnalysisService {
       this.repo.create({
         topicId: topic.id,
         videoId: video.id,
-        worry: out.worry.trim(),
+        topicMatch: clampPercent(out.topicMatch),
+        topicMatchReason: out.topicMatchReason.trim(),
         pickReasons: fillPlaceholders(out.pickReasons, video),
         scenes: kept,
         sceneKeywords: verifyKeywords(out.sceneKeywords, kept),
