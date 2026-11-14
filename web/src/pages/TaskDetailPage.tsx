@@ -14,6 +14,7 @@ import { formatDuration, formatLogTime, relativeTime } from '../lib/format';
 import { readyNeighbors } from '../lib/video-order';
 import { paths } from '../nav/paths';
 import { useRouteTopic } from '../nav/route-topic';
+import { RESTORE_SCROLL } from '../nav/scroll-memory';
 
 /** 작업 상세로 올 때 넘기는 값: 돌아갈 곳 (영상 목록의 정렬·거르기·쪽, 작업 목록) */
 interface TaskFrom {
@@ -65,7 +66,8 @@ function TaskDetail({ topic, videoId }: { topic: Topic; videoId: number }) {
   return (
     <div className="rd-page rd-task">
       <div className="rd-task-top">
-        <Link to={back} className="dk-btn dk-btn-ghost dk-btn-sm rd-task-back">
+        {/* 돌아가면 목록에서 보던 곳으로 (RD-29) */}
+        <Link to={back} state={RESTORE_SCROLL} className="dk-btn dk-btn-ghost dk-btn-sm rd-task-back">
           <Icon name="arrowLeft" size={16} />
           {backLabel}
         </Link>
@@ -127,7 +129,7 @@ function TaskDetail({ topic, videoId }: { topic: Topic; videoId: number }) {
                         <Icon name="arrowRight" size={16} />
                       </Link>
                     ) : (
-                      <Link to={back} className="dk-btn dk-btn-primary dk-btn-md">
+                      <Link to={back} state={RESTORE_SCROLL} className="dk-btn dk-btn-primary dk-btn-md">
                         {backLabel}으로
                         <Icon name="arrowRight" size={16} />
                       </Link>
