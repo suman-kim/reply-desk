@@ -100,7 +100,7 @@ describe('DraftingService', () => {
     expect(r.text).toBe(BAD);
   });
 
-  it('다른 채널 영상이면 광고 표시를 코드가 맨 앞에 붙이고 검사도 통과한다', async () => {
+  it('다른 채널 영상이면 광고 표시를 코드가 맨 앞에 붙이고 검사도 통과한다 (표시는 검사하지 않는다)', async () => {
     const { ai } = fakeAi([GOOD]);
     const r = await new DraftingService(ai, checks, settings).write(
       topic,
@@ -110,9 +110,8 @@ describe('DraftingService', () => {
     );
     expect(r.text).toBe(`[광고] ${GOOD}`);
     expect(r.report.passed).toBe(true);
-    expect(r.report.results.at(-1)).toMatchObject({
-      code: 'ad_disclosure',
-      passed: true,
-    });
+    expect(r.report.results.some((x) => x.code === 'ad_disclosure')).toBe(
+      false,
+    );
   });
 });

@@ -17,12 +17,8 @@ export interface CheckResult {
 
 /** 검사에 필요한 값 */
 export interface CheckContext {
-  /** 검사할 댓글 본문 (광고 표시는 뺀 것. 길이·해시태그는 본문만 본다) */
+  /** 검사할 댓글 본문 (맨 앞에 붙인 광고 표시는 뺀 것. 광고 표시는 검사하지 않는다, RD-28) */
   text: string;
-  /** 게시될 댓글 전체 (광고 표시 포함) */
-  fullText: string;
-  /** 필요한 광고 표시 (다른 채널 영상). 내 채널 영상이면 null */
-  disclosure: string | null;
   /** 주제 설정 중 검사에 쓰는 값 */
   topic: {
     /** 최소 글자 수 */

@@ -1,7 +1,7 @@
 import { CheckRunnerService } from './check-runner.service.js';
 import type { CheckContext } from './check.types.js';
 import { checkContextOf } from '../drafts/drafting.service.js';
-import { withDisclosure } from './ad-disclosure.js';
+import { requiredDisclosure, withDisclosure } from './ad-disclosure.js';
 import {
   DEFAULT_CHECKS,
   NoFakeReviewCheck,
@@ -15,8 +15,6 @@ function ctx(
 ): CheckContext {
   return {
     text,
-    fullText: text,
-    disclosure: null,
     topic: {
       minLength: 40,
       maxLength: 120,
@@ -147,29 +145,22 @@ describe('광고 표시 검사', () => {
       .run(checkContextOf(text, topic, analysis, disclosure))
       .results.map((r) => [r.code, r.passed]);
 
-  it('내 채널 영상이면 광고 표시 검사를 하지 않는다', () => {
-    expect(codes(GOOD, null).some(([c]) => c === 'ad_disclosure')).toBe(false);
-  });
-
-  it('다른 채널 영상: 맨 앞에 표시가 있으면 모두 통과하고, 표시는 길이에 세지 않는다', () => {
-    const text = withDisclosure(GOOD, '#광고');
-    expect(codes(text, '#광고')).toEqual([
+  it('광고 표시는 검사하지 않는다 (RD-28): 표시가 없어도, 맨 앞이 아니어도 모두 통과', () => {
+    const all = [
       ['length', true],
       ['scene_mention', true],
       ['brand_mention', true],
-      // 표시가 해시태그여도 본문만 보므로 해시태그 검사에 걸리지 않는다
       ['no_link_hashtag', true],
       ['no_fake_review', true],
-      ['ad_disclosure', true],
-    ]);
+    ];
+    expect(codes(GOOD, null)).toEqual(all);
+    expect(codes(GOOD, '[광고]')).toEqual(all);
+    expect(codes(`${GOOD} [광고]`, '[광고]')).toEqual(all);
   });
 
-  it('다른 채널 영상: 표시가 없거나 맨 앞이 아니면 걸린다', () => {
-    expect(codes(GOOD, '[광고]').at(-1)).toEqual(['ad_disclosure', false]);
-    expect(codes(`${GOOD} [광고]`, '[광고]').at(-1)).toEqual([
-      'ad_disclosure',
-      false,
-    ]);
+  it('다른 채널 영상: 맨 앞 표시는 길이에 세지 않고, 해시태그 모양이어도 걸리지 않는다', () => {
+    const text = withDisclosure(GOOD, '#광고');
+    expect(codes(text, '#광고').every(([, passed]) => passed)).toBe(true);
   });
 
   it('붙일 때 글 안에 있던 표시는 빼고 맨 앞에 한 번만 둔다', () => {
@@ -211,5 +202,13 @@ describe('장면 언급: 핵심 단어가 없을 때', () => {
 
   it('근거와 상관없는 글은 여전히 걸린다', () => {
     expect(scene('회장님 표정에서 품격이 느껴지네요').passed).toBe(false);
+  });
+});
+
+describe('붙일 광고 표시 (RD-28)', () => {
+  it('다른 채널 영상에만 붙이고, 주제의 표시가 빈칸이면 붙이지 않는다', () => {
+    expect(requiredDisclosure(' [광고] ', false)).toBe('[광고]');
+    expect(requiredDisclosure('[광고]', true)).toBeNull();
+    expect(requiredDisclosure('  ', false)).toBeNull();
   });
 });

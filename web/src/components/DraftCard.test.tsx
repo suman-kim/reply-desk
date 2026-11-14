@@ -52,7 +52,10 @@ describe('DraftCard (작업 상세 B칸 초안)', () => {
     expect(screen.getByLabelText('댓글 초안')).toHaveValue('04:12 확신 얘기 공감돼요');
     expect(screen.getByText('검사 미통과')).toBeInTheDocument();
     expect(screen.getByText('16 / 120자')).toHaveClass('is-bad');
+    // 광고 표시는 안내만 한다 (RD-28)
     expect(screen.getByText('[광고]')).toBeInTheDocument();
+    expect(screen.getByText(/지워도 게시할 수 있고/)).toBeInTheDocument();
+    expect(screen.queryByText(/있어야 게시돼요/)).toBeNull();
     expect(screen.getByText('1개 확인 필요')).toBeInTheDocument();
     expect(screen.getByText('길이 · 13자예요')).toBeInTheDocument();
     expect(screen.getByText(/직접 고친 초안이에요/)).toBeInTheDocument();

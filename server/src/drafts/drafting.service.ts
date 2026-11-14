@@ -40,7 +40,7 @@ export interface WrittenDraft {
  * @param text 검사할 글 (게시될 댓글 전체)
  * @param topic 주제
  * @param analysis 영상 분석 (없으면 장면 언급 검사가 실패한다)
- * @param disclosure 필요한 광고 표시 (다른 채널 영상). 내 채널 영상이면 null
+ * @param disclosure 붙인 광고 표시 (다른 채널 영상). 길이 등은 이 표시를 뺀 본문으로 센다. 내 채널 영상이거나 표시가 없으면 null
  */
 export function checkContextOf(
   text: string,
@@ -50,8 +50,6 @@ export function checkContextOf(
 ): CheckContext {
   return {
     text: disclosure ? stripDisclosure(text, disclosure) : text,
-    fullText: text,
-    disclosure,
     topic: {
       minLength: topic.minLength,
       maxLength: topic.maxLength,

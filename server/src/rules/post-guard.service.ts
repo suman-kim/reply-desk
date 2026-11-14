@@ -105,7 +105,6 @@ export class PostGuardService {
         active: topic.status === TopicStatus.Active,
         posted: topicPosted,
         cap: topic.dailyCap,
-        adDisclosure: topic.adDisclosure,
       },
       profile: profile
         ? { name: profile.name, loginStatus: profile.loginStatus }

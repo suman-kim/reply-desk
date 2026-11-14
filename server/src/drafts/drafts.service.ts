@@ -270,7 +270,7 @@ export class DraftsService {
           .getRepository('VideoAnalysis')
           .findOneBy({ id: draft.analysisId })
       : null;
-    // 다른 채널 영상이면 광고 표시가 맨 앞에 있어야 한다 (사람이 지웠으면 검사에서 걸린다)
+    // 다른 채널 영상이면 맨 앞의 광고 표시를 빼고 길이 등을 센다 (표시는 검사하지 않는다, RD-28)
     const [video, myChannels] = await Promise.all([
       this.dataSource.getRepository(Video).findOneBy({ id: draft.videoId }),
       this.profiles.myChannelIds(),

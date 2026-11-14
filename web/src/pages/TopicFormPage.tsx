@@ -510,7 +510,7 @@ function PostFields({
       <FormRow label="광고 표시" htmlFor={`${id}-ad`} help="다른 채널 영상에만 붙어요" changed={changed('adDisclosure')}>
         <TextInput id={`${id}-ad`} value={f.adDisclosure} onChange={set('adDisclosure')} placeholder="예: [광고]" width={240} error={err.adDisclosure} />
         <span className="text-caption rd-muted">
-          댓글 맨 앞에 붙여 업체 홍보 댓글임을 밝혀요 · ‘광고’나 ‘협찬’이 들어가야 해요 · 내 채널 영상에는 붙이지 않아요
+          초안 맨 앞에 붙여 업체 홍보 댓글임을 밝혀요 · 빈칸이면 붙이지 않아요 · 붙인 뒤 지우고 게시해도 돼요 · 내 채널 영상에는 붙이지 않아요
         </span>
       </FormRow>
       <FormRow label="쓸 프로필" help="자동이면 차례대로 돌려 써요" changed={changed('profileIds')}>

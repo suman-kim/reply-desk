@@ -1,4 +1,3 @@
-import { startsWithDisclosure } from './ad-disclosure.js';
 import {
   countChars,
   type CheckContext,
@@ -225,27 +224,6 @@ export class BannedWordsCheck implements DraftCheck {
   }
 }
 
-/** 7. 광고 표시: 다른 채널 영상 댓글은 맨 앞에 광고 표시가 있어야 한다 (내 채널 영상이면 건너뛴다) */
-export class AdDisclosureCheck implements DraftCheck {
-  readonly code = 'ad_disclosure';
-
-  appliesTo(ctx: CheckContext): boolean {
-    return ctx.disclosure !== null;
-  }
-
-  run(ctx: CheckContext): CheckResult {
-    const mark = ctx.disclosure!;
-    return startsWithDisclosure(ctx.fullText, mark)
-      ? result(this, '광고 표시', true, `맨 앞에 "${mark}"`)
-      : result(
-          this,
-          '광고 표시',
-          false,
-          `다른 채널 영상이라 맨 앞에 "${mark}"를 넣어야 해요`,
-        );
-  }
-}
-
 /** 기본 검사 목록. 화면의 체크리스트 순서와 같다 */
 export const DEFAULT_CHECKS: DraftCheck[] = [
   new LengthCheck(),
@@ -254,5 +232,4 @@ export const DEFAULT_CHECKS: DraftCheck[] = [
   new NoLinkHashtagCheck(),
   new NoFakeReviewCheck(),
   new BannedWordsCheck(),
-  new AdDisclosureCheck(),
 ];
