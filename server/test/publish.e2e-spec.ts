@@ -227,9 +227,7 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .send({ text: o.draft.text.replace('[광고] ', '') })
       .expect(200);
     const other = await http()
-      .get(
-        `/api/topics/${topicId}/post-check?videoId=${cards.demo00000v1.id}`,
-      )
+      .get(`/api/topics/${topicId}/post-check?videoId=${cards.demo00000v1.id}`)
       .expect(200);
     expect(other.body.block?.code).not.toBe('ad_disclosure_missing');
     await http()

@@ -901,6 +901,12 @@ a:hover { color: var(--ink); }
 .rd-acard-delete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
 .rd-note-box { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border-radius: var(--radius-xl); background: var(--surface-sunken); }
 .rd-note-box ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; color: var(--ink-2); }
+/* 시청자 고민 한 줄 (작업 상세 B칸, 댓글 초안 위, RD-32) */
+.rd-worry { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: var(--radius-lg); background: var(--surface-sunken); border-left: 3px solid var(--accent); }
+.rd-worry.is-none { border-left-color: var(--line); }
+.rd-worry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.rd-worry-text { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+
 /* 새 프로필 추가 (모달 안, RD-30) */
 .rd-wizard { display: flex; flex-direction: column; gap: 18px; }
 /* 오른쪽 '내 채널은 이렇게 정해져요'는 스크롤해도 보이게 */

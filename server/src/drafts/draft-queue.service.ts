@@ -238,6 +238,7 @@ export class DraftQueueService implements OnModuleInit {
       await this.drafts.update(task.draftId, {
         state: DraftState.Ready,
         analysisId: analysis.id,
+        worry: written.worry,
         text: written.text,
         aiText: written.text,
         reasons: written.reasons,

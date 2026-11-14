@@ -79,6 +79,15 @@ export class Draft {
   })
   state: DraftState;
 
+  /** 시청자 고민 한 줄: AI가 꾸민 시청자 한 사람의 고민. 이 사람이 쓴 것처럼 댓글을 쓴다 (RD-32) */
+  @Column({
+    type: 'text',
+    default: '',
+    comment:
+      '시청자 고민 한 줄. AI가 꾸민 시청자 한 사람의 고민(1인칭 한 문장). 영상과 이어지면 영상에 맞게, 아니어도 주제에 맞게 지어낸다. 이 기능 전 초안은 빈 글',
+  })
+  worry: string;
+
   /** 지금 초안 (사람이 고치면 바뀜) */
   @Column({
     type: 'text',

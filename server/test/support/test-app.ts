@@ -202,6 +202,7 @@ export class FakeAi implements AiProvider {
     // 작성 요청에만 [근거 장면]이 있다 (분석 요청에는 없다)
     if (req.prompt.includes('[근거 장면]')) {
       return req.schema.parse({
+        worry: '헤어진 지 석 달인데 아직도 그 사람 스토리를 몰래 봐요',
         text: '스토리 계속 본다는 게 미련 신호라니 저도 매일 확인하는데… 운명원 연애사주로 재회운 본다던데 저도 궁금해지네요.',
         reasons: [
           '영상 속 "스토리" 장면을 짚음',
