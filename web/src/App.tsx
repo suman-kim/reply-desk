@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Link, Route, Routes } from 'react-router';
 import { AppNav } from './components/AppNav';
 import { EmptyBox } from './components/StateBox';
+import { TaskPanel, TaskShellProvider } from './components/TaskShell';
+import { useTaskShell } from './components/task-shell-context';
 import { useLiveEvents } from './live/useLiveEvents';
 import { MENU } from './menu';
 
@@ -14,12 +16,16 @@ const queryClient = new QueryClient({
   },
 });
 
-/** 메뉴 · 화면 이동 · 실시간 연결. 화면 주소는 menu.tsx 목록에서 만든다 */
+/** 메뉴 · 화면 이동 · 실시간 연결 · 전역 작업 패널. 화면 주소는 menu.tsx 목록에서 만든다 */
 function Routed() {
-  const live = useLiveEvents(null);
+  const shell = useTaskShell();
+  // 모든 주제의 이벤트를 받아 데이터를 맞추고, 끝난 초안·게시는 알림으로 띄운다
+  const live = useLiveEvents(null, shell.onLiveEvent);
   return (
     <>
       <AppNav live={live} />
+      <div className={`rd-shell${shell.panelOpen ? ' has-panel' : ''}`}>
+      <main className="rd-main">
       <Routes>
         {MENU.flatMap((m) => [
           <Route key={m.path} path={m.path} element={m.page} />,
@@ -36,6 +42,10 @@ function Routed() {
           }
         />
       </Routes>
+      </main>
+      {/* 어느 화면으로 옮겨도 열린 채로 남는다 */}
+      {shell.panelOpen ? <TaskPanel /> : null}
+      </div>
     </>
   );
 }
@@ -45,7 +55,9 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routed />
+        <TaskShellProvider>
+          <Routed />
+        </TaskShellProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

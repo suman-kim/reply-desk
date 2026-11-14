@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { applyLiveEvent, LIVE_EVENT_TYPES, type LiveEvent } from './apply-event';
 
 /** 실시간 연결 상태 (헤더에 작게 보인다) */
@@ -9,10 +9,15 @@ export type LiveStatus = 'connecting' | 'open' | 'reconnecting';
  * 서버 실시간 이벤트(SSE)에 연결한다. 화면 전체에서 한 번만 쓴다.
  * 끊기면 EventSource가 스스로 다시 붙고, 다시 붙으면 놓친 것이 있을 수 있어 데이터를 모두 새로 읽는다.
  * @param topicId 보고 있는 주제 (없으면 모든 주제의 이벤트)
+ * @param onEvent 이벤트마다 더 할 일 (전역 알림). 바뀌어도 다시 연결하지 않는다
  */
-export function useLiveEvents(topicId: number | null): LiveStatus {
+export function useLiveEvents(topicId: number | null, onEvent?: (e: LiveEvent) => void): LiveStatus {
   const qc = useQueryClient();
   const [status, setStatus] = useState<LiveStatus>('connecting');
+  const onEventRef = useRef(onEvent);
+  useEffect(() => {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
 
   useEffect(() => {
     const source = new EventSource(`/api/events${topicId ? `?topicId=${topicId}` : ''}`);
@@ -29,7 +34,9 @@ export function useLiveEvents(topicId: number | null): LiveStatus {
     };
     const onMessage = (msg: MessageEvent<string>) => {
       try {
-        applyLiveEvent(qc, JSON.parse(msg.data) as LiveEvent);
+        const event = JSON.parse(msg.data) as LiveEvent;
+        applyLiveEvent(qc, event);
+        onEventRef.current?.(event);
       } catch {
         // 모양이 다른 이벤트는 무시한다 (서버가 새 이벤트를 먼저 보낼 수 있다)
       }

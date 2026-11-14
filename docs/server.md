@@ -142,6 +142,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `profile.updated` | [로그인 확인]이나 게시 중 로그인이 풀린 것을 알았을 때 | 헤더 "유튜브2 로그인 필요", 계정 관리 경고 띠 |
 
 - `topicId`를 주면 그 주제의 이벤트와 주제가 없는 이벤트(`quota.updated`, `profile.updated`)만 보낸다.
+- 웹은 `topicId` 없이 연결 하나로 모든 주제의 이벤트를 받는다. 데이터를 맞추고, 전역 알림으로 띄운다(RD-21, `web/src/live/notify-rules.ts`). 알림 대상은 '작성 중'을 본 초안이 준비됨·검사 미통과·실패로 바뀔 때(사람이 고친 것은 제외), 게시 성공·실패, 로그인 풀림이다. 오른쪽 아래 웹 알림으로 띄우고, 브라우저 알림은 사용자가 허락해 켰을 때 탭이 안 보일 때만 보낸다.
 - 25초마다 주석 줄(`: ping`)로 연결을 살려 둔다. 끊기면 EventSource가 스스로 다시 붙는다. 다시 붙은 사이에 놓친 이벤트는 다시 보내지 않으므로, 화면은 다시 붙을 때 조회 API로 상태를 새로 읽는다.
 - 이벤트는 메모리에서만 흐른다(서버 하나). 다른 패키지(`@nestjs/event-emitter`)를 더하지 않고 rxjs `Subject`를 쓴다. SSE가 rxjs `Observable`을 그대로 받기 때문이다.
 
