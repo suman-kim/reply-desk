@@ -213,8 +213,8 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .send({})
       .expect(409);
     expect(again.body).toMatchObject({
-      code: 'already_commented',
-      message: expect.stringContaining('영상당 1개'),
+      code: 'draft_already_posted',
+      message: expect.stringContaining('새 초안 쓰고 한 번 더 달기'),
     });
 
     // 다른 채널 영상: 사람이 광고 표시를 지워도 막지 않는다 (RD-28)

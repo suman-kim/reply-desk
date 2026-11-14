@@ -7,7 +7,7 @@ function ok(): PostGuardContext {
   return {
     video: { id: 1, isMine: true },
     draft: { state: DraftState.Ready, checkPassed: true, text: '좋은 댓글' },
-    alreadyCommented: false,
+    draftPosted: false,
     postingNow: false,
     total: { posted: 0, cap: 10 },
     topic: {
@@ -32,15 +32,15 @@ describe('게시 차단 규칙', () => {
   });
 
   it('여러 개에 걸리면 계획서 순서대로 먼저 걸린 하나만 보여 준다', () => {
-    // 3(이미 댓글), 4(검사 미통과), 5(상한)에 모두 걸린 상황
+    // 3(이미 게시한 초안), 4(검사 미통과), 5(상한)에 모두 걸린 상황
     const ctx: PostGuardContext = {
       ...ok(),
-      alreadyCommented: true,
+      draftPosted: true,
       video: { id: 1, isMine: false },
       draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' },
       total: { posted: 10, cap: 10 },
     };
-    expect(findBlockReason(ctx)?.code).toBe('already_commented');
+    expect(findBlockReason(ctx)?.code).toBe('draft_already_posted');
   });
 
   it.each<[string, Partial<PostGuardContext>]>([
@@ -50,7 +50,7 @@ describe('게시 차단 규칙', () => {
       'draft_not_ready',
       { draft: { state: DraftState.Writing, checkPassed: false, text: '' } },
     ],
-    ['already_commented', { alreadyCommented: true }],
+    ['draft_already_posted', { draftPosted: true }],
     [
       'check_failed',
       { draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' } },

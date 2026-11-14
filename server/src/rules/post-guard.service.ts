@@ -86,6 +86,13 @@ export class PostGuardService {
           status: PostStatus.Running,
         })
       : false;
+    // 최근 초안을 이미 게시했는지 (영상이 아니라 초안 단위, RD-27)
+    const draftPosted = draft
+      ? await this.attempts.existsBy({
+          draftId: draft.id,
+          status: PostStatus.Success,
+        })
+      : false;
 
     const topicPosted = today.byTopic[topicId] ?? 0;
     const block = findBlockReason({
@@ -97,7 +104,7 @@ export class PostGuardService {
             text: draft.text,
           }
         : null,
-      alreadyCommented: video?.commented ?? false,
+      draftPosted,
       postingNow,
       total: { posted: today.posted, cap: today.cap },
       topic: {

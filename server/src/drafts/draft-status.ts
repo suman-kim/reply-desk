@@ -11,7 +11,7 @@ export enum DraftListStatus {
   Failed = 'failed',
   /** 검사 미통과: 고치면 바로 다시 검사 */
   CheckFailed = 'check_failed',
-  /** 게시 완료: 이미 댓글을 단 영상 */
+  /** 게시 완료: 이 초안(영상의 가장 최근 초안)을 게시함. [새 초안 쓰고 한 번 더 달기]로 댓글을 더 달 수 있다 (RD-27) */
   Posted = 'posted',
   /** AI가 쓰는 중 */
   Writing = 'writing',
@@ -33,16 +33,16 @@ export const DRAFT_STATUS_LABELS: Record<DraftListStatus, string> = {
  * 초안 하나의 목록 상태를 정한다. 위에서부터 먼저 맞는 것.
  * @param input.state 작성 상태
  * @param input.checkPassed 자동 검사 통과
- * @param input.commented 이 영상에 게시 성공 기록이 있음 (주제와 상관없이)
- * @param input.lastPostFailed 이 영상의 마지막 게시 시도가 실패
+ * @param input.posted 이 초안에 게시 성공 기록이 있음 (RD-27: 영상이 아니라 초안 단위)
+ * @param input.lastPostFailed 이 초안의 마지막 게시 시도가 실패
  */
 export function draftListStatus(input: {
   state: DraftState;
   checkPassed: boolean;
-  commented: boolean;
+  posted: boolean;
   lastPostFailed: boolean;
 }): DraftListStatus {
-  if (input.commented) return DraftListStatus.Posted;
+  if (input.posted) return DraftListStatus.Posted;
   if (input.state === DraftState.Writing) return DraftListStatus.Writing;
   if (input.state === DraftState.Error) return DraftListStatus.Error;
   if (!input.checkPassed) return DraftListStatus.CheckFailed;

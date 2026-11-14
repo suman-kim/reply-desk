@@ -5,14 +5,14 @@ import { DraftListStatus, draftListStatus } from './draft-status.js';
 const base = {
   state: DraftState.Ready,
   checkPassed: true,
-  commented: false,
+  posted: false,
   lastPostFailed: false,
 };
 
 describe('draftListStatus', () => {
   it.each<[DraftListStatus, Partial<typeof base>]>([
     [DraftListStatus.Pending, {}],
-    [DraftListStatus.Posted, { commented: true, checkPassed: false }],
+    [DraftListStatus.Posted, { posted: true, checkPassed: false }],
     [DraftListStatus.Writing, { state: DraftState.Writing }],
     [DraftListStatus.Error, { state: DraftState.Error }],
     [DraftListStatus.CheckFailed, { checkPassed: false }],

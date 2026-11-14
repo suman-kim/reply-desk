@@ -212,7 +212,8 @@ export class TopicsService {
 
   /**
    * 주제별 게시 대기 초안 수.
-   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 댓글을 안 단 것만 센다.
+   * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 게시하지 않은 것만 센다
+   * (RD-27: 같은 영상에 예전에 댓글을 달았어도 새 초안은 센다).
    */
   private async pendingDraftCounts(
     topicIds: number[],
@@ -221,14 +222,14 @@ export class TopicsService {
       `
       SELECT d.topic_id, COUNT(*) AS n
       FROM (
-        SELECT DISTINCT ON (topic_id, video_id) topic_id, video_id, state, check_passed
+        SELECT DISTINCT ON (topic_id, video_id) id, topic_id, video_id, state, check_passed
         FROM draft
         WHERE topic_id = ANY($1)
         ORDER BY topic_id, video_id, created_at DESC, id DESC
       ) d
       WHERE d.state = 'ready'
         AND d.check_passed
-        AND NOT EXISTS (SELECT 1 FROM post_attempt a WHERE a.video_id = d.video_id AND a.status = 'success')
+        AND NOT EXISTS (SELECT 1 FROM post_attempt a WHERE a.draft_id = d.id AND a.status = 'success')
       GROUP BY d.topic_id
       `,
       [topicIds],

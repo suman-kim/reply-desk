@@ -38,15 +38,17 @@ export enum PostStep {
 /**
  * 게시 시도 기록 = 게시 기록 표의 한 행.
  * 운영 규칙은 이 표로 DB가 직접 막는다.
- * - 영상당 댓글 1개: status='success'인 행은 영상마다 하나만 (부분 유일 인덱스)
- * - 같은 영상에 동시에 두 번 게시: status='running'인 행도 영상마다 하나만
+ * - 초안 하나에 댓글 하나: status='success'인 행은 초안마다 하나만 (부분 유일 인덱스, RD-27).
+ *   같은 영상에 댓글을 더 달려면 새 초안을 쓴다
+ * - 같은 영상에 동시에 두 번 게시: status='running'인 행은 영상마다 하나만
  * - 하루 상한: 한국 시간 날짜로 status='success' 행 수를 센다
  */
 @Entity({
   name: 'post_attempt',
-  comment: '게시 시도 기록(게시 기록 표). 영상당 1개·하루 상한을 이 표로 판단',
+  comment:
+    '게시 시도 기록(게시 기록 표). 초안당 성공 1개·같은 영상 동시 게시 막기·하루 상한을 이 표로 판단',
 })
-@Index('uq_post_attempt_video_success', ['videoId'], {
+@Index('uq_post_attempt_draft_success', ['draftId'], {
   unique: true,
   where: `"status" = 'success'`,
 })

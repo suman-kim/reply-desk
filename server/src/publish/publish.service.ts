@@ -100,7 +100,7 @@ const LIVE_KEEP_MS = 10 * 60 * 1000;
 /**
  * [댓글 달기]: 규칙을 다시 보고, 게시 중 행을 넣고, 크롬으로 5단계를 돌린다.
  * 시작(검사 + 행 넣기)은 한 번에 하나씩 해서 하루 상한을 동시에 넘기지 않는다.
- * 같은 영상 동시 게시·영상당 1개는 DB 부분 유일 인덱스가 마지막으로 막는다.
+ * 같은 영상 동시 게시·초안당 1개는 DB 부분 유일 인덱스가 마지막으로 막는다.
  */
 @Injectable()
 export class PublishService implements OnModuleInit, OnModuleDestroy {
@@ -277,7 +277,7 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
         /uq_post_attempt_video/.test(err.message)
       ) {
         throw new ConflictException(
-          '이 영상은 지금 게시하는 중이거나 이미 댓글을 달았어요 · 영상당 1개만 달 수 있어요',
+          '이 영상은 지금 게시하는 중이거나 이 초안은 이미 게시했어요 · 잠시 뒤 다시 불러와 주세요',
         );
       }
       throw err;
