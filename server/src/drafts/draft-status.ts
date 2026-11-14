@@ -5,7 +5,7 @@ import { DraftState } from './draft.entity.js';
  * DB에 저장하지 않고 게시 기록으로 그때그때 계산한다.
  */
 export enum DraftListStatus {
-  /** 게시 대기: 검사 통과 (다른 채널 영상은 광고 표시까지 통과) → [댓글 게시] */
+  /** 게시 대기: 검사 통과 → [댓글 게시] */
   Pending = 'pending',
   /** 실패: 게시를 시도했지만 실패 → [다시 게시] */
   Failed = 'failed',

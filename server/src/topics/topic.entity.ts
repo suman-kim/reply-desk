@@ -140,7 +140,7 @@ export class Topic {
   })
   bannedWords: string[];
 
-  /** 다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 */
+  /** 다른 채널 영상 초안 맨 앞에 붙이는 광고 표시. 빈칸이면 붙이지 않는다 (검사는 하지 않는다, RD-28) */
   @Column({
     name: 'ad_disclosure',
     type: 'varchar',

@@ -109,29 +109,17 @@ describe('reply-desk API (e2e)', () => {
       .expect(200);
     expect(noDraft.body.block.code).toBe('draft_not_ready');
 
-    // 다른 채널 영상: 맨 앞에 광고 표시가 없으면 막고, 있으면 연다
-    // (검사 결과가 낡았어도 게시 직전에 글을 다시 본다)
+    // 다른 채널 영상: 맨 앞에 광고 표시가 없어도 막지 않는다 (RD-28)
     const other = list.body.find(
       (v: { youtubeId: string }) => v.youtubeId === 'demo00000v3',
     );
-    const otherDraft = await ds.getRepository(Draft).insert({
+    await ds.getRepository(Draft).insert({
       topicId: t,
       videoId: other.id,
       state: DraftState.Ready,
       text: 'x',
       checkPassed: true,
     });
-    const otherCheck = await http()
-      .get(`/api/topics/${t}/post-check?videoId=${other.id}`)
-      .expect(200);
-    expect(otherCheck.body.block).toEqual({
-      code: 'ad_disclosure_missing',
-      message:
-        '다른 채널 영상에는 맨 앞에 광고 표시("[광고]")가 있어야 게시돼요 · 초안 맨 앞에 넣어 주세요',
-    });
-    await ds
-      .getRepository(Draft)
-      .update(otherDraft.identifiers[0].id, { text: '[광고] x' });
     const otherOk = await http()
       .get(`/api/topics/${t}/post-check?videoId=${other.id}`)
       .expect(200);
@@ -154,7 +142,7 @@ describe('reply-desk API (e2e)', () => {
       profile: { name: '유튜브1' },
       autoAssigned: true,
     });
-    // 게시 대기: 내 채널 영상 1 + 광고 표시가 있는 다른 채널 영상 1
+    // 게시 대기: 내 채널 영상 1 + 다른 채널 영상 1
     expect(
       (await http().get(`/api/topics/${t}`).expect(200)).body.pendingDrafts,
     ).toBe(2);

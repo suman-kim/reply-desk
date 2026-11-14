@@ -16,7 +16,7 @@ const STEP_STATE = { done: 'done', running: 'active', failed: 'failed', waiting:
  * 게시 전: 게시할 계정 · 게시 대상 · [댓글 달기] (막히면 사유 한 줄)
  * 게시 중: 진행 5단계(입력은 글자 수) · 크롬 화면 미리보기
  * 게시 후: 완료 표시 · 걸린 시간 · 다음 할 일(다음 영상 · 댓글 보기 · 게시 목록) / 실패면 원인 · 캡처 · [다시 시도]
- * @param props.topic 주제 (쓸 프로필 · 광고 표시)
+ * @param props.topic 주제 (쓸 프로필)
  * @param props.video 영상
  * @param props.attempts 이 영상의 댓글 게시 (최근 결과를 이어서 보여 준다)
  * @param props.next 게시를 마친 뒤 '다음 할 일' 맨 앞 버튼 (다음 영상으로)
@@ -126,7 +126,7 @@ export function PostControl({
         <span className="text-label rd-ink">게시 대상</span>
         <span className="rd-row-tight" style={{ minWidth: 0 }}>
           <span className="text-body-sm rd-clamp-1 rd-ink">{video.title}</span>
-          {video.isMine ? <Badge tone="accent">내 채널</Badge> : <Badge>다른 채널 · {topic.adDisclosure}</Badge>}
+          {video.isMine ? <Badge tone="accent">내 채널</Badge> : <Badge>다른 채널</Badge>}
         </span>
       </div>
 

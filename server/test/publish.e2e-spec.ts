@@ -217,7 +217,7 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       message: expect.stringContaining('영상당 1개'),
     });
 
-    // 다른 채널 영상: 사람이 광고 표시를 지우면 막힌다
+    // 다른 채널 영상: 사람이 광고 표시를 지워도 막지 않는다 (RD-28)
     const { body: o } = await http()
       .get(`/api/topics/${topicId}/videos/${cards.demo00000v1.id}/draft`)
       .expect(200);
@@ -227,13 +227,11 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .send({ text: o.draft.text.replace('[광고] ', '') })
       .expect(200);
     const other = await http()
-      .post(`/api/topics/${topicId}/videos/${cards.demo00000v1.id}/post`)
-      .send({})
-      .expect(409);
-    expect(other.body).toMatchObject({
-      code: 'ad_disclosure_missing',
-      message: expect.stringContaining('"[광고]"'),
-    });
+      .get(
+        `/api/topics/${topicId}/post-check?videoId=${cards.demo00000v1.id}`,
+      )
+      .expect(200);
+    expect(other.body.block?.code).not.toBe('ad_disclosure_missing');
     await http()
       .patch(`/api/drafts/${o.draft.id}`)
       .send({ text: o.draft.aiText })

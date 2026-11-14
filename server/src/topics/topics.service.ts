@@ -213,7 +213,6 @@ export class TopicsService {
   /**
    * 주제별 게시 대기 초안 수.
    * 영상마다 가장 최근 초안만 보고, 그 초안이 검사를 통과했고 아직 댓글을 안 단 것만 센다.
-   * (다른 채널 영상은 광고 표시 검사까지 통과해야 checkPassed다)
    */
   private async pendingDraftCounts(
     topicIds: number[],

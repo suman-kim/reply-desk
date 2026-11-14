@@ -15,7 +15,6 @@ function ok(): PostGuardContext {
       active: true,
       posted: 0,
       cap: 5,
-      adDisclosure: '[광고]',
     },
     profile: { name: '유튜브1', loginStatus: ProfileLoginStatus.Ok },
   };
@@ -26,8 +25,14 @@ describe('게시 차단 규칙', () => {
     expect(findBlockReason(ok())).toBeNull();
   });
 
+  it('다른 채널 영상이어도 광고 표시가 없다고 막지 않는다 (RD-28)', () => {
+    expect(
+      findBlockReason({ ...ok(), video: { id: 1, isMine: false } }),
+    ).toBeNull();
+  });
+
   it('여러 개에 걸리면 계획서 순서대로 먼저 걸린 하나만 보여 준다', () => {
-    // 3(이미 댓글), 4(광고 표시 없음), 5(검사 미통과), 6(상한)에 모두 걸린 상황
+    // 3(이미 댓글), 4(검사 미통과), 5(상한)에 모두 걸린 상황
     const ctx: PostGuardContext = {
       ...ok(),
       alreadyCommented: true,
@@ -46,7 +51,6 @@ describe('게시 차단 규칙', () => {
       { draft: { state: DraftState.Writing, checkPassed: false, text: '' } },
     ],
     ['already_commented', { alreadyCommented: true }],
-    ['ad_disclosure_missing', { video: { id: 1, isMine: false } }],
     [
       'check_failed',
       { draft: { state: DraftState.Ready, checkPassed: false, text: '댓글' } },
@@ -60,7 +64,6 @@ describe('게시 차단 규칙', () => {
           active: true,
           posted: 5,
           cap: 5,
-          adDisclosure: '[광고]',
         },
       },
     ],
@@ -72,7 +75,6 @@ describe('게시 차단 규칙', () => {
           active: false,
           posted: 0,
           cap: 5,
-          adDisclosure: '[광고]',
         },
       },
     ],

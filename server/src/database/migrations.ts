@@ -5,6 +5,7 @@ import { TopicFetchLimitUnlimited1794560000000 } from './migrations/179456000000
 import { PostAttemptSuccessCapture1794570000000 } from './migrations/1794570000000-PostAttemptSuccessCapture.js';
 import { AnalysisTopicMatch1794580000000 } from './migrations/1794580000000-AnalysisTopicMatch.js';
 import { TopicVideoRelevanceKeywords1794590000000 } from './migrations/1794590000000-TopicVideoRelevanceKeywords.js';
+import { DropAdDisclosureCheck1794600000000 } from './migrations/1794600000000-DropAdDisclosureCheck.js';
 
 /**
  * 적용할 마이그레이션 목록 (오래된 것부터).
@@ -19,4 +20,5 @@ export const MIGRATIONS = [
   PostAttemptSuccessCapture1794570000000,
   AnalysisTopicMatch1794580000000,
   TopicVideoRelevanceKeywords1794590000000,
+  DropAdDisclosureCheck1794600000000,
 ];

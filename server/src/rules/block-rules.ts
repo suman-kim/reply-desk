@@ -1,4 +1,3 @@
-import { startsWithDisclosure } from '../checks/ad-disclosure.js';
 import { DraftState } from '../drafts/draft.entity.js';
 import { ProfileLoginStatus } from '../profiles/profile.entity.js';
 
@@ -17,13 +16,12 @@ export interface PostGuardContext {
   postingNow: boolean;
   /** 오늘 전체 게시 수와 상한 */
   total: { posted: number; cap: number };
-  /** 오늘 이 주제 게시 수와 상한, 다른 채널 영상에 붙이는 광고 표시 */
+  /** 오늘 이 주제 게시 수와 상한 */
   topic: {
     name: string;
     active: boolean;
     posted: number;
     cap: number;
-    adDisclosure: string;
   };
   /** 게시할 프로필. 자동 배정할 프로필이 없으면 null */
   profile: { name: string; loginStatus: ProfileLoginStatus } | null;
@@ -56,6 +54,7 @@ const rule = (code: string, evaluate: BlockRule['evaluate']): BlockRule => ({
 
 /**
  * 차단 규칙 순서. 계획서의 1~6번 순서를 지키고, 그 뒤에 서버가 추가로 보는 것을 둔다.
+ * 광고 표시는 막지 않는다 (RD-28: 초안에 붙여 주기만 한다).
  * 화면에는 먼저 걸린 사유 하나만 보인다.
  */
 export const BLOCK_RULES: BlockRule[] = [
@@ -77,23 +76,13 @@ export const BLOCK_RULES: BlockRule[] = [
       ? '이미 댓글을 단 영상이에요 · 영상당 1개만 달 수 있어요'
       : null,
   ),
-  // 4. 다른 채널 영상인데 맨 앞에 광고 표시가 없음.
-  //    자동 검사도 보지만, 검사 뒤에 프로필이 지워져 '내 채널'이 바뀐 경우까지 게시 직전에 다시 본다
-  rule('ad_disclosure_missing', (c) =>
-    c.video &&
-    !c.video.isMine &&
-    c.draft &&
-    !startsWithDisclosure(c.draft.text, c.topic.adDisclosure.trim())
-      ? `다른 채널 영상에는 맨 앞에 광고 표시("${c.topic.adDisclosure.trim()}")가 있어야 게시돼요 · 초안 맨 앞에 넣어 주세요`
-      : null,
-  ),
-  // 5. 자동 검사 미통과
+  // 4. 자동 검사 미통과
   rule('check_failed', (c) =>
     c.draft && !c.draft.checkPassed
       ? '자동 검사를 통과하지 못했어요 · 초안을 고치면 바로 다시 검사해요'
       : null,
   ),
-  // 6. 하루 게시 상한 도달 (전체 → 주제 순)
+  // 5. 하루 게시 상한 도달 (전체 → 주제 순)
   rule('daily_cap', (c) => {
     if (c.total.posted >= c.total.cap) {
       return `오늘 게시 상한(${c.total.posted}/${c.total.cap})에 닿았어요 · 내일 다시 할 수 있어요`;
@@ -103,17 +92,17 @@ export const BLOCK_RULES: BlockRule[] = [
     }
     return null;
   }),
-  // 7. 주제 일시정지
+  // 6. 주제 일시정지
   rule('topic_paused', (c) =>
     c.topic.active
       ? null
       : '일시정지한 주제예요 · 주제를 다시 진행하면 게시할 수 있어요',
   ),
-  // 8. 같은 영상을 지금 게시 중
+  // 7. 같은 영상을 지금 게시 중
   rule('posting_now', (c) =>
     c.postingNow ? '이 영상은 지금 게시하는 중이에요' : null,
   ),
-  // 9. 게시할 프로필이 없거나 로그인이 풀림
+  // 8. 게시할 프로필이 없거나 로그인이 풀림
   rule('profile_unavailable', (c) => {
     if (!c.profile)
       return '게시할 프로필이 없어요 · 주제 설정에서 로그인된 프로필을 골라 주세요';

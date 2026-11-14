@@ -11,7 +11,7 @@ import { StatusBadge } from './StatusBadge';
 const SAVE_DELAY_MS = 700;
 
 /**
- * 작업 상세 B칸의 '댓글 초안' 카드 (RD-26): 상태 · 글자 수 → 초안(고치면 바로 다시 검사) → 광고 표시 안내 · [다시 생성]
+ * 작업 상세 B칸의 '댓글 초안' 카드 (RD-26): 상태 · 글자 수 → 초안(고치면 바로 다시 검사) → 붙인 광고 표시 안내 · [다시 생성]
  * → 자동 검사 → 이렇게 쓴 이유(접기).
  * 초안이 없으면 [초안 작성], 쓰는 중이면 진행, 실패면 원인과 [다시 생성].
  * @param props.topic 주제 (글자 수 범위 · 광고 표시)
@@ -127,13 +127,13 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
       : editDraft.error
         ? editDraft.error.message
         : '고치면 바로 저장하고 다시 검사해요';
-  const adNote = video.isMine ? (
-    '내 채널 영상이라 광고 표시 없이 달아요'
-  ) : (
-    <>
-      다른 채널 영상이라 맨 앞에 <b className="rd-ink">{disclosure || '[광고]'}</b>가 있어야 게시돼요 · 글자 수에는 넣지 않아요
-    </>
-  );
+  // 광고 표시는 안내만 한다 (RD-28: 검사·차단하지 않는다. 지우고 게시해도 된다)
+  const adNote =
+    video.isMine || !disclosure ? null : (
+      <>
+        맨 앞의 <b className="rd-ink">{disclosure}</b>는 다른 채널 영상이라 붙여 둔 표시예요 · 지워도 게시할 수 있고, 글자 수에는 넣지 않아요
+      </>
+    );
 
   return (
     <div className="rd-card rd-dc">
@@ -145,7 +145,7 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
       <textarea id={fid} className="dk-input dk-textarea rd-dc-text" rows={4} value={text} onChange={onChange} readOnly={locked} aria-describedby={`${fid}-note`} />
       <div className="rd-dc-foot">
         <div className="rd-stack" style={{ minWidth: 0 }}>
-          <span className="text-caption rd-muted">{adNote}</span>
+          {adNote ? <span className="text-caption rd-muted">{adNote}</span> : null}
           <span id={`${fid}-note`} className={`text-caption ${editDraft.error ? 'rd-danger' : 'rd-muted'}`} aria-live="polite">
             {saveNote}
           </span>

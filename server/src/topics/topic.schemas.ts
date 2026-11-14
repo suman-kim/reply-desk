@@ -55,15 +55,8 @@ const topicFields = {
   maxLength: z.number().int().min(10).max(500, '최대 글자 수는 500자까지예요'),
   /** 추가 금지 표현 */
   bannedWords: wordList(50),
-  /** 다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 */
-  adDisclosure: z
-    .string()
-    .trim()
-    .min(2, '광고 표시를 넣어 주세요 (예: [광고])')
-    .max(20, '광고 표시는 20자까지예요')
-    .refine((v) => v.includes('광고') || v.includes('협찬'), {
-      message: "광고 표시에는 '광고'나 '협찬'이 들어가야 해요",
-    }),
+  /** 다른 채널 영상 초안 맨 앞에 붙이는 광고 표시. 빈칸이면 붙이지 않는다 (RD-28: 글자 검사 없음) */
+  adDisclosure: z.string().trim().max(20, '광고 표시는 20자까지예요'),
   /** 주제 하루 상한 */
   dailyCap: z.number().int().min(1, '하루 상한은 1 이상이에요').max(50),
   /** 상태 */

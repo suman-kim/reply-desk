@@ -172,17 +172,19 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       .expect(200);
     expect(other.body.status.code).toBe('pending');
     expect(other.body.draft.text.startsWith('[광고] ')).toBe(true);
-    expect(other.body.draft.checkResults.at(-1)).toMatchObject({
-      code: 'ad_disclosure',
-      passed: true,
-    });
+    // 광고 표시는 검사하지 않는다 (RD-28)
+    expect(
+      other.body.draft.checkResults.some(
+        (r: { code: string }) => r.code === 'ad_disclosure',
+      ),
+    ).toBe(false);
 
-    // 사람이 광고 표시를 지우면 검사에 걸리고, 되돌리면 다시 통과
+    // 사람이 광고 표시를 지워도 검사는 그대로 통과
     const removed = await http()
       .patch(`/api/drafts/${other.body.draft.id}`)
       .send({ text: other.body.draft.text.replace('[광고] ', '') })
       .expect(200);
-    expect(removed.body.checkPassed).toBe(false);
+    expect(removed.body.checkPassed).toBe(true);
     const restored = await http()
       .patch(`/api/drafts/${other.body.draft.id}`)
       .send({ text: other.body.draft.aiText })
