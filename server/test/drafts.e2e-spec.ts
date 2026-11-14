@@ -340,5 +340,18 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(prompts.some((p) => p.startsWith('[고친 틀] '))).toBe(true);
 
     await http().delete('/api/settings/prompt.drafting').expect(200);
+
+    // 예시 보기: 고치는 중인 값을 실제 주제 값으로 채운다 (저장하지 않음)
+    const preview = await http()
+      .post('/api/settings/prompts/preview')
+      .send({
+        key: 'prompt.analysis',
+        value: { system: '지시', user: '[대상] {{홍보 대상}}' },
+      })
+      .expect(201);
+    expect(preview.body.user).toEqual([
+      { text: '[대상] ', slot: null },
+      { text: '운명원 · 연애 사주 잘 보는 곳', slot: '홍보 대상' },
+    ]);
   });
 });

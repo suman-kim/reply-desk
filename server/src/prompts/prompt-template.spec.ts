@@ -51,3 +51,37 @@ describe('프롬프트 틀', () => {
     ]);
   });
 });
+
+describe('예시 보기 조각', () => {
+  it('채운 값은 자리 이름과 함께, 틀의 글은 이어 붙여 돌려준다 (빈 자리 줄은 뺀다)', async () => {
+    const { renderTemplateParts } = await import('./prompt-template.js');
+    expect(
+      renderTemplateParts('[제목] {{영상 제목}}\n[금지] {{금지 표현}}\n끝', {
+        '영상 제목': '썸',
+        '금지 표현': '',
+      }),
+    ).toEqual([
+      { text: '[제목] ', slot: null },
+      { text: '썸', slot: '영상 제목' },
+      { text: '\n끝', slot: null },
+    ]);
+  });
+
+  it('작성 예시: 주제가 없으면 예시 주제, 다시 쓸 때 글도 채운다', async () => {
+    const { previewPrompt } = await import('./prompt-preview.js');
+    const { DEFAULT_DRAFT_PROMPT } = await import('../drafts/draft-prompt.js');
+    const p = previewPrompt(
+      'prompt.drafting',
+      DEFAULT_DRAFT_PROMPT,
+      null,
+      false,
+    );
+    expect(p.basis.topicName).toContain('예시');
+    expect(
+      p.user.some((x) => x.slot === '근거 장면' && x.text.includes('04:12')),
+    ).toBe(true);
+    expect(
+      p.retry?.some((x) => x.slot === '고칠 점' && x.text.includes('길이')),
+    ).toBe(true);
+  });
+});

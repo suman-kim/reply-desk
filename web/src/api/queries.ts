@@ -16,6 +16,7 @@ import type {
   PostLogRow,
   Profile,
   PromptInfo,
+  PromptPreview,
   SettingView,
   TodayQuota,
   Topic,
@@ -61,6 +62,8 @@ export const keys = {
   aiModels: (provider: AiProviderId) => ['aiModels', provider] as const,
   /** 프롬프트 안내 */
   prompts: ['prompts'] as const,
+  /** 프롬프트 예시 보기 */
+  promptPreview: (key: string, value: string) => ['promptPreview', key, value] as const,
   /** 영상 보기 창 댓글 */
   comments: (topicId: number, videoId: number) => ['comments', topicId, videoId] as const,
 };
@@ -118,6 +121,19 @@ export const useVideoComments = (topicId: number, videoId: number | null) =>
 /** 프롬프트 안내 (덩이·자리·답의 모양). 바뀌지 않아 한 번만 받는다 */
 export const usePromptInfo = () =>
   useQuery({ queryKey: keys.prompts, queryFn: () => api<PromptInfo[]>('GET', '/settings/prompts'), staleTime: Infinity });
+
+/**
+ * 프롬프트 예시 보기 (저장 전 값으로, 예시 영상과 실제 주제 값을 채운다)
+ * @param key prompt.analysis 또는 prompt.drafting
+ * @param value 고치는 중인 값
+ */
+export const usePromptPreview = (key: string, value: Record<string, string>) =>
+  useQuery({
+    queryKey: keys.promptPreview(key, JSON.stringify(value)),
+    queryFn: () => api<PromptPreview>('POST', '/settings/prompts/preview', { key, value }),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
 
 export const useDraftProgress = (topicId: number | null) =>
   useQuery({

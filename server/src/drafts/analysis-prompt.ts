@@ -123,6 +123,37 @@ export const DEFAULT_ANALYSIS_PROMPT = {
 };
 
 /**
+ * 분석 자료 틀의 자리 값 (실제 프롬프트와 설정 화면 예시 보기가 함께 쓴다)
+ * @param topic 주제 (홍보 대상)
+ * @param video 영상
+ * @param ctx 영상 설명과 인기 댓글
+ * @param watchesVideo AI가 영상을 직접 보는지
+ */
+export function analysisPromptValues(
+  topic: Pick<Topic, 'brandTarget' | 'keywords'>,
+  video: Pick<Video, 'title' | 'channelTitle' | 'durationSec'>,
+  ctx: YoutubeVideoContext,
+  watchesVideo: boolean,
+): Record<string, string> {
+  const comments = ctx.comments
+    .slice(0, 20)
+    .map((c, i) => `${i + 1}. ${oneLine(c.text, 200)}`)
+    .join('\n');
+  return {
+    '홍보 대상': topic.brandTarget,
+    '관심 키워드': topic.keywords.join(', '),
+    '영상 제목': video.title,
+    채널: video.channelTitle,
+    '영상 길이': formatTime(video.durationSec),
+    '영상 보기 안내': watchesVideo
+      ? '함께 보낸 영상을 직접 보고, 영상 속 말은 시점(mm:ss)과 함께 인용해.'
+      : '영상은 볼 수 없어. 영상 설명과 인기 댓글만 근거로 써. 영상 설명에서 인용하면 source는 video, time은 null로 둬.',
+    '영상 설명': oneLine(ctx.description, 1500) || '(없음)',
+    '인기 댓글': comments || '(없음)',
+  };
+}
+
+/**
  * 분석 프롬프트(자료)를 만든다.
  * @param topic 주제 (홍보 대상)
  * @param video 영상 (숫자는 코드가 넣는다)
@@ -137,22 +168,10 @@ export function buildAnalysisPrompt(
   watchesVideo: boolean,
   template: string = DEFAULT_ANALYSIS_PROMPT.user,
 ): string {
-  const comments = ctx.comments
-    .slice(0, 20)
-    .map((c, i) => `${i + 1}. ${oneLine(c.text, 200)}`)
-    .join('\n');
-  return renderTemplate(template, {
-    '홍보 대상': topic.brandTarget,
-    '관심 키워드': topic.keywords.join(', '),
-    '영상 제목': video.title,
-    채널: video.channelTitle,
-    '영상 길이': formatTime(video.durationSec),
-    '영상 보기 안내': watchesVideo
-      ? '함께 보낸 영상을 직접 보고, 영상 속 말은 시점(mm:ss)과 함께 인용해.'
-      : '영상은 볼 수 없어. 영상 설명과 인기 댓글만 근거로 써. 영상 설명에서 인용하면 source는 video, time은 null로 둬.',
-    '영상 설명': oneLine(ctx.description, 1500) || '(없음)',
-    '인기 댓글': comments || '(없음)',
-  });
+  return renderTemplate(
+    template,
+    analysisPromptValues(topic, video, ctx, watchesVideo),
+  );
 }
 
 /** 검증에 쓰는 원문 */
