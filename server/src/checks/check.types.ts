@@ -19,6 +19,11 @@ export interface CheckResult {
 export interface CheckContext {
   /** 검사할 댓글 본문 (맨 앞에 붙인 광고 표시는 뺀 것. 광고 표시는 검사하지 않는다, RD-28) */
   text: string;
+  /**
+   * 같은 주제의 최근 초안 (RD-33). 비어 있으면 '최근 초안과 다름' 검사를 건너뛴다.
+   * texts: 최근 초안 본문(광고 표시 뺀 것), overused: 최근 초안 70% 이상에 나온 말버릇
+   */
+  recent: { texts: string[]; overused: string[] };
   /** 주제 설정 중 검사에 쓰는 값 */
   topic: {
     /** 최소 글자 수 */

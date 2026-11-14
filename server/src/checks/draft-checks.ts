@@ -4,6 +4,11 @@ import {
   type CheckResult,
   type DraftCheck,
 } from './check.types.js';
+import {
+  NEAR_DUPLICATE,
+  phrasesIn,
+  similarity,
+} from '../drafts/variety/recent-patterns.js';
 
 /** 결과 한 줄을 만든다 */
 function result(
@@ -94,7 +99,10 @@ export class SceneMentionCheck implements DraftCheck {
           this,
           '장면 언급',
           false,
-          '영상 속 장면을 짚지 않았어요 · 시점이나 장면 속 말을 넣어 주세요',
+          // 다시 쓸 때 AI가 바로 고칠 수 있게 넣을 단어를 함께 알린다 (RD-33)
+          candidates.length > 0
+            ? `영상 속 장면을 짚지 않았어요 · "${candidates.slice(0, 4).join('", "')}" 중 하나를 넣어 주세요`
+            : '영상 속 장면을 짚지 않았어요 · 시점이나 장면 속 말을 넣어 주세요',
         );
   }
 }
@@ -224,6 +232,39 @@ export class BannedWordsCheck implements DraftCheck {
   }
 }
 
+/** 7. 최근 초안과 다름 (RD-33): 거의 같은 글이나, 최근 초안 대부분에 나온 말버릇을 또 쓰면 걸린다 */
+export class VarietyCheck implements DraftCheck {
+  readonly code = 'variety';
+
+  appliesTo(ctx: CheckContext): boolean {
+    return ctx.recent.texts.length > 0;
+  }
+
+  run(ctx: CheckContext): CheckResult {
+    const closest = Math.max(
+      ...ctx.recent.texts.map((t) => similarity(ctx.text, t)),
+    );
+    if (closest >= NEAR_DUPLICATE) {
+      return result(
+        this,
+        '최근 초안과 다름',
+        false,
+        '최근 초안과 거의 같아요 · 시작과 말투를 바꿔 다르게 써 주세요',
+      );
+    }
+    const hits = phrasesIn(ctx.text, ctx.recent.overused);
+    if (hits.length > 0) {
+      return result(
+        this,
+        '최근 초안과 다름',
+        false,
+        `최근 초안 대부분에 나온 "${hits.join('", "')}"을(를) 또 썼어요 · 다른 말로 바꿔 주세요`,
+      );
+    }
+    return result(this, '최근 초안과 다름', true, '말버릇 겹치지 않음');
+  }
+}
+
 /** 기본 검사 목록. 화면의 체크리스트 순서와 같다 */
 export const DEFAULT_CHECKS: DraftCheck[] = [
   new LengthCheck(),
@@ -232,4 +273,5 @@ export const DEFAULT_CHECKS: DraftCheck[] = [
   new NoLinkHashtagCheck(),
   new NoFakeReviewCheck(),
   new BannedWordsCheck(),
+  new VarietyCheck(),
 ];

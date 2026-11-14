@@ -1,4 +1,6 @@
 import { stripDisclosure, withDisclosure } from '../checks/ad-disclosure.js';
+import type { DraftStyle } from './variety/draft-style.js';
+import { recentPatterns } from './variety/recent-patterns.js';
 import { keywordsFromQuotes } from '../checks/scene-keywords.js';
 import { Injectable } from '@nestjs/common';
 import { AiService } from '../ai/ai.service.js';
@@ -20,6 +22,30 @@ const DRAFT_TIMEOUT_MS = 120_000;
 export const MAX_DRAFT_ATTEMPTS = 2;
 
 /** 작성 결과 */
+/**
+ * 꼭 써야 해서 말버릇으로 보면 안 되는 말: 브랜드 단어·주제 검색어·장면 핵심 단어 (RD-33)
+ * @param topic 주제
+ * @param analysis 영상 분석
+ */
+export function mustUseWords(
+  topic: Pick<Topic, 'brandWord'> & Partial<Pick<Topic, 'keywords'>>,
+  analysis: Pick<VideoAnalysis, 'sceneKeywords'> | null,
+): string[] {
+  return [
+    topic.brandWord,
+    ...(topic.keywords ?? []),
+    ...(analysis?.sceneKeywords ?? []),
+  ].filter((w) => w.trim().length > 0);
+}
+
+/** 초안을 다양하게 쓰는 데 쓰는 값 (RD-33) */
+export interface DraftExtras {
+  /** 이번 글 모양 (코드가 고른 것). 없으면 붙이지 않는다 */
+  style?: DraftStyle;
+  /** 같은 주제의 최근 초안 글 (말버릇 피하기·비슷함 검사) */
+  recentTexts?: string[];
+}
+
 export interface WrittenDraft {
   /** 시청자 고민 한 줄 (AI가 꾸민 시청자 입장의 고민, RD-32) */
   worry: string;
@@ -43,15 +69,25 @@ export interface WrittenDraft {
  * @param topic 주제
  * @param analysis 영상 분석 (없으면 장면 언급 검사가 실패한다)
  * @param disclosure 붙인 광고 표시 (다른 채널 영상). 길이 등은 이 표시를 뺀 본문으로 센다. 내 채널 영상이거나 표시가 없으면 null
+ * @param recentTexts 같은 주제의 최근 초안 글 (너무 비슷하거나 말버릇이 겹치면 검사에서 걸린다, RD-33)
  */
 export function checkContextOf(
   text: string,
-  topic: Pick<Topic, 'minLength' | 'maxLength' | 'brandWord' | 'bannedWords'>,
+  topic: Pick<Topic, 'minLength' | 'maxLength' | 'brandWord' | 'bannedWords'> &
+    Partial<Pick<Topic, 'keywords'>>,
   analysis: Pick<VideoAnalysis, 'sceneKeywords' | 'scenes'> | null,
   disclosure: string | null,
+  recentTexts: string[] = [],
 ): CheckContext {
+  /** 맨 앞 광고 표시를 뺀 본문 */
+  const body = (t: string) => (disclosure ? stripDisclosure(t, disclosure) : t);
+  const texts = recentTexts.map(body);
   return {
-    text: disclosure ? stripDisclosure(text, disclosure) : text,
+    text: body(text),
+    recent: {
+      texts,
+      overused: recentPatterns(texts, mustUseWords(topic, analysis)).overused,
+    },
     topic: {
       minLength: topic.minLength,
       maxLength: topic.maxLength,
@@ -96,13 +132,21 @@ export class DraftingService {
    * @param video 영상
    * @param analysis 영상 분석
    * @param disclosure 필요한 광고 표시 (다른 채널 영상). 코드가 맨 앞에 붙인다. 내 채널 영상이면 null
+   * @param extras 글 모양·최근 초안 (다양하게 쓰기, RD-33)
    */
   async write(
     topic: Topic,
     video: Video,
     analysis: VideoAnalysis,
     disclosure: string | null,
+    extras: DraftExtras = {},
   ): Promise<WrittenDraft> {
+    const recentTexts = extras.recentTexts ?? [];
+    // 최근 초안에서 자주 나온 말 (광고 표시를 뺀 본문으로 센다)
+    const avoid = recentPatterns(
+      recentTexts.map((t) => (disclosure ? stripDisclosure(t, disclosure) : t)),
+      mustUseWords(topic, analysis),
+    ).avoid;
     const ai = await this.ai.resolve('drafting');
     // 설정에서 고친 프롬프트 (없으면 기본값)
     const prompt = await this.settings.get(PROMPT_DRAFTING);
@@ -114,9 +158,14 @@ export class DraftingService {
         ai,
         {
           system: prompt.system,
-          prompt: buildDraftPrompt(topic, video, analysis, retry, prompt),
+          prompt: buildDraftPrompt(topic, video, analysis, retry, prompt, {
+            style: extras.style,
+            avoid,
+          }),
           schema: draftSchema,
           timeoutMs: DRAFT_TIMEOUT_MS,
+          // 초안은 매번 다르게 (RD-33)
+          creativity: 'creative',
         },
         `draft topic=${topic.id} video=${video.id} try=${attempt}`,
       );
@@ -125,7 +174,7 @@ export class DraftingService {
         ? withDisclosure(out.text.trim(), disclosure)
         : out.text.trim();
       const report = this.checks.run(
-        checkContextOf(text, topic, analysis, disclosure),
+        checkContextOf(text, topic, analysis, disclosure, recentTexts),
       );
       last = {
         // 마지막으로 쓴 댓글과 같은 사람의 고민 (다시 쓰면 고민도 함께 바뀐다)

@@ -88,6 +88,8 @@ export class AnalysisService {
         schema: analysisSchema,
         videoUrl: watchesVideo ? watchUrl(video.youtubeId) : undefined,
         timeoutMs: ANALYSIS_TIMEOUT_MS,
+        // 분석은 사실을 정확히 (RD-33)
+        creativity: 'precise',
       },
       `analysis topic=${topic.id} video=${video.id}`,
     );

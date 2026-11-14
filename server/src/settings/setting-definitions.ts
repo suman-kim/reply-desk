@@ -123,7 +123,7 @@ export const PROMPT_ANALYSIS = define({
 export const PROMPT_DRAFTING = define({
   key: 'prompt.drafting',
   label: '댓글 작성 프롬프트',
-  help: '댓글 작성 AI에게 보내는 글 전체예요. 자동 검사에 걸려 다시 쓸 때는 자료 뒤에 "다시 쓸 때" 글을 덧붙여요. 광고 표시([광고])는 AI가 아니라 코드가 붙여요.',
+  help: '댓글 작성 AI에게 보내는 글 전체예요. 자료 뒤에 코드가 [이번 글 모양](초안마다 무작위로 고른 쓰는 사람·말투·시작·브랜드 꺼내는 방식·길이)과 [최근 초안에 자주 나온 말]을 붙이고, 자동 검사에 걸려 다시 쓸 때는 "다시 쓸 때" 글을 덧붙여요. 광고 표시([광고])는 AI가 아니라 코드가 붙여요.',
   schema: z.object({
     system: promptText('지시'),
     user: promptText('자료 틀', DRAFT_PROMPT_VARS),

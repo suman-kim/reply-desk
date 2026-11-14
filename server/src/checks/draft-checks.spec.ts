@@ -15,6 +15,7 @@ function ctx(
 ): CheckContext {
   return {
     text,
+    recent: { texts: [], overused: [] },
     topic: {
       minLength: 40,
       maxLength: 120,
@@ -210,5 +211,47 @@ describe('붙일 광고 표시 (RD-28)', () => {
     expect(requiredDisclosure(' [광고] ', false)).toBe('[광고]');
     expect(requiredDisclosure('[광고]', true)).toBeNull();
     expect(requiredDisclosure('  ', false)).toBeNull();
+  });
+});
+
+describe('최근 초안과 다름 (RD-33)', () => {
+  const runner = new CheckRunnerService(DEFAULT_CHECKS);
+  /** 다양성 검사 결과 (없으면 undefined) */
+  const variety = (text: string, texts: string[], overused: string[] = []) =>
+    runner
+      .run({ ...ctx(text), recent: { texts, overused } })
+      .results.find((r) => r.code === 'variety');
+
+  it('최근 초안이 없으면 검사하지 않는다', () => {
+    expect(variety(GOOD, [])).toBeUndefined();
+  });
+
+  it('최근 초안과 거의 같은 글이면 걸린다', () => {
+    expect(variety(GOOD, [GOOD.replace('.', '!')])).toMatchObject({
+      passed: false,
+      detail: '최근 초안과 거의 같아요 · 시작과 말투를 바꿔 다르게 써 주세요',
+    });
+  });
+
+  it('최근 초안 대부분에 나온 말버릇을 또 쓰면 걸린다', () => {
+    expect(
+      variety(
+        '아 진짜 확신이 없어서 그렇구나 운명원 궁금하다',
+        ['전혀 다른 글이에요 정말로'],
+        ['진짜'],
+      ),
+    ).toMatchObject({
+      passed: false,
+      detail: expect.stringContaining('"진짜"'),
+    });
+  });
+
+  it('다르면 통과', () => {
+    expect(
+      variety(GOOD, ['전혀 다른 글이에요 정말로'], ['진짜']),
+    ).toMatchObject({
+      passed: true,
+      detail: '말버릇 겹치지 않음',
+    });
   });
 });

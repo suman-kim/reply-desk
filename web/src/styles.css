@@ -906,6 +906,8 @@ a:hover { color: var(--ink); }
 .rd-worry.is-none { border-left-color: var(--line); }
 .rd-worry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
 .rd-worry-text { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.rd-worry-style { padding-top: 6px; border-top: 1px dashed var(--line); overflow-wrap: anywhere; }
+.rd-worry-style b { font-weight: 600; margin-right: 4px; }
 
 /* 새 프로필 추가 (모달 안, RD-30) */
 .rd-wizard { display: flex; flex-direction: column; gap: 18px; }

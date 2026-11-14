@@ -7,6 +7,7 @@ import { AnalysisTopicMatch1794580000000 } from './migrations/1794580000000-Anal
 import { TopicVideoRelevanceKeywords1794590000000 } from './migrations/1794590000000-TopicVideoRelevanceKeywords.js';
 import { DropAdDisclosureCheck1794600000000 } from './migrations/1794600000000-DropAdDisclosureCheck.js';
 import { DraftViewerWorry1794620000000 } from './migrations/1794620000000-DraftViewerWorry.js';
+import { DraftStyle1794630000000 } from './migrations/1794630000000-DraftStyle.js';
 
 /**
  * 적용할 마이그레이션 목록 (오래된 것부터).
@@ -23,4 +24,5 @@ export const MIGRATIONS = [
   TopicVideoRelevanceKeywords1794590000000,
   DropAdDisclosureCheck1794600000000,
   DraftViewerWorry1794620000000,
+  DraftStyle1794630000000,
 ];

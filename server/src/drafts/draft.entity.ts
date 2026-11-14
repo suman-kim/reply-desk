@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { CheckResult } from '../checks/check.types.js';
+import type { DraftStyle } from './variety/draft-style.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
@@ -87,6 +88,15 @@ export class Draft {
       '시청자 고민 한 줄. AI가 꾸민 시청자 한 사람의 고민(1인칭 한 문장). 영상과 이어지면 영상에 맞게, 아니어도 주제에 맞게 지어낸다. 이 기능 전 초안은 빈 글',
   })
   worry: string;
+
+  /** 이 초안을 쓸 때 코드가 고른 글 모양 (RD-33). 이 기능 전 초안은 빈 값 */
+  @Column({
+    type: 'jsonb',
+    default: () => "'{}'",
+    comment:
+      '이 초안을 쓸 때 코드가 고른 글 모양(누가·말투·시작·브랜드 꺼내는 방식·자리·길이와 화면용 요약). 최근 조합을 피하는 데 쓴다. 이 기능 전 초안은 빈 값',
+  })
+  style: Partial<DraftStyle>;
 
   /** 지금 초안 (사람이 고치면 바뀜) */
   @Column({

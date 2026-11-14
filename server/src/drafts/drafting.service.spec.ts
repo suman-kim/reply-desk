@@ -6,6 +6,7 @@ import { DEFAULT_CHECKS } from '../checks/draft-checks.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
 import { DraftingService } from './drafting.service.js';
+import { pickStyle } from './variety/draft-style.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
 
 const topic = {
@@ -74,6 +75,54 @@ describe('DraftingService', () => {
     expect(generate).toHaveBeenCalledTimes(1);
     // 시청자 고민 한 줄은 앞뒤 공백을 지워 함께 준다 (RD-32)
     expect(r.worry).toBe('썸만 몇 달째인데 이 사람이 인연인지 모르겠어요 (1)');
+  });
+
+  it('글 모양과 최근 초안에서 피할 말을 프롬프트에 붙이고, 초안은 creative로 부른다 (RD-33)', async () => {
+    const { ai, prompts, generate } = fakeAi([GOOD]);
+    const recentTexts = [
+      '아 진짜 공감돼요 운명원 같은 데서 봐야겠네요',
+      '진짜 뼈 때리네요 운명원 같은 곳에서 확인해보고 싶네요',
+      '진짜 내 얘기 같아요 운명원 같은 데서 알아봐야지',
+      '진짜 설레요 운명원 한번 볼까 싶네요',
+    ];
+    const style = pickStyle([], { hasSceneTime: true }, () => 0);
+    await new DraftingService(ai, checks, settings).write(
+      topic,
+      video,
+      analysis,
+      null,
+      { style, recentTexts },
+    );
+    expect(prompts[0]).toContain('[이번 글 모양] 이 모양대로 쓴다');
+    expect(prompts[0]).toContain('- 쓰는 사람: 20대 초반 대학생');
+    expect(prompts[0]).toContain(
+      '[최근 초안에 자주 나온 말] 이번엔 쓰지 않는다',
+    );
+    expect(prompts[0]).toContain('- 운명원 같은');
+    expect(prompts[0]).toContain('- 진짜');
+    expect(generate.mock.calls[0][1]).toMatchObject({ creativity: 'creative' });
+  });
+
+  it('최근 초안 대부분에 나온 말을 쓰면 다양성 검사에 걸려 한 번 더 쓴다', async () => {
+    const WITH_HABIT =
+      '4분쯤 확신이 없어서 텀이 길어진다는 말 진짜 뜨끔했어요. 저도 딱 그 상태라ㅠ 운명원 연애사주가 잘 본다던데 한번 물어보고 싶네요.';
+    const { ai, prompts } = fakeAi([WITH_HABIT, GOOD]);
+    const r = await new DraftingService(ai, checks, settings).write(
+      topic,
+      video,
+      analysis,
+      null,
+      {
+        recentTexts: [
+          '진짜 공감돼요 하나',
+          '진짜 공감돼요 둘이요',
+          '진짜 공감돼요 셋입니다',
+          '진짜 공감돼요 넷이에요',
+        ],
+      },
+    );
+    expect(prompts[1]).toContain('최근 초안과 다름');
+    expect(r).toMatchObject({ text: GOOD, attempts: 2 });
   });
 
   it('검사에 걸리면 걸린 이유를 붙여 한 번 더 쓴다', async () => {

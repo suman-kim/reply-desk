@@ -8,6 +8,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { AiError } from '../ai/ai-provider.js';
 import { requiredDisclosure } from '../checks/ad-disclosure.js';
+import { pickStyle } from './variety/draft-style.js';
+import { recentDraftsOf } from './variety/recent-drafts.js';
 import { EventsService } from '../events/events.service.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { Topic } from '../topics/topic.entity.js';
@@ -228,17 +230,25 @@ export class DraftQueueService implements OnModuleInit {
         (await this.analysis.analyze(topic, video));
       // 다른 채널 영상이면 광고 표시를 붙인다
       const mine = (await this.profiles.myChannelIds()).has(video.channelId);
+      // 같은 주제의 최근 초안과 다른 글 모양을 고르고, 말버릇을 피하게 넘긴다 (RD-33)
+      const recent = await recentDraftsOf(this.drafts, topic.id, task.draftId);
+      const style = pickStyle(
+        recent.map((r) => r.style),
+        { hasSceneTime: analysis.scenes.some((s) => !!s.time) },
+      );
       const written = await this.drafting.write(
         topic,
         video,
         analysis,
         requiredDisclosure(topic.adDisclosure, mine),
+        { style, recentTexts: recent.map((r) => r.text) },
       );
 
       await this.drafts.update(task.draftId, {
         state: DraftState.Ready,
         analysisId: analysis.id,
         worry: written.worry,
+        style,
         text: written.text,
         aiText: written.text,
         reasons: written.reasons,
