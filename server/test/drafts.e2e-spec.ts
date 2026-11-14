@@ -133,11 +133,28 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(check.body.allowed).toBe(true);
   });
 
-  it('상태: 다른 채널 영상은 초안만, 분석에 실패한 영상은 원인과 함께 작성 실패', async () => {
+  it('상태: 다른 채널 영상은 광고 표시를 붙여 게시 대기, 분석에 실패한 영상은 원인과 함께 작성 실패', async () => {
     const other = await http()
       .get(`/api/topics/${topicId}/videos/${cards.demo00000v1.id}/draft`)
       .expect(200);
-    expect(other.body.status.code).toBe('draft_only');
+    expect(other.body.status.code).toBe('pending');
+    expect(other.body.draft.text.startsWith('[광고] ')).toBe(true);
+    expect(other.body.draft.checkResults.at(-1)).toMatchObject({
+      code: 'ad_disclosure',
+      passed: true,
+    });
+
+    // 사람이 광고 표시를 지우면 검사에 걸리고, 되돌리면 다시 통과
+    const removed = await http()
+      .patch(`/api/drafts/${other.body.draft.id}`)
+      .send({ text: other.body.draft.text.replace('[광고] ', '') })
+      .expect(200);
+    expect(removed.body.checkPassed).toBe(false);
+    const restored = await http()
+      .patch(`/api/drafts/${other.body.draft.id}`)
+      .send({ text: other.body.draft.aiText })
+      .expect(200);
+    expect(restored.body.checkPassed).toBe(true);
 
     const failed = await http()
       .get(`/api/topics/${topicId}/videos/${cards.demo00000v3.id}/draft`)
@@ -161,9 +178,8 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     const list = await http().get(`/api/drafts?topicId=${topicId}`).expect(200);
     expect(list.body.counts).toMatchObject({
       check_failed: 1,
-      draft_only: 1,
       error: 1,
-      pending: 0,
+      pending: 1, // 다른 채널 영상 (광고 표시)
     });
     const onlyFailed = await http()
       .get('/api/drafts?status=check_failed')

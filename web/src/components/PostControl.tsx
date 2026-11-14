@@ -87,9 +87,9 @@ export function PostControl({
         <span className="text-body-strong">{video?.title ?? '영상을 먼저 골라 주세요'}</span>
         {video ? (
           video.isMine ? (
-            <Badge tone="rose">내 채널 · 게시 가능</Badge>
+            <Badge tone="rose">내 채널</Badge>
           ) : (
-            <Badge>다른 채널 · 초안까지만</Badge>
+            <Badge>다른 채널 · 맨 앞에 {topic.adDisclosure}</Badge>
           )
         ) : null}
       </div>

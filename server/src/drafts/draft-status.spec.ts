@@ -5,7 +5,6 @@ import { DraftListStatus, draftListStatus } from './draft-status.js';
 const base = {
   state: DraftState.Ready,
   checkPassed: true,
-  isMine: true,
   commented: false,
   lastPostFailed: false,
 };
@@ -16,8 +15,7 @@ describe('draftListStatus', () => {
     [DraftListStatus.Posted, { commented: true, checkPassed: false }],
     [DraftListStatus.Writing, { state: DraftState.Writing }],
     [DraftListStatus.Error, { state: DraftState.Error }],
-    [DraftListStatus.CheckFailed, { checkPassed: false, isMine: false }],
-    [DraftListStatus.DraftOnly, { isMine: false }],
+    [DraftListStatus.CheckFailed, { checkPassed: false }],
     [DraftListStatus.Failed, { lastPostFailed: true }],
   ])('%s', (status, over) => {
     expect(draftListStatus({ ...base, ...over })).toBe(status);

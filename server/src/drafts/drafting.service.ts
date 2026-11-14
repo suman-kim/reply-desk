@@ -1,3 +1,4 @@
+import { stripDisclosure, withDisclosure } from '../checks/ad-disclosure.js';
 import { Injectable } from '@nestjs/common';
 import { AiService } from '../ai/ai.service.js';
 import {
@@ -33,17 +34,21 @@ export interface WrittenDraft {
 
 /**
  * 검사에 필요한 값을 만든다 (초안 작성·사람이 고칠 때 공통).
- * @param text 검사할 글
+ * @param text 검사할 글 (게시될 댓글 전체)
  * @param topic 주제
  * @param analysis 영상 분석 (없으면 장면 언급 검사가 실패한다)
+ * @param disclosure 필요한 광고 표시 (다른 채널 영상). 내 채널 영상이면 null
  */
 export function checkContextOf(
   text: string,
   topic: Pick<Topic, 'minLength' | 'maxLength' | 'brandWord' | 'bannedWords'>,
   analysis: Pick<VideoAnalysis, 'sceneKeywords' | 'scenes'> | null,
+  disclosure: string | null,
 ): CheckContext {
   return {
-    text,
+    text: disclosure ? stripDisclosure(text, disclosure) : text,
+    fullText: text,
+    disclosure,
     topic: {
       minLength: topic.minLength,
       maxLength: topic.maxLength,
@@ -81,11 +86,13 @@ export class DraftingService {
    * @param topic 주제
    * @param video 영상
    * @param analysis 영상 분석
+   * @param disclosure 필요한 광고 표시 (다른 채널 영상). 코드가 맨 앞에 붙인다. 내 채널 영상이면 null
    */
   async write(
     topic: Topic,
     video: Video,
     analysis: VideoAnalysis,
+    disclosure: string | null,
   ): Promise<WrittenDraft> {
     const ai = await this.ai.resolve('drafting');
     let retry: { text: string; failed: CheckReport['results'] } | undefined;
@@ -102,8 +109,13 @@ export class DraftingService {
         },
         `draft topic=${topic.id} video=${video.id} try=${attempt}`,
       );
-      const text = out.text.trim();
-      const report = this.checks.run(checkContextOf(text, topic, analysis));
+      // 광고 표시는 AI에게 맡기지 않고 코드가 맨 앞에 붙인다
+      const text = disclosure
+        ? withDisclosure(out.text.trim(), disclosure)
+        : out.text.trim();
+      const report = this.checks.run(
+        checkContextOf(text, topic, analysis, disclosure),
+      );
       last = {
         text,
         reasons: out.reasons,

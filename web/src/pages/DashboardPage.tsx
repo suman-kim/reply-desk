@@ -128,7 +128,7 @@ function TopicWorkspace({ topic, videoId, onSelectVideo }: { topic: Topic; video
       </section>
 
       <p className="text-caption rd-rules">
-        <strong>운영 규칙</strong> · 영상당 댓글 1개(전체 기준){today.data ? ` · 하루 전체 ${today.data.cap}개` : ''} · 내 채널 영상만 게시 · 성공·실패 모두 기록
+        <strong>운영 규칙</strong> · 영상당 댓글 1개(전체 기준){today.data ? ` · 하루 전체 ${today.data.cap}개` : ''} · 다른 채널 영상은 맨 앞에 {topic.adDisclosure} · 성공·실패 모두 기록
       </p>
 
       {topic.status === 'paused' ? (

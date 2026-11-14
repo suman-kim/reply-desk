@@ -91,7 +91,11 @@ export class PostGuardService {
     const block = findBlockReason({
       video: video ? { id: video.id, isMine: video.isMine } : null,
       draft: draft
-        ? { state: draft.state, checkPassed: draft.checkPassed }
+        ? {
+            state: draft.state,
+            checkPassed: draft.checkPassed,
+            text: draft.text,
+          }
         : null,
       alreadyCommented: video?.commented ?? false,
       postingNow,
@@ -101,6 +105,7 @@ export class PostGuardService {
         active: topic.status === TopicStatus.Active,
         posted: topicPosted,
         cap: topic.dailyCap,
+        adDisclosure: topic.adDisclosure,
       },
       profile: profile
         ? { name: profile.name, loginStatus: profile.loginStatus }

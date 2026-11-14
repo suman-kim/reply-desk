@@ -138,6 +138,17 @@ export class Topic {
   })
   bannedWords: string[];
 
+  /** 다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 */
+  @Column({
+    name: 'ad_disclosure',
+    type: 'varchar',
+    length: 20,
+    default: '[광고]',
+    comment:
+      '다른 채널 영상 댓글 맨 앞에 붙이는 광고 표시 (예: [광고]). 내 채널 영상에는 붙이지 않는다',
+  })
+  adDisclosure: string;
+
   /** 이 주제의 하루 게시 상한 */
   @Column({
     name: 'daily_cap',

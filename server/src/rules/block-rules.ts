@@ -1,3 +1,4 @@
+import { startsWithDisclosure } from '../checks/ad-disclosure.js';
 import { DraftState } from '../drafts/draft.entity.js';
 import { ProfileLoginStatus } from '../profiles/profile.entity.js';
 
@@ -8,16 +9,22 @@ import { ProfileLoginStatus } from '../profiles/profile.entity.js';
 export interface PostGuardContext {
   /** 고른 영상. 고르지 않았으면 null */
   video: { id: number; isMine: boolean } | null;
-  /** 그 영상의 최근 초안. 없으면 null */
-  draft: { state: DraftState; checkPassed: boolean } | null;
+  /** 그 영상의 최근 초안. 없으면 null (text: 게시될 댓글) */
+  draft: { state: DraftState; checkPassed: boolean; text: string } | null;
   /** 이미 댓글을 단 영상인지 (주제와 상관없이 전체) */
   alreadyCommented: boolean;
   /** 이 영상을 지금 게시하는 중인지 */
   postingNow: boolean;
   /** 오늘 전체 게시 수와 상한 */
   total: { posted: number; cap: number };
-  /** 오늘 이 주제 게시 수와 상한 */
-  topic: { name: string; active: boolean; posted: number; cap: number };
+  /** 오늘 이 주제 게시 수와 상한, 다른 채널 영상에 붙이는 광고 표시 */
+  topic: {
+    name: string;
+    active: boolean;
+    posted: number;
+    cap: number;
+    adDisclosure: string;
+  };
   /** 게시할 프로필. 자동 배정할 프로필이 없으면 null */
   profile: { name: string; loginStatus: ProfileLoginStatus } | null;
 }
@@ -70,10 +77,14 @@ export const BLOCK_RULES: BlockRule[] = [
       ? '이미 댓글을 단 영상이에요 · 영상당 1개만 달 수 있어요'
       : null,
   ),
-  // 4. 내 채널이 아닌 영상 (초안까지만)
-  rule('not_my_channel', (c) =>
-    c.video && !c.video.isMine
-      ? '내 채널 영상에만 게시돼요 · 이 영상은 초안까지'
+  // 4. 다른 채널 영상인데 맨 앞에 광고 표시가 없음.
+  //    자동 검사도 보지만, 검사 뒤에 프로필이 지워져 '내 채널'이 바뀐 경우까지 게시 직전에 다시 본다
+  rule('ad_disclosure_missing', (c) =>
+    c.video &&
+    !c.video.isMine &&
+    c.draft &&
+    !startsWithDisclosure(c.draft.text, c.topic.adDisclosure.trim())
+      ? `다른 채널 영상에는 맨 앞에 광고 표시("${c.topic.adDisclosure.trim()}")가 있어야 게시돼요 · 초안 맨 앞에 넣어 주세요`
       : null,
   ),
   // 5. 자동 검사 미통과
