@@ -22,22 +22,18 @@ const topicFields = {
     .trim()
     .min(1, '유도 대상을 적어 주세요')
     .max(200, '유도 대상은 200자까지예요'),
-  /** 브랜드 언급 검사 단어 */
-  brandWord: z
-    .string()
-    .trim()
-    .min(1, '브랜드 단어를 적어 주세요')
-    .max(40, '브랜드 단어는 40자까지예요'),
+  /** 브랜드 언급 검사 단어 (등록 화면에서는 받지 않는다. 비어 있으면 브랜드 언급 검사·AI 지시를 건너뛴다) */
+  brandWord: z.string().trim().max(40, '브랜드 단어는 40자까지예요'),
   /** 검색 키워드 */
   keywords: wordList(10).refine(
     (l) => l.length > 0,
     '검색 키워드를 하나 이상 넣어 주세요',
   ),
-  /** 최근 며칠 */
+  /** 최근 며칠 (0이면 기간 제한 없음) */
   videoWindowDays: z
     .number()
     .int()
-    .min(1, '1일 이상이어야 해요')
+    .min(0, '0(무제한) 이상이어야 해요')
     .max(30, '30일까지 고를 수 있어요'),
   /** 정렬 기준 */
   videoSortBy: z.enum(VideoSortBy),
@@ -88,6 +84,7 @@ const lengthOrderMessage = {
 export const createTopicSchema = z
   .object({
     ...topicFields,
+    brandWord: topicFields.brandWord.default(''),
     videoWindowDays: topicFields.videoWindowDays.default(7),
     videoSortBy: topicFields.videoSortBy.default(VideoSortBy.ViewCount),
     fetchLimit: topicFields.fetchLimit.default(5),

@@ -191,7 +191,7 @@ function LoadPanel({ topic, selectedId, onSelect }: { topic: Topic; selectedId: 
     <Panel
       step={1}
       title="영상 불러오기"
-      hint={`'${topic.keywords[0] ?? ''}' 등 최근 ${topic.videoWindowDays}일 영상을 ${sortLabel}으로 정렬하고, 초안까지 자동으로 써둬요`}
+      hint={`'${topic.keywords[0] ?? ''}' 등 ${topic.videoWindowDays > 0 ? `최근 ${topic.videoWindowDays}일` : '기간 제한 없이'} 영상을 ${sortLabel}으로 정렬하고, 초안까지 자동으로 써둬요`}
     >
       <Button variant="primary" fullWidth loading={load.isPending || drafting} disabled={topic.status === 'paused'} onClick={() => load.mutate(topic.id)}>
         {label}

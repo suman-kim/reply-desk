@@ -104,8 +104,9 @@ export class SceneMentionCheck implements DraftCheck {
 export class BrandMentionCheck implements DraftCheck {
   readonly code = 'brand_mention';
 
-  appliesTo(): boolean {
-    return true;
+  /** 주제에 브랜드 단어가 있을 때만 (등록 화면에서 받지 않아 비어 있을 수 있다) */
+  appliesTo(ctx: CheckContext): boolean {
+    return ctx.topic.brandWord.trim().length > 0;
   }
 
   run(ctx: CheckContext): CheckResult {

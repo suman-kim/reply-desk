@@ -43,4 +43,13 @@ describe('rankVideos', () => {
     );
     expect(r.map((x) => x.youtubeId)).toEqual(['a', 'c']);
   });
+
+  it('기간 무제한(null)이면 오래된 영상도 넣어 고른다', () => {
+    const r = rankVideos(
+      infos,
+      { videoSortBy: VideoSortBy.ViewCount, fetchLimit: 5 },
+      null,
+    );
+    expect(r.map((x) => x.youtubeId)).toEqual(['old', 'b', 'c', 'a']);
+  });
 });

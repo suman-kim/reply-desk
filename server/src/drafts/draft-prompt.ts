@@ -69,7 +69,9 @@ export function buildDraftPrompt(
     .join('\n');
   const lines: (string | null)[] = [
     `[홍보 대상] ${topic.brandTarget}`,
-    `[브랜드 단어] ${topic.brandWord} (딱 한 번)`,
+    topic.brandWord.trim()
+      ? `[브랜드 단어] ${topic.brandWord} (딱 한 번)`
+      : null,
     `[말투] ${topic.tone || '20~30대 시청자, 공감형 구어체'}`,
     `[글자 수] ${topic.minLength}~${topic.maxLength}자`,
     topic.bannedWords.length > 0
