@@ -23,6 +23,8 @@ import { parseYoutubeVideoId, watchUrl } from './youtube/youtube-parsers.js';
 import { YOUTUBE_SEARCH_CACHE_MINUTES } from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { conditionsKey, planSearch, type SearchMode } from './search-plan.js';
+import { matchKeywords } from './keyword-match.js';
+import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
 
 /** ① 칸 영상 카드 한 장 */
 export interface VideoItem {
@@ -58,6 +60,12 @@ export interface VideoItem {
   draftState: DraftState | 'none';
   /** 최근 초안이 자동 검사를 통과했는지 */
   checkPassed: boolean;
+  /** 유튜브 검색의 관련도 순위 (1부터, 직접 추가한 영상은 null). 화면에서 '관련도'로 정렬한다 (RD-23) */
+  searchPosition: number | null;
+  /** 주제 검색 키워드 중 제목·설명·태그에 들어 있는 것 (RD-23) */
+  matchedKeywords: string[];
+  /** 주제와 매칭 (이 주제의 최근 분석. 분석 전이거나 이 기능 전 분석이면 null) */
+  topicMatch: { percent: number; matched: boolean; threshold: number } | null;
 }
 
 /** 이번 [영상 불러오기]의 검색 정보 (화면 ①이 결과 띠에 보인다) */
@@ -262,7 +270,8 @@ export class VideosService {
     const found = await this.youtube.searchVideoIds({
       keywords: topic.keywords,
       publishedAfter: plan.publishedAfter,
-      order: topic.videoSortBy === VideoSortBy.Date ? 'date' : 'viewCount',
+      // 검색은 관련도 순으로 받아 그 순서를 '관련도 순위'로 남긴다 (RD-23). 목록 순위(rank)는 아래에서 주제 정렬로 매긴다
+      order: 'relevance',
       // 무제한이면 검색 결과 끝까지(최대 500개), 아니면 정렬용 후보를 넉넉히 (최대 50개, 검색 한 쪽)
       maxResults:
         topic.fetchLimit > 0
@@ -286,15 +295,33 @@ export class VideosService {
         now,
       );
       const tv = m.getRepository(TopicVideo);
+      // 기간 전체를 다시 검색했으면 관련도 순위도 이번 검색으로 새로 매긴다
       await tv.update(
         { topicId, source: TopicVideoSource.Search },
-        { rank: null },
+        plan.mode === 'full'
+          ? { rank: null, searchPosition: null }
+          : { rank: null },
+      );
+      const positions = new RelevancePositions(
+        found.ids,
+        plan.mode === 'full'
+          ? 0
+          : await this.maxSearchPosition(m.getRepository(TopicVideo), topicId),
       );
       for (const [i, info] of picked.entries()) {
         const videoId = saved.get(info.youtubeId)!;
         const existing = await tv.findOneBy({ topicId, videoId });
+        const matchedKeywords = matchKeywords(topic.keywords, info);
         if (existing) {
-          await tv.update(existing.id, { rank: i + 1, fetchedAt: now });
+          await tv.update(existing.id, {
+            rank: i + 1,
+            fetchedAt: now,
+            matchedKeywords,
+            searchPosition:
+              plan.mode === 'full'
+                ? positions.of(info.youtubeId)
+                : (existing.searchPosition ?? positions.of(info.youtubeId)),
+          });
         } else {
           newVideos += 1;
           await tv.insert({
@@ -303,6 +330,8 @@ export class VideosService {
             source: TopicVideoSource.Search,
             rank: i + 1,
             fetchedAt: now,
+            matchedKeywords,
+            searchPosition: positions.of(info.youtubeId),
           });
         }
       }
@@ -376,6 +405,23 @@ export class VideosService {
   }
 
   /**
+   * 이 주제에서 가장 뒤의 관련도 순위 (새 영상만 검색했을 때 그 뒤에 붙인다)
+   * @param repo 주제별 영상 저장소 (트랜잭션 안)
+   * @param topicId 주제 ID
+   */
+  private async maxSearchPosition(
+    repo: Repository<TopicVideo>,
+    topicId: number,
+  ): Promise<number> {
+    const row = await repo
+      .createQueryBuilder('tv')
+      .select('MAX(tv.search_position)', 'max')
+      .where('tv.topic_id = :topicId', { topicId })
+      .getRawOne<{ max: number | null }>();
+    return Number(row?.max ?? 0);
+  }
+
+  /**
    * 검색으로 들어온 이 주제의 영상 중 기간 안의 것 (새 영상만 검색할 때 조회수를 다시 받을 대상)
    * @param topicId 주제 ID
    * @param windowStart 기간 시작 (null이면 모두)
@@ -422,17 +468,25 @@ export class VideosService {
     const videoId = (await this.upsertVideos(this.videos, [info], now)).get(
       youtubeId,
     )!;
+    const topic = await this.topics.findOrFail(topicId);
+    const matchedKeywords = matchKeywords(topic.keywords, info);
     const existing = await this.topicVideos.findOneBy({ topicId, videoId });
     if (existing) {
       // 검색으로 들어온 영상의 시각은 '마지막 검색 시각'으로 쓰므로 링크 추가로는 바꾸지 않는다
-      if (existing.source === TopicVideoSource.Manual)
-        await this.topicVideos.update(existing.id, { fetchedAt: now });
+      await this.topicVideos.update(existing.id, {
+        matchedKeywords,
+        ...(existing.source === TopicVideoSource.Manual
+          ? { fetchedAt: now }
+          : {}),
+      });
     } else {
       await this.topicVideos.insert({
         topicId,
         videoId,
         source: TopicVideoSource.Manual,
         rank: null,
+        searchPosition: null,
+        matchedKeywords,
         fetchedAt: now,
       });
     }
@@ -487,7 +541,17 @@ export class VideosService {
   ): Promise<Map<string, number>> {
     if (infos.length === 0) return new Map();
     await repo.upsert(
-      infos.map((i) => ({ ...i, statsUpdatedAt: now })),
+      infos.map((i) => ({
+        youtubeId: i.youtubeId,
+        title: i.title,
+        channelId: i.channelId,
+        channelTitle: i.channelTitle,
+        publishedAt: i.publishedAt,
+        viewCount: i.viewCount,
+        durationSec: i.durationSec,
+        thumbnailUrl: i.thumbnailUrl,
+        statsUpdatedAt: now,
+      })),
       { conflictPaths: ['youtubeId'] },
     );
     const rows = await repo.find({
@@ -497,7 +561,7 @@ export class VideosService {
     return new Map(rows.map((r) => [r.youtubeId, r.id]));
   }
 
-  /** 카드에 필요한 배지 값(내 채널·댓글 완료·초안 상태)을 붙인다 */
+  /** 카드에 필요한 배지 값(내 채널·댓글 완료·초안 상태·주제와 매칭)을 붙인다 */
   private async toItems(
     topicId: number,
     rows: TopicVideo[],
@@ -505,23 +569,37 @@ export class VideosService {
     const videoIds = rows.map((r) => r.videoId);
     if (videoIds.length === 0) return [];
 
-    const [myChannels, commentedRows, drafts] = await Promise.all([
-      this.profiles.myChannelIds(),
-      this.attempts.find({
-        select: { videoId: true },
-        where: { videoId: In(videoIds), status: PostStatus.Success },
-      }),
-      this.dataSource.query(
-        `SELECT DISTINCT ON (video_id) video_id, state, check_passed
+    const [myChannels, commentedRows, drafts, analyses, threshold] =
+      await Promise.all([
+        this.profiles.myChannelIds(),
+        this.attempts.find({
+          select: { videoId: true },
+          where: { videoId: In(videoIds), status: PostStatus.Success },
+        }),
+        this.dataSource.query(
+          `SELECT DISTINCT ON (video_id) video_id, state, check_passed
          FROM draft WHERE topic_id = $1 AND video_id = ANY($2)
          ORDER BY video_id, created_at DESC, id DESC`,
-        [topicId, videoIds],
-      ) as Promise<
-        { video_id: number; state: DraftState; check_passed: boolean }[]
-      >,
-    ]);
+          [topicId, videoIds],
+        ) as Promise<
+          { video_id: number; state: DraftState; check_passed: boolean }[]
+        >,
+        // 이 주제에서 영상마다 가장 최근 분석의 매칭 퍼센트
+        this.dataSource.query(
+          `SELECT DISTINCT ON (video_id) video_id, topic_match
+         FROM video_analysis WHERE topic_id = $1 AND video_id = ANY($2)
+         ORDER BY video_id, created_at DESC, id DESC`,
+          [topicId, videoIds],
+        ) as Promise<{ video_id: number; topic_match: number | null }[]>,
+        this.settings.get(TOPIC_MATCH_THRESHOLD),
+      ]);
     const commented = new Set(commentedRows.map((r) => r.videoId));
     const draftBy = new Map(drafts.map((d) => [Number(d.video_id), d]));
+    const matchBy = new Map(
+      analyses
+        .filter((a) => a.topic_match !== null)
+        .map((a) => [Number(a.video_id), Number(a.topic_match)]),
+    );
 
     return rows.map((r) => {
       const v = r.video!;
@@ -543,8 +621,47 @@ export class VideosService {
         commented: commented.has(v.id),
         draftState: d?.state ?? 'none',
         checkPassed: d?.check_passed ?? false,
+        searchPosition: r.searchPosition,
+        matchedKeywords: r.matchedKeywords ?? [],
+        topicMatch: matchBy.has(v.id)
+          ? {
+              percent: matchBy.get(v.id)!,
+              matched: matchBy.get(v.id)! >= threshold,
+              threshold,
+            }
+          : null,
       };
     });
+  }
+}
+
+/**
+ * 관련도 순위 매기기 (RD-23). 검색 결과(관련도 순)의 순서를 1부터 매긴다.
+ * 새 영상만 검색했을 때는 두 검색의 관련도를 서로 비교할 수 없어, 기존 목록 뒤(base 다음)에 이번 검색의 순서대로 붙인다.
+ */
+export class RelevancePositions {
+  private readonly index = new Map<string, number>();
+
+  /**
+   * @param foundIds 이번 검색 결과 (관련도 순)
+   * @param base 이번 순서를 붙일 앞 번호 (기간 전체 검색이면 0)
+   */
+  constructor(
+    foundIds: string[],
+    private readonly base: number,
+  ) {
+    foundIds.forEach((id, i) => {
+      if (!this.index.has(id)) this.index.set(id, i + 1);
+    });
+  }
+
+  /**
+   * 영상의 관련도 순위 (이번 검색에 없으면 null)
+   * @param youtubeId 유튜브 영상 ID
+   */
+  of(youtubeId: string): number | null {
+    const n = this.index.get(youtubeId);
+    return n === undefined ? null : this.base + n;
   }
 }
 

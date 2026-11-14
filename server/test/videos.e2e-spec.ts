@@ -24,7 +24,15 @@ describe('유튜브 할당량 줄이기: 최근 검색 재사용 + 새 영상만
         .post(`/api/topics/${topicId}/load`)
         .send(force ? { force: true } : {})
         .expect(201)
-    ).body as { videos: { youtubeId: string }[]; search: SearchRun };
+    ).body as {
+      videos: {
+        youtubeId: string;
+        searchPosition: number | null;
+        matchedKeywords: string[];
+        topicMatch: unknown;
+      }[];
+      search: SearchRun;
+    };
 
   beforeAll(async () => {
     ctx = await createTestApp();
@@ -55,6 +63,23 @@ describe('유튜브 할당량 줄이기: 최근 검색 재사용 + 새 영상만
     expect(res.videos.length).toBeGreaterThan(0);
     expect(res.search.lastSearchedAt).toEqual(expect.any(String));
     expect(res.search.nextSearchAt).toEqual(expect.any(String));
+  });
+
+  it('RD-23: 검색은 관련도 순으로 받아 순서를 관련도 순위로 남기고, 맞은 검색어를 제목·설명·태그와 대조한다', async () => {
+    expect(ctx.youtube.lastSearch?.order).toBe('relevance');
+    const list = (await http().get(`/api/topics/${topicId}/videos`).expect(200))
+      .body as Awaited<ReturnType<typeof load>>['videos'];
+    const by = new Map(list.map((v) => [v.youtubeId, v]));
+    // 가짜 검색 결과 순서(v1, v2, v3)가 관련도 순위가 된다 (기간 밖 영상은 목록에 없다)
+    expect(by.get('demo00000v1')?.searchPosition).toBe(1);
+    expect(by.get('demo00000v2')?.searchPosition).toBe(2);
+    expect(by.get('demo00000v3')?.searchPosition).toBe(3);
+    expect(by.has('demo000old1')).toBe(false);
+    // 키워드 ['연애', '재회'] 중 제목에 '연애'가 있는 영상만 맞는다
+    expect(by.get('demo00000v3')?.matchedKeywords).toEqual(['연애']);
+    expect(by.get('demo00000v1')?.matchedKeywords).toEqual([]);
+    // 분석 전이라 주제와 매칭은 아직 없다
+    expect(by.get('demo00000v1')?.topicMatch).toBeNull();
   });
 
   it('기준 시간(기본 60분) 안에 다시 누르면 검색하지 않고 저장된 목록 (할당량 0)', async () => {
@@ -110,6 +135,10 @@ describe('유튜브 할당량 줄이기: 최근 검색 재사용 + 새 영상만
     expect(res.search.mode).toBe('full');
     const after = ctx.youtube.lastSearch!.publishedAfter!.getTime();
     expect(Date.now() - after).toBeGreaterThan(6 * 24 * 60 * 60 * 1000);
+    // 새 키워드로 맞은 검색어를 다시 대조한다 (v1 제목에 '썸')
+    const v1 = res.videos.find((v) => v.youtubeId === 'demo00000v1');
+    expect(v1?.matchedKeywords).toEqual(['썸']);
+    expect(v1?.searchPosition).toBe(1);
   });
 
   it('기준 시간을 0으로 두면 매번 검색한다', async () => {

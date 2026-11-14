@@ -31,6 +31,7 @@ interface VideosResponse {
       channelTitle?: string;
       publishedAt?: string;
       description?: string;
+      tags?: string[];
       thumbnails?: Record<string, { url?: string } | undefined>;
     };
     statistics?: { viewCount?: string };
@@ -132,6 +133,9 @@ export class YoutubeApiClient implements YoutubeClient {
         durationSec: parseIsoDuration(v.contentDetails?.duration ?? ''),
         thumbnailUrl:
           thumbs.medium?.url ?? thumbs.high?.url ?? thumbs.default?.url ?? null,
+        // 같은 응답(snippet)에 있어 할당량이 늘지 않는다. 맞은 검색어 대조에만 쓴다
+        description: v.snippet?.description ?? '',
+        tags: v.snippet?.tags ?? [],
       };
     });
   }

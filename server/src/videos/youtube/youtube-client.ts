@@ -21,6 +21,10 @@ export interface YoutubeVideoInfo {
   durationSec: number;
   /** 썸네일 주소 */
   thumbnailUrl: string | null;
+  /** 영상 설명 (맞은 검색어 대조용, 저장하지 않는다) */
+  description?: string;
+  /** 태그 (맞은 검색어 대조용, 저장하지 않는다) */
+  tags?: string[];
 }
 
 /** 검색 조건 */
@@ -29,8 +33,8 @@ export interface YoutubeSearchParams {
   keywords: string[];
   /** 이 시각 이후에 올라온 영상만. null이면 기간 제한 없음 */
   publishedAfter: Date | null;
-  /** API 쪽 정렬 (후보를 고르는 데만 쓰고, 최종 정렬은 코드가 한다) */
-  order: 'viewCount' | 'date';
+  /** API 쪽 정렬. 결과 순서가 관련도 순위(RD-23)가 되므로 보통 relevance. 최종 순위(rank)는 코드가 주제 정렬로 매긴다 */
+  order: 'relevance' | 'viewCount' | 'date';
   /** 받을 후보 수. 50을 넘으면 검색을 여러 쪽 받는다 (한 쪽 50개, 할당량 100) */
   maxResults: number;
 }
