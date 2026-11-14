@@ -13,6 +13,11 @@ import { SettingsService } from '../settings/settings.service.js';
 import { AI_PROVIDERS, type AiProvider } from './ai-provider.js';
 import { AiController } from './ai.controller.js';
 import { AiService } from './ai.service.js';
+import {
+  fetchClaudeModels,
+  fetchGeminiModels,
+  fetchOpenAiModels,
+} from './providers/model-catalog.js';
 import { OllamaAiProvider } from './providers/ollama.provider.js';
 import { SdkAiProvider } from './providers/sdk-ai.provider.js';
 
@@ -33,6 +38,7 @@ function createProviders(
       keyName: 'GEMINI_API_KEY',
       apiKey: () => config.get('GEMINI_API_KEY', { infer: true }),
       createModel: (apiKey, model) => createGoogle({ apiKey })(model),
+      listModels: (apiKey) => fetchGeminiModels(apiKey),
       readyNote: '유튜브 영상을 직접 보고 분석해요',
     }),
     new SdkAiProvider({
@@ -42,6 +48,7 @@ function createProviders(
       keyName: 'ANTHROPIC_API_KEY',
       apiKey: () => config.get('ANTHROPIC_API_KEY', { infer: true }),
       createModel: (apiKey, model) => createAnthropic({ apiKey })(model),
+      listModels: (apiKey) => fetchClaudeModels(apiKey),
       readyNote: '영상 설명과 인기 댓글로 분석하고, 댓글을 자연스럽게 써요',
     }),
     new SdkAiProvider({
@@ -51,6 +58,7 @@ function createProviders(
       keyName: 'OPENAI_API_KEY',
       apiKey: () => config.get('OPENAI_API_KEY', { infer: true }),
       createModel: (apiKey, model) => createOpenAI({ apiKey })(model),
+      listModels: (apiKey) => fetchOpenAiModels(apiKey),
       readyNote: '영상 설명과 인기 댓글로 분석하고, 댓글을 써요',
     }),
     new OllamaAiProvider(async () => ({

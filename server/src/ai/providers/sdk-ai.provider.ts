@@ -8,6 +8,7 @@ import {
 } from 'ai';
 import {
   AiError,
+  type AiModelOption,
   type AiProvider,
   type AiProviderId,
   type AiRequest,
@@ -27,6 +28,8 @@ export interface SdkProviderConfig {
   apiKey: () => string;
   /** 키로 모델 객체를 만든다 */
   createModel: (apiKey: string, model: string) => LanguageModel;
+  /** 키로 모델 목록을 받는다 (model-catalog.ts) */
+  listModels: (apiKey: string) => Promise<AiModelOption[]>;
   /** 쓸 수 있을 때 안내 */
   readyNote: string;
   /** 제공자별 추가 옵션 (예: 추론 강도) */
@@ -59,6 +62,17 @@ export class SdkAiProvider implements AiProvider {
         ? this.config.readyNote
         : `${this.config.keyName}가 없어요 · server/.env.development에 넣어 주세요`,
     };
+  }
+
+  async listModels(): Promise<AiModelOption[]> {
+    const key = this.config.apiKey();
+    if (!key) {
+      throw new AiError(
+        `${this.config.keyName}가 없어 추천 목록을 보여 드려요 · 키를 넣으면 쓸 수 있는 모델이 모두 보여요`,
+        false,
+      );
+    }
+    return this.config.listModels(key);
   }
 
   async generateJson<T>(req: AiRequest<T>): Promise<T> {

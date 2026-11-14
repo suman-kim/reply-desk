@@ -391,6 +391,25 @@ export interface SettingView {
 export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'ollama';
 
 /** AI 제공자 안내 (GET /settings/ai/providers) */
+/** 모델 고르기 목록 (GET /settings/ai/providers/:id/models) */
+export interface AiModelList {
+  /** 제공자 */
+  provider: AiProviderId;
+  /** live = 제공자 API에서 받음, recommended = 키가 없거나 받지 못해 추천 목록 */
+  source: 'live' | 'recommended';
+  /** 모델 (추천이 앞) */
+  models: {
+    /** 모델 ID (저장하는 값) */
+    id: string;
+    /** 화면 이름 */
+    label: string;
+    /** 추천 모델인지 */
+    recommended: boolean;
+  }[];
+  /** 추천 목록인 이유 같은 안내 한 줄 */
+  note: string | null;
+}
+
 export interface AiProviderInfo {
   /** ID */
   id: AiProviderId;

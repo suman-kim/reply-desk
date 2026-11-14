@@ -220,3 +220,15 @@ button.rd-grid-row:focus-visible { outline: 2px solid var(--accent); outline-off
 }
 .rd-tag-x:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
 .rd-tag-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* 모델 고르기 select: 입력 칸 모양 + 오른쪽 화살표 */
+.rd-select {
+  appearance: none; cursor: pointer; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23646978' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+.rd-select:disabled { cursor: progress; color: var(--ink-3); }
+/* 글자처럼 보이는 작은 버튼 (목록 새로 받기) */
+.rd-link-button { border: 0; background: none; padding: 0; color: var(--accent-ink); cursor: pointer; font-weight: 600; }
+.rd-link-button:disabled { color: var(--ink-3); cursor: progress; }
+.rd-link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }

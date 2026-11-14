@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useActions, useAiProviders, useSettings } from '../api/queries';
-import type { AiProviderId, AiProviderInfo, SettingView } from '../api/types';
+import { useQueryClient } from '@tanstack/react-query';
+import { useId, useState } from 'react';
+import { keys, useActions, useAiModels, useAiProviders, useSettings } from '../api/queries';
+import type { AiModelList, AiProviderId, AiProviderInfo, SettingView } from '../api/types';
 import { PageHeader } from '../components/PageHeader';
 import { ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, Panel, Segmented } from '../ds/inyeon';
@@ -47,7 +48,7 @@ export function SettingsPage() {
             <AiSetting key={keyOf(get('ai.drafting'))} setting={get('ai.drafting')!} providers={providers.data ?? []} />
           </Panel>
 
-          <Panel title="Ollama (로컬 AI)" hint="집 AI PC를 쓰려면 먼저 SSH 터널을 열어요: ssh -f -N -L 11435:127.0.0.1:11434 ai-pc">
+          <Panel title="Ollama (로컬 AI)" hint={`집 AI PC를 쓰려면 먼저 SSH 터널을 열어요: ssh -f -N -L ${portOf(String(get('ai.ollamaBaseUrl')?.value ?? ''))}:127.0.0.1:11434 ai-pc`}>
             <TextSetting key={keyOf(get('ai.ollamaBaseUrl'))} setting={get('ai.ollamaBaseUrl')!} />
             <TextSetting key={keyOf(get('ai.ollamaNumCtx'))} setting={get('ai.ollamaNumCtx')!} type="number" />
           </Panel>
@@ -62,16 +63,132 @@ export function SettingsPage() {
  * @param props.info 제공자 안내
  */
 function ProviderCard({ info }: { info: AiProviderInfo }) {
+  // 카드를 그리면서 모델 목록도 미리 받아 둔다 (제공자를 바꿀 때 첫 모델을 바로 고르려고)
+  const models = useAiModels(info.id);
+  const live = models.data?.source === 'live';
   return (
     <div className="rd-provider">
       <div className="rd-row">
         <span className="text-body-strong">{info.label}</span>
         <Badge dot tone={info.ready ? 'success' : 'warning'}>
-          {info.ready ? '쓸 수 있음' : '키 필요'}
+          {info.ready ? '쓸 수 있음' : info.id === 'ollama' ? '연결 안 됨' : '키 필요'}
         </Badge>
       </div>
       <span className="text-caption rd-muted">{info.note}</span>
-      {info.canWatchVideo ? <Badge tone="accent">영상 직접 보기</Badge> : null}
+      <div className="rd-row-tight">
+        {info.canWatchVideo ? <Badge tone="accent">영상 직접 보기</Badge> : null}
+        {live ? <Badge>모델 {models.data!.models.length}개</Badge> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 주소의 포트 (터널 안내용). 없거나 잘못되면 Ollama 기본 11434
+ * @param url Ollama 주소
+ */
+function portOf(url: string): string {
+  try {
+    return new URL(url).port || '11434';
+  } catch {
+    return '11434';
+  }
+}
+
+/** 모델 고르기에서 "직접 입력"을 뜻하는 값 */
+const CUSTOM = '__custom__';
+
+/**
+ * 모델 고르기: 제공자 API에서 받은 목록(추천이 앞) + 직접 입력.
+ * 키가 없거나 목록을 못 받으면 추천 목록과 그 이유를 보인다.
+ * @param props.provider 제공자
+ * @param props.ready 제공자를 지금 쓸 수 있는지 (아니면 원인은 아래 경고 띠가 보이므로 여기서는 짧게)
+ * @param props.value 지금 고른 모델 ID
+ * @param props.onChange 모델을 바꿀 때
+ * @param props.error 저장 오류
+ */
+function ModelPicker({
+  provider,
+  ready,
+  value,
+  onChange,
+  error,
+}: {
+  provider: AiProviderId;
+  ready: boolean;
+  value: string;
+  onChange: (model: string) => void;
+  error?: string;
+}) {
+  const id = useId();
+  const models = useAiModels(provider);
+  const { refreshAiModels } = useActions();
+  const list = models.data?.models ?? [];
+  // 직접 입력: 사람이 골랐거나, 저장된 모델이 목록에 없을 때
+  const [typing, setTyping] = useState(false);
+  const custom = typing || (!!models.data && !!value && !list.some((m) => m.id === value));
+
+  return (
+    <div className="rd-stack-8">
+      <div className="iy-field">
+        <div className="iy-field-top">
+          <label className="iy-field-label" htmlFor={id}>
+            모델
+          </label>
+          <button
+            type="button"
+            className="rd-link-button text-caption"
+            disabled={refreshAiModels.isPending}
+            onClick={() => refreshAiModels.mutate(provider)}
+          >
+            {refreshAiModels.isPending ? '받는 중…' : '목록 새로 받기'}
+          </button>
+        </div>
+        <select
+          id={id}
+          className="iy-input rd-select"
+          value={custom ? CUSTOM : value}
+          disabled={models.isPending}
+          aria-invalid={error ? true : undefined}
+          onChange={(e) => {
+            if (e.target.value === CUSTOM) {
+              setTyping(true);
+              return;
+            }
+            setTyping(false);
+            onChange(e.target.value);
+          }}
+        >
+          {models.isPending ? <option value={value}>모델 목록을 불러오는 중…</option> : null}
+          {!models.isPending && !value && !custom ? <option value="">모델을 골라 주세요</option> : null}
+          {list.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.label !== m.id ? `${m.label} · ${m.id}` : m.id}
+              {m.recommended ? ' (추천)' : ''}
+            </option>
+          ))}
+          <option value={CUSTOM}>직접 입력…</option>
+        </select>
+        {models.data?.source === 'recommended' && !ready ? (
+          <span className="iy-field-hint">
+            추천 목록이에요 · {provider === 'ollama' ? '연결되면 받아 둔 모델이 모두 보여요' : '키를 넣으면 쓸 수 있는 모델이 모두 보여요'}
+          </span>
+        ) : models.data?.note ? (
+          <span className="iy-field-hint">{models.data.note}</span>
+        ) : null}
+        {models.error ? <span className="iy-field-error">모델 목록을 불러오지 못했어요 · [목록 새로 받기]를 눌러 주세요</span> : null}
+        {!custom && error ? <span className="iy-field-error">{error}</span> : null}
+      </div>
+      {custom ? (
+        <Field
+          label="모델 이름 직접 입력"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={list[0] ? `예: ${list[0].id}` : '모델 ID'}
+          hint="목록에 없는 모델(새로 나온 모델 등)을 쓸 때 적어요"
+          error={error}
+        />
+      ) : null}
     </div>
   );
 }
@@ -154,6 +271,7 @@ function HeadlessSetting({ setting }: { setting: SettingView }) {
  */
 function AiSetting({ setting, providers }: { setting: SettingView; providers: AiProviderInfo[] }) {
   const { updateSetting } = useActions();
+  const qc = useQueryClient();
   const current = setting.value as AiChoice;
   const [choice, setChoice] = useState<AiChoice>(current);
   const info = providers.find((p) => p.id === choice.provider);
@@ -172,16 +290,20 @@ function AiSetting({ setting, providers }: { setting: SettingView; providers: Ai
         block
         value={choice.provider}
         onChange={(v) => {
-          const next = providers.find((p) => p.id === v);
-          setChoice({ provider: v as AiProviderId, model: next?.modelExamples[0] ?? '' });
+          const provider = v as AiProviderId;
+          // 받아 둔 목록의 첫 모델(추천이 앞)을 고른다. 아직 없으면 추천 예시
+          const listed = qc.getQueryData<AiModelList>(keys.aiModels(provider))?.models[0]?.id;
+          const example = providers.find((p) => p.id === provider)?.modelExamples[0];
+          setChoice({ provider, model: listed ?? example ?? '' });
         }}
         options={providers.map((p) => ({ value: p.id, label: p.label.replace(/ \(.*\)$/, '') }))}
       />
-      <Field
-        label="모델 이름"
+      <ModelPicker
+        key={choice.provider}
+        provider={choice.provider}
+        ready={info?.ready ?? false}
         value={choice.model}
-        onChange={(e) => setChoice((c) => ({ ...c, model: e.target.value }))}
-        hint={info ? `예: ${info.modelExamples.join(', ')}` : undefined}
+        onChange={(model) => setChoice((c) => ({ ...c, model }))}
         error={error}
       />
       {info && !info.ready ? (

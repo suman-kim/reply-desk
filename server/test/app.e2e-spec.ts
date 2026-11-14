@@ -324,5 +324,37 @@ describe('reply-desk API (e2e)', () => {
       'openai',
       'ollama',
     ]);
+
+    // 모델 목록: 받은 목록에서 추천 모델을 앞에 두고 표시한다
+    const gemini = await http()
+      .get('/api/settings/ai/providers/gemini/models')
+      .expect(200);
+    expect(gemini.body).toEqual({
+      provider: 'gemini',
+      source: 'live',
+      note: null,
+      models: [
+        {
+          id: 'gemini-3.8-flash',
+          label: 'Gemini 3.8 Flash',
+          recommended: true,
+        },
+        { id: 'gemini-9-new', label: 'Gemini 9 New', recommended: false },
+      ],
+    });
+    // 키가 없으면 추천 목록과 이유
+    const claude = await http()
+      .get('/api/settings/ai/providers/claude/models?refresh=1')
+      .expect(200);
+    expect(claude.body).toMatchObject({
+      source: 'recommended',
+      note: expect.stringContaining('ANTHROPIC_API_KEY'),
+    });
+    expect(claude.body.models[0]).toEqual({
+      id: 'claude-sonnet-5-5',
+      label: 'claude-sonnet-5-5',
+      recommended: true,
+    });
+    await http().get('/api/settings/ai/providers/nope/models').expect(400);
   });
 });

@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { AiError, type AiProvider, type AiRequest } from '../ai-provider.js';
+import {
+  AiError,
+  type AiModelOption,
+  type AiProvider,
+  type AiRequest,
+} from '../ai-provider.js';
+import { fetchOllamaModels } from './model-catalog.js';
 
 /** Ollama 연결 설정 (매번 설정에서 읽는다) */
 export interface OllamaSettings {
@@ -21,6 +27,18 @@ interface OllamaChatResponse {
  * - options.num_ctx — 같은 GPU를 쓰는 다른 앱(animation-chat)과 같은 값을 써야 모델을 다시 올리지 않는다
  * - format — JSON 스키마를 넘겨 그 모양으로만 답하게 한다
  */
+/**
+ * 주소의 포트 (터널 안내용). 없으면 Ollama 기본 11434
+ * @param baseUrl Ollama 주소
+ */
+function portOf(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).port || '11434';
+  } catch {
+    return '11434';
+  }
+}
+
 export class OllamaAiProvider implements AiProvider {
   readonly id = 'ollama' as const;
   readonly label = 'Ollama';
@@ -35,12 +53,29 @@ export class OllamaAiProvider implements AiProvider {
     private readonly fetchFn: typeof fetch = fetch,
   ) {}
 
+  /** 실제로 연결해 본다 (모델 목록을 2초 안에 받으면 쓸 수 있음) */
   async status() {
     const { baseUrl } = await this.settings();
-    return {
-      ready: true,
-      note: `${baseUrl}에서 돌아요 · 키가 필요 없고, 모델은 미리 받아 두세요 (ollama pull)`,
-    };
+    const ok = await this.fetchFn(`${baseUrl.replace(/\/$/, '')}/api/tags`, {
+      signal: AbortSignal.timeout(2_000),
+    }).then(
+      (res) => res.ok,
+      () => false,
+    );
+    return ok
+      ? {
+          ready: true,
+          note: `${baseUrl}에서 돌아요 · 키가 필요 없고, 모델은 미리 받아 두세요 (ollama pull)`,
+        }
+      : {
+          ready: false,
+          note: `Ollama(${baseUrl})에 연결하지 못했어요 · AI PC가 켜져 있는지, SSH 터널(ssh -f -N -L ${portOf(baseUrl)}:127.0.0.1:11434 ai-pc)이 열려 있는지 확인해 주세요`,
+        };
+  }
+
+  async listModels(): Promise<AiModelOption[]> {
+    const { baseUrl } = await this.settings();
+    return fetchOllamaModels(baseUrl, this.fetchFn);
   }
 
   async generateJson<T>(req: AiRequest<T>): Promise<T> {
