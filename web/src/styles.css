@@ -909,6 +909,10 @@ a:hover { color: var(--ink); }
 .rd-worry-style { padding-top: 6px; border-top: 1px dashed var(--line); overflow-wrap: anywhere; }
 .rd-worry-style b { font-weight: 600; margin-right: 4px; }
 
+/* 게시 완료 카드의 '새 초안 쓰고 한 번 더 달기' (RD-27) */
+.rd-pc-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.rd-pc-more > .text-caption { flex: 1 1 240px; min-width: 0; }
+
 /* 새 프로필 추가 (모달 안, RD-30) */
 .rd-wizard { display: flex; flex-direction: column; gap: 18px; }
 /* 오른쪽 '내 채널은 이렇게 정해져요'는 스크롤해도 보이게 */

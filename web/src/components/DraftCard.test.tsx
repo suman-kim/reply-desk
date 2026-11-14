@@ -62,10 +62,21 @@ describe('DraftCard (작업 상세 B칸 초안)', () => {
     expect(screen.getByText('장면을 짚음')).toBeInTheDocument();
   });
 
-  it('이미 댓글을 단 영상은 고칠 수 없다', () => {
-    renderWith(<DraftCard topic={topic} detail={{ ...ready, video: { ...video, commented: true } }} />);
+  it('게시한 초안은 고칠 수 없고, 아래 [새 초안 쓰고 한 번 더 달기]를 가리킨다 (RD-27)', () => {
+    renderWith(
+      <DraftCard topic={topic} detail={{ ...ready, status: { code: 'posted', label: '게시 완료' }, video: { ...video, commented: true, commentCount: 1 } }} />,
+    );
     expect(screen.getByLabelText('댓글 초안')).toHaveAttribute('readonly');
-    expect(screen.getByRole('button', { name: '다시 생성' })).toBeDisabled();
+    // 같은 버튼은 게시 완료 카드에만 둔다
+    expect(screen.queryByRole('button', { name: '다시 생성' })).toBeNull();
+    expect(screen.getByText(/아래 \[새 초안 쓰고 한 번 더 달기\]/)).toBeInTheDocument();
+    expect(screen.queryByText(/영상당 1개/)).toBeNull();
+  });
+
+  it('예전에 댓글을 단 영상이어도 새 초안은 고칠 수 있다', () => {
+    renderWith(<DraftCard topic={topic} detail={{ ...ready, video: { ...video, commented: false, commentCount: 1 } }} />);
+    expect(screen.getByLabelText('댓글 초안')).not.toHaveAttribute('readonly');
+    expect(screen.getByRole('button', { name: '다시 생성' })).toBeEnabled();
   });
 });
 

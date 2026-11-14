@@ -121,9 +121,11 @@ function TaskDetail({ topic, videoId }: { topic: Topic; videoId: number }) {
               <DraftCard topic={topic} detail={d} />
               {d.draft?.state === 'ready' || d.video.commented ? (
                 <PostControl
-                  key={`${d.video.id}:${d.attempts[0]?.id ?? 0}`}
+                  // 영상·초안이 바뀌거나 이 초안의 새 게시가 생기면 처음부터 (RD-27: 예전 초안의 게시는 잇지 않는다)
+                  key={`${d.video.id}:${d.draft?.id ?? 0}:${d.attempts.find((a) => a.draftId === d.draft?.id)?.id ?? 0}`}
                   topic={topic}
                   video={d.video}
+                  draftId={d.draft?.id ?? null}
                   attempts={d.attempts}
                   next={
                     near.next ? (
@@ -193,6 +195,8 @@ function TaskHead({ detail }: { detail: DraftDetail }) {
         <span aria-hidden="true">·</span>
         <span className="text-mono">{formatDuration(v.durationSec)}</span>
         {v.isMine ? <Badge tone="accent">내 채널</Badge> : <Badge>다른 채널</Badge>}
+        {/* 같은 영상에 댓글을 여러 개 달 수 있어 몇 개 달았는지 보인다 (RD-27) */}
+        {v.commentCount > 0 ? <Badge tone="success">이 영상에 단 댓글 {v.commentCount}개</Badge> : null}
         <a href={v.url} target="_blank" rel="noreferrer" className="rd-task-yt">
           유튜브에서 보기
           <Icon name="external" size={14} />
@@ -203,7 +207,7 @@ function TaskHead({ detail }: { detail: DraftDetail }) {
 }
 
 /**
- * 이 영상의 게시 기록 (최근 순)
+ * 이 영상의 게시 기록 (최근 순, 주제 상관없이). 행마다 결과와 단 댓글 글(실패면 원인)
  * @param props.topic 주제
  * @param props.attempts 게시 기록
  */
@@ -222,7 +226,10 @@ function History({ topic, attempts }: { topic: Topic; attempts: DraftDetail['att
               <Badge tone={POST_RESULT[a.status].tone} loading={a.status === 'running'}>
                 {POST_RESULT[a.status].label}
               </Badge>
-              <span className="text-caption rd-muted rd-clamp-1">{a.failureReason ?? (a.commentUrl ? '댓글이 올라갔어요' : '')}</span>
+              {/* 실패면 원인, 아니면 단 댓글 글 (같은 영상에 여러 개 달 수 있어 어떤 글인지 보인다, RD-27) */}
+              <span className="text-caption rd-muted rd-clamp-1" title={a.failureReason ? undefined : a.commentText}>
+                {a.failureReason ?? a.commentText}
+              </span>
               <Icon name="chevronRight" size={16} />
             </Link>
           </li>

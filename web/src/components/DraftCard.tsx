@@ -14,6 +14,7 @@ const SAVE_DELAY_MS = 700;
  * 작업 상세 B칸의 '댓글 초안' 카드 (RD-26): 상태 · 글자 수 → 초안(고치면 바로 다시 검사) → 붙인 광고 표시 안내 · [다시 생성]
  * → 자동 검사 → 이렇게 쓴 이유(접기).
  * 초안이 없으면 [초안 작성], 쓰는 중이면 진행, 실패면 원인과 [다시 생성].
+ * 게시한 초안은 읽기만 하고, 아래 게시 완료 카드의 [새 초안 쓰고 한 번 더 달기]로 같은 영상에 댓글을 더 단다 (RD-27).
  * @param props.topic 주제 (글자 수 범위 · 광고 표시)
  * @param props.detail 영상·분석·초안
  */
@@ -35,14 +36,16 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
   }
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
-  const locked = video.commented;
+  // 게시한 초안은 고칠 수 없고, 같은 영상에 더 달려면 새 초안을 쓴다 (RD-27: 초안 하나에 댓글 하나)
+  const posted = detail.status?.code === 'posted';
   const regen = (reanalyze: boolean) => regenerate.mutate({ topicId: topic.id, videoId: video.id, reanalyze });
-  const regenButtons = (
+  // 게시한 초안이면 아래 '게시 완료' 카드의 [새 초안 쓰고 한 번 더 달기]로 새로 쓴다 (같은 버튼을 두 번 두지 않는다)
+  const regenButtons = posted ? null : (
     <div className="rd-row-tight">
-      <Button size="sm" loading={regenerate.isPending} disabled={locked} leading={<Icon name="refresh" size={14} />} onClick={() => regen(false)}>
+      <Button size="sm" loading={regenerate.isPending} leading={<Icon name="refresh" size={14} />} onClick={() => regen(false)}>
         다시 생성
       </Button>
-      <Button variant="ghost" size="sm" disabled={regenerate.isPending || locked} onClick={() => regen(true)}>
+      <Button variant="ghost" size="sm" disabled={regenerate.isPending} onClick={() => regen(true)}>
         분석부터 다시
       </Button>
     </div>
@@ -71,10 +74,9 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
           <span className="text-caption rd-muted">[초안 작성]을 누르면 영상을 분석하고 주제에 맞는 댓글 초안을 써요</span>
         </div>
         {regenError}
-        <Button variant="primary" size="lg" fullWidth loading={regenerate.isPending} disabled={locked} onClick={() => regen(false)}>
+        <Button variant="primary" size="lg" fullWidth loading={regenerate.isPending} onClick={() => regen(false)}>
           초안 작성
         </Button>
-        {locked ? <span className="text-caption rd-block-reason">이미 댓글을 단 영상이라 초안을 쓰지 않아요</span> : null}
       </div>
     );
   }
@@ -120,8 +122,8 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
   const n = bodyChars(text, video.isMine ? null : disclosure || null);
   const bad = n < topic.minLength || n > topic.maxLength;
   const failed = draft.checkResults.filter((r) => !r.passed).length;
-  const saveNote = locked
-    ? '이미 댓글을 단 영상이라 고칠 수 없어요 · 영상당 1개만 달아요'
+  const saveNote = posted
+    ? '게시한 초안이라 고칠 수 없어요 · 같은 영상에 댓글을 더 달려면 아래 [새 초안 쓰고 한 번 더 달기]를 눌러요'
     : editDraft.isPending || dirty
       ? '저장하고 다시 검사하는 중…'
       : editDraft.error
@@ -142,7 +144,7 @@ export function DraftCard({ topic, detail }: { topic: Topic; detail: DraftDetail
           {n} / {topic.maxLength}자
         </span>,
       )}
-      <textarea id={fid} className="dk-input dk-textarea rd-dc-text" rows={4} value={text} onChange={onChange} readOnly={locked} aria-describedby={`${fid}-note`} />
+      <textarea id={fid} className="dk-input dk-textarea rd-dc-text" rows={4} value={text} onChange={onChange} readOnly={posted} aria-describedby={`${fid}-note`} />
       <div className="rd-dc-foot">
         <div className="rd-stack" style={{ minWidth: 0 }}>
           {adNote ? <span className="text-caption rd-muted">{adNote}</span> : null}
