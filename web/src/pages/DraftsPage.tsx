@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { useDrafts, useTopics } from '../api/queries';
+import { useDrafts } from '../api/queries';
 import type { DraftListRow, DraftListStatus } from '../api/types';
 import { STATUS_LABELS, STATUS_TONE, topicMatchBadge } from '../components/badges';
 import { DraftDetailModal, type TaskRef } from '../components/DraftDetailModal';
@@ -8,46 +8,40 @@ import { PageHeader } from '../components/PageHeader';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Field, Segmented, StatPill } from '../ds/inyeon';
 import { countChars, formatDuration, formatLogTime, formatViews, relativeTime, shortWatchUrl } from '../lib/format';
+import { paths } from '../nav/paths';
+import { useRouteTopic } from '../nav/route-topic';
 
 /** 고른 작업 (주제·영상) */
 type Selected = TaskRef;
 
 /**
- * 작업 목록: AI가 쓴 초안(작업)을 한곳에서 보고, 행을 누르면 창(모달)에서 고치고 게시·다시 게시한다.
- * 연 작업은 주소(?topic=&video=)에 담는다. 댓글 게시 목록의 [작업 목록에서 다시 게시]가 이 주소로 바로 연다.
+ * 작업 목록 (/t/:topicId/drafts): 고른 주제에서 AI가 쓴 초안(작업)을 한곳에서 보고, 행을 누르면 창(모달)에서 고치고 게시·다시 게시한다.
+ * 연 작업은 주소(?video=)에 담는다. 댓글 게시 목록의 [작업 목록에서 다시 게시]가 이 주소로 바로 연다.
  */
 export function DraftsPage() {
-  const topics = useTopics();
+  const topic = useRouteTopic();
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<'all' | DraftListStatus>('all');
-  const [topicFilter, setTopicFilter] = useState('all');
   const [q, setQ] = useState('');
   const drafts = useDrafts({
     status: status === 'all' ? undefined : status,
-    topicId: topicFilter === 'all' ? undefined : Number(topicFilter),
+    topicId: topic.id,
     q: q.trim() || undefined,
   });
   const counts = drafts.data?.counts;
   const total = counts ? Object.values(counts).reduce((a, b) => a + b, 0) : 0;
 
-  const sel: Selected | null =
-    Number(params.get('topic')) && Number(params.get('video'))
-      ? { topicId: Number(params.get('topic')), videoId: Number(params.get('video')) }
-      : null;
+  const videoId = Number(params.get('video')) || null;
+  const sel: Selected | null = videoId ? { topicId: topic.id, videoId } : null;
 
   /**
    * 작업 창을 열거나 닫는다 (주소에 담아 새로 고쳐도 유지)
-   * @param next 열 작업 (null이면 닫기)
+   * @param next 열 영상 ID (null이면 닫기)
    */
-  const select = (next: Selected | null) => {
+  const select = (next: number | null) => {
     const p = new URLSearchParams(params);
-    if (next) {
-      p.set('topic', String(next.topicId));
-      p.set('video', String(next.videoId));
-    } else {
-      p.delete('topic');
-      p.delete('video');
-    }
+    if (next) p.set('video', String(next));
+    else p.delete('video');
     setParams(p, { replace: true });
   };
 
@@ -55,7 +49,7 @@ export function DraftsPage() {
     <div className="rd-page">
       <PageHeader
         title="작업 목록"
-        description="AI가 쓴 초안을 영상마다 모아 봐요. 행을 누르면 창이 열려 초안을 고치고, 게시하거나 다시 게시할 수 있어요."
+        description="이 주제에서 AI가 쓴 초안을 영상마다 모아 봐요. 행을 누르면 창이 열려 초안을 고치고, 게시하거나 다시 게시할 수 있어요."
         right={counts ? <StatPill label="게시 대기" value={counts.pending + counts.failed} /> : undefined}
       />
 
@@ -72,12 +66,6 @@ export function DraftsPage() {
             })),
           ]}
         />
-        <Segmented
-          label="주제"
-          value={topicFilter}
-          onChange={setTopicFilter}
-          options={[{ value: 'all', label: '모든 주제' }, ...(topics.data ?? []).map((t) => ({ value: String(t.id), label: t.name }))]}
-        />
         <Field value={q} onChange={(e) => setQ(e.target.value)} placeholder="영상 제목이나 댓글 내용으로 찾기" />
       </div>
 
@@ -85,7 +73,6 @@ export function DraftsPage() {
         <div className="rd-grid-row rd-grid-head text-label">
           <span>상태</span>
           <span>영상</span>
-          <span>주제</span>
           <span>초안</span>
           <span>고친 시각</span>
         </div>
@@ -95,7 +82,7 @@ export function DraftsPage() {
           <EmptyBox>
             {total === 0 ? (
               <>
-                아직 작업이 없어요 · <Link to="/">대시보드</Link> ②에서 영상을 고르고 [초안 작성]을 누르면 여기 쌓여요
+                아직 작업이 없어요 · <Link to={paths.topic(topic.id, 'dashboard')}>대시보드</Link> ②에서 영상을 고르고 [초안 작성]을 누르면 여기 쌓여요
               </>
             ) : (
               '조건에 맞는 작업이 없어요 · 필터를 바꿔 보세요'
@@ -107,8 +94,8 @@ export function DraftsPage() {
             <DraftRow
               key={r.id}
               row={r}
-              selected={sel?.videoId === r.video.id && sel.topicId === r.topic.id}
-              onOpen={() => select({ topicId: r.topic.id, videoId: r.video.id })}
+              selected={sel?.videoId === r.video.id}
+              onOpen={() => select(r.video.id)}
             />
           ))}
         </div>
@@ -149,7 +136,6 @@ function DraftRow({ row: r, selected, onOpen }: { row: DraftListRow; selected: b
           {shortWatchUrl(r.video.youtubeId)} ↗
         </a>
       </span>
-      <span className="text-caption rd-ink2">{r.topic.name}</span>
       <span className="rd-cell-sub">
         <span className="text-body-sm rd-clamp">{r.errorMessage ?? r.text}</span>
         <span className="text-caption rd-muted">

@@ -2,6 +2,7 @@ import { Link } from 'react-router';
 import { useDraftDetail, useTopics } from '../api/queries';
 import { Badge } from '../ds/inyeon';
 import { formatDuration, formatLogTime, relativeTime } from '../lib/format';
+import { paths } from '../nav/paths';
 import { POST_RESULT, STATUS_TONE } from './badges';
 import { DraftReview } from './DraftReview';
 import { Modal } from './Modal';
@@ -106,7 +107,7 @@ export function DraftDetailModal({ sel, onClose }: { sel: TaskRef; onClose: () =
               </div>
             ))}
             {d.attempts.length > 0 ? (
-              <Link to={`/logs?topic=${topic.id}`} className="text-caption">
+              <Link to={paths.topic(topic.id, 'logs')} className="text-caption">
                 댓글 게시 목록에서 캡처 보기
               </Link>
             ) : null}

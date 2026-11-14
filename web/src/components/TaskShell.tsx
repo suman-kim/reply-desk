@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Link, useNavigate } from 'react-router';
 import { api } from '../api/http';
 import { useDrafts } from '../api/queries';
-import type { DraftListStatus, VideoItem } from '../api/types';
+import type { DraftListStatus, Topic, VideoItem } from '../api/types';
 import { Badge, Button, Segmented } from '../ds/inyeon';
 import { formatLogTime } from '../lib/format';
 import type { LiveEvent } from '../live/apply-event';
 import { NoticeRules, type Notice } from '../live/notify-rules';
+import { paths } from '../nav/paths';
 import { STATUS_TONE, topicMatchBadge } from './badges';
 import { DraftDetailModal, type TaskRef } from './DraftDetailModal';
 import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
@@ -193,12 +194,13 @@ const PANEL_GROUPS: Record<'pending' | 'writing' | 'attention' | 'all', DraftLis
 const PANEL_ROWS = 30;
 
 /**
- * 전역 작업 패널 (오른쪽). 어느 화면에서나 작업 목록을 보고, 행을 누르면 그 자리에서 작업 창을 연다.
- * 넓으면 오른쪽에 붙고(본문이 좁아짐), 좁으면 위에 덮는다(styles.css). 아래 링크로 작업 목록 화면에 간다.
+ * 작업 패널 (오른쪽). 고른 주제의 작업만 보고, 행을 누르면 그 자리에서 작업 창을 연다(알림은 모든 주제).
+ * 넓으면 오른쪽에 붙고(본문이 좁아짐), 좁으면 위에 덮는다(styles.css). 아래 링크로 그 주제의 작업 목록 화면에 간다.
+ * @param props.topic 고른 주제
  */
-export function TaskPanel() {
+export function TaskPanel({ topic }: { topic: Topic }) {
   const shell = useTaskShell();
-  const drafts = useDrafts({});
+  const drafts = useDrafts({ topicId: topic.id });
   const [group, setGroup] = useState<keyof typeof PANEL_GROUPS>('pending');
   const counts = drafts.data?.counts;
   const count = (g: keyof typeof PANEL_GROUPS) =>
@@ -210,7 +212,10 @@ export function TaskPanel() {
   return (
     <aside id="rd-task-panel" className="rd-taskpanel" aria-label="작업 패널">
       <div className="rd-card-head">
-        <span className="text-heading">작업</span>
+        <span className="rd-stack">
+          <span className="text-heading">작업</span>
+          <span className="text-caption rd-muted">{topic.name}</span>
+        </span>
         <Button variant="ghost" size="sm" onClick={shell.togglePanel}>
           닫기
         </Button>
@@ -247,14 +252,12 @@ export function TaskPanel() {
                 {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
               </span>
               <span className="text-body-sm rd-clamp">{r.video.title}</span>
-              <span className="text-caption rd-muted">
-                {r.topic.name} · {formatLogTime(r.updatedAt)}
-              </span>
+              <span className="text-caption rd-muted">{formatLogTime(r.updatedAt)}</span>
             </button>
           );
         })}
       </div>
-      <Link to="/drafts" className="text-body-sm rd-task-more">
+      <Link to={paths.topic(topic.id, 'drafts')} className="text-body-sm rd-task-more">
         작업 목록에서 모두 보기 →
       </Link>
       <div className="rd-task-notify text-caption">

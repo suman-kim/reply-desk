@@ -5,7 +5,6 @@ import {
   useDraftDetail,
   useSearchStatus,
   useToday,
-  useTopics,
   useVideos,
 } from '../api/queries';
 import type { Topic } from '../api/types';
@@ -15,9 +14,11 @@ import { PostControl } from '../components/PostControl';
 import { VideoModal, type ModalVideo } from '../components/VideoModal';
 import { VideoThumb } from '../components/VideoThumb';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, Button, Field, Panel, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
+import { Badge, Button, Field, Panel, StatPill, VideoCard } from '../ds/inyeon';
 import { formatDuration, formatViews, relativeTime } from '../lib/format';
 import { searchRunText, searchStatusText } from '../lib/search-text';
+import { paths } from '../nav/paths';
+import { useRouteTopic } from '../nav/route-topic';
 
 /** ①②③ 단계 번호 */
 type Step = 1 | 2 | 3;
@@ -30,32 +31,24 @@ const STEPS: { n: Step; title: string; hint: string }[] = [
 ];
 
 /**
- * 대시보드: 주제 사이드바 · ①②③ 단계(한 번에 한 화면, 이전·다음으로 넘김) (계획서 '화면 구조').
- * 댓글 게시 결과는 따로 '댓글 게시 목록' 메뉴(LogsPage)에 둔다.
- * 고른 주제·영상·단계는 주소(?topic=&video=&step=)에 담아, 새로 고쳐도 같은 화면이 열린다.
+ * 대시보드 (/t/:topicId/dashboard): 고른 주제의 ①②③ 단계(한 번에 한 화면, 이전·다음으로 넘김) (계획서 '화면 구조').
+ * 주제는 왼쪽 사이드 메뉴에서 고르고, 댓글 게시 결과는 '댓글 게시 목록' 메뉴(LogsPage)에 둔다.
+ * 고른 영상·단계는 주소(?video=&step=)에 담아, 새로 고쳐도 같은 화면이 열린다.
  */
 export function DashboardPage() {
+  const topic = useRouteTopic();
   const [params, setParams] = useSearchParams();
-  const topics = useTopics();
-  const topicId = Number(params.get('topic')) || topics.data?.[0]?.id || null;
   const videoId = Number(params.get('video')) || null;
   const stepParam = Number(params.get('step'));
   const step: Step = stepParam === 2 || stepParam === 3 ? stepParam : 1;
-  const topic = topics.data?.find((t) => t.id === topicId) ?? null;
 
   /**
-   * 주소의 값을 바꾼다. 주제를 바꾸면 영상과 단계는 처음으로.
-   * @param next.topic 주제
+   * 주소의 값을 바꾼다
    * @param next.video 영상 (null이면 고르지 않음)
    * @param next.step 단계
    */
-  const select = (next: { topic?: number; video?: number | null; step?: Step }) => {
+  const select = (next: { video?: number | null; step?: Step }) => {
     const p = new URLSearchParams(params);
-    if (next.topic !== undefined) {
-      p.set('topic', String(next.topic));
-      p.delete('video');
-      p.delete('step');
-    }
     if (next.video !== undefined) {
       if (next.video) p.set('video', String(next.video));
       else p.delete('video');
@@ -69,49 +62,17 @@ export function DashboardPage() {
 
   return (
     <div className="rd-page">
-      <div className="rd-layout">
-        <aside aria-label="주제 목록" className="rd-sidebar">
-          <div className="rd-sidebar-head">
-            <span className="text-label rd-ink2">주제</span>
-            {topics.data ? <span className="text-caption rd-muted">{topics.data.length}개</span> : null}
-          </div>
-          {topics.isPending ? <LoadingBox>주제를 불러오는 중…</LoadingBox> : null}
-          {topics.error ? <ErrorBand error={topics.error} onRetry={() => void topics.refetch()} /> : null}
-          {topics.data?.map((t) => (
-            <TopicItem
-              key={t.id}
-              name={t.name}
-              meta={`오늘 ${t.postedToday}/${t.dailyCap} · 초안 ${t.pendingDrafts}`}
-              status={t.status}
-              selected={t.id === topicId}
-              count={t.pendingDrafts}
-              onClick={() => select({ topic: t.id })}
-            />
-          ))}
-          <Link to="/topics/new" className="iy-btn iy-btn-dashed iy-btn-md iy-btn-block" style={{ marginTop: 8, textDecoration: 'none' }}>
-            + 새 주제
-          </Link>
-        </aside>
-
-        <main className="rd-main">
-          {topics.data && topics.data.length === 0 ? (
-            <EmptyBox>
-              아직 주제가 없어요
-              <br />
-              홍보할 대상 하나가 주제 하나예요 · 왼쪽 [+ 새 주제]로 만들어 주세요
-            </EmptyBox>
-          ) : null}
-          {topic ? (
-            <TopicWorkspace
-              topic={topic}
-              videoId={videoId}
-              step={step}
-              onSelectVideo={(id) => select({ video: id })}
-              onPickVideo={(id) => select({ video: id, step: 2 })}
-              onStep={(n) => select({ step: n })}
-            />
-          ) : null}
-        </main>
+      <div className="rd-dash">
+        {/* 주제를 바꾸면 고른 영상·단계도 처음부터 (key) */}
+        <TopicWorkspace
+          key={topic.id}
+          topic={topic}
+          videoId={videoId}
+          step={step}
+          onSelectVideo={(id) => select({ video: id })}
+          onPickVideo={(id) => select({ video: id, step: 2 })}
+          onStep={(n) => select({ step: n })}
+        />
       </div>
     </div>
   );
@@ -174,7 +135,7 @@ function TopicWorkspace({
         </div>
         <div className="rd-row">
           <StatPill label="이 주제 오늘" value={topic.postedToday} max={topic.dailyCap} />
-          <Link to={`/topics/${topic.id}/edit`} className="iy-btn iy-btn-secondary iy-btn-md">
+          <Link to={paths.topic(topic.id, 'settings')} className="iy-btn iy-btn-secondary iy-btn-md">
             주제 설정
           </Link>
         </div>
