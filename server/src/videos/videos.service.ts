@@ -16,6 +16,7 @@ import { Video } from './video.entity.js';
 import {
   YOUTUBE_CLIENT,
   type YoutubeClient,
+  type YoutubeComments,
   type YoutubeVideoInfo,
 } from './youtube/youtube-client.js';
 import { parseYoutubeVideoId } from './youtube/youtube-parsers.js';
@@ -60,6 +61,15 @@ export interface VideoItem {
 const CANDIDATE_MULTIPLIER = 5;
 
 /**
+ * 무제한(fetchLimit 0)일 때 받을 최대 영상 수.
+ * 검색 한 쪽 50개에 할당량 100이라 500개면 1,000을 쓴다 (하루 기본 10,000). 유튜브 검색도 대개 500개 안팎에서 끝난다.
+ */
+export const UNLIMITED_MAX_VIDEOS = 500;
+
+/** 영상 보기 창의 댓글을 다시 받기 전까지 쓰는 시간 (5분) */
+const COMMENTS_TTL_MS = 5 * 60 * 1000;
+
+/**
  * 영상 불러오기(①)와 링크 직접 추가(②).
  * 숫자(조회수·시각)는 YouTube API 값을 코드가 넣고, 정렬도 코드가 한다.
  */
@@ -86,8 +96,34 @@ export class VideosService {
     private readonly profiles: ProfilesService,
   ) {}
 
+  /** 영상별로 받아 둔 댓글과 받은 시각 (창을 다시 열 때 할당량을 아낀다) */
+  private readonly commentCache = new Map<
+    string,
+    { at: number; data: YoutubeComments }
+  >();
+
   /**
-   * [영상 불러오기]: 주제 키워드로 최근 영상을 찾고, 정렬해서 상위 fetchLimit개를 목록에 넣는다.
+   * 영상 보기 창의 인기 댓글 (5분 동안 받아 둔다)
+   * @param topicId 주제 ID
+   * @param videoId 내부 영상 ID
+   * @param limit 가져올 댓글 수 (최대 100)
+   */
+  async comments(
+    topicId: number,
+    videoId: number,
+    limit: number,
+  ): Promise<YoutubeComments> {
+    const video = await this.getForTopic(topicId, videoId);
+    const key = `${video.youtubeId}:${limit}`;
+    const cached = this.commentCache.get(key);
+    if (cached && Date.now() - cached.at < COMMENTS_TTL_MS) return cached.data;
+    const data = await this.youtube.getComments(video.youtubeId, limit);
+    this.commentCache.set(key, { at: Date.now(), data });
+    return data;
+  }
+
+  /**
+   * [영상 불러오기]: 주제 키워드로 최근 영상을 찾고, 정렬해서 상위 fetchLimit개(0이면 무제한)를 목록에 넣는다.
    * 다시 불러오면 순위를 새로 매기고, 이번에 빠진 영상은 순위만 지운다(초안·기록은 남는다).
    * @param topicId 주제 ID
    * @param now 기준 시각 (테스트용)
@@ -107,7 +143,11 @@ export class VideosService {
       keywords: topic.keywords,
       publishedAfter,
       order: topic.videoSortBy === VideoSortBy.Date ? 'date' : 'viewCount',
-      maxResults: Math.min(50, topic.fetchLimit * CANDIDATE_MULTIPLIER),
+      // 무제한이면 검색 결과 끝까지(최대 500개), 아니면 정렬용 후보를 넉넉히 (최대 50개, 검색 한 쪽)
+      maxResults:
+        topic.fetchLimit > 0
+          ? Math.min(50, topic.fetchLimit * CANDIDATE_MULTIPLIER)
+          : UNLIMITED_MAX_VIDEOS,
     });
     const infos = await this.youtube.getVideos(ids);
     const picked = rankVideos(infos, topic, publishedAfter);
@@ -296,7 +336,7 @@ export class VideosService {
 /**
  * 후보 영상을 주제 조건으로 거르고 정렬해서 상위 fetchLimit개를 고른다 (코드가 하는 일).
  * @param infos API에서 읽은 영상
- * @param topic 주제 (정렬 기준·개수)
+ * @param topic 주제 (정렬 기준·개수. 개수 0이면 자르지 않는다)
  * @param publishedAfter 이 시각 이후 영상만 (null이면 기간 제한 없음)
  */
 export function rankVideos(
@@ -313,5 +353,5 @@ export function rankVideos(
         : b.viewCount - a.viewCount ||
           b.publishedAt.getTime() - a.publishedAt.getTime(),
     )
-    .slice(0, topic.fetchLimit);
+    .slice(0, topic.fetchLimit > 0 ? topic.fetchLimit : undefined);
 }

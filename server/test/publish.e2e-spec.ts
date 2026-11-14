@@ -113,7 +113,14 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       })
       .expect(201);
     topicId = topic.body.id;
-    await http().post(`/api/topics/${topicId}/load`).expect(201);
+    const loaded = await http().post(`/api/topics/${topicId}/load`).expect(201);
+    // 불러오기는 초안을 쓰지 않는다 · 게시해 볼 영상만 [초안 작성]
+    for (const v of loaded.body.videos as Card[]) {
+      await http()
+        .post(`/api/topics/${topicId}/videos/${v.id}/draft`)
+        .send({})
+        .expect(201);
+    }
     const manual = await http()
       .post(`/api/topics/${topicId}/videos`)
       .send({ url: 'manual00001' })

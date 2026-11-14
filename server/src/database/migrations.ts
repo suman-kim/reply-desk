@@ -1,6 +1,7 @@
 import { Init1794527840491 } from './migrations/1794527840491-Init.js';
 import { TopicAdDisclosure1794540000000 } from './migrations/1794540000000-TopicAdDisclosure.js';
 import { TopicOptionalBrandUnlimitedWindow1794550000000 } from './migrations/1794550000000-TopicOptionalBrandUnlimitedWindow.js';
+import { TopicFetchLimitUnlimited1794560000000 } from './migrations/1794560000000-TopicFetchLimitUnlimited.js';
 
 /**
  * 적용할 마이그레이션 목록 (오래된 것부터).
@@ -11,4 +12,5 @@ export const MIGRATIONS = [
   Init1794527840491,
   TopicAdDisclosure1794540000000,
   TopicOptionalBrandUnlimitedWindow1794550000000,
+  TopicFetchLimitUnlimited1794560000000,
 ];

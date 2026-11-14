@@ -31,14 +31,14 @@ export interface YoutubeSearchParams {
   publishedAfter: Date | null;
   /** API 쪽 정렬 (후보를 고르는 데만 쓰고, 최종 정렬은 코드가 한다) */
   order: 'viewCount' | 'date';
-  /** 받을 후보 수 (최대 50) */
+  /** 받을 후보 수. 50을 넘으면 검색을 여러 쪽 받는다 (한 쪽 50개, 할당량 100) */
   maxResults: number;
 }
 
 /** YouTube API 클라이언트 */
 export interface YoutubeClient {
   /**
-   * 조건에 맞는 영상 ID 후보를 찾는다 (search.list, 할당량 100 사용)
+   * 조건에 맞는 영상 ID 후보를 찾는다 (search.list, 한 쪽에 할당량 100 사용)
    * @param params 검색 조건
    */
   searchVideoIds(params: YoutubeSearchParams): Promise<string[]>;
@@ -57,6 +57,38 @@ export interface YoutubeClient {
     youtubeId: string,
     maxComments: number,
   ): Promise<YoutubeVideoContext>;
+  /**
+   * 영상의 인기 댓글 (영상 보기 창). commentThreads.list 1번, 할당량 1.
+   * @param youtubeId 유튜브 영상 ID
+   * @param maxComments 가져올 댓글 수 (최대 100)
+   */
+  getComments(youtubeId: string, maxComments: number): Promise<YoutubeComments>;
+}
+
+/** 댓글 하나 (영상 보기 창) */
+export interface YoutubeComment {
+  /** 댓글 ID */
+  id: string;
+  /** 쓴 사람 이름 */
+  author: string;
+  /** 쓴 사람 프로필 사진 */
+  authorImageUrl: string | null;
+  /** 본문 (글자만) */
+  text: string;
+  /** 좋아요 수 */
+  likeCount: number;
+  /** 답글 수 */
+  replyCount: number;
+  /** 쓴 시각 */
+  publishedAt: Date;
+}
+
+/** 영상 댓글 목록 */
+export interface YoutubeComments {
+  /** 댓글이 막힌 영상인지 */
+  disabled: boolean;
+  /** 댓글 (관련성 순) */
+  comments: YoutubeComment[];
 }
 
 /** 분석 재료 */

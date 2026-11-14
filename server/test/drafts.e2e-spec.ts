@@ -57,30 +57,25 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     await app?.close();
   });
 
-  it('[영상 불러오기]: 영상을 정렬하고 초안 작성을 차례로 시작한다', async () => {
+  it('[영상 불러오기]는 영상만 불러오고 초안은 쓰지 않는다 · ②의 [초안 작성]을 누른 영상만 쓴다', async () => {
     const res = await http().post(`/api/topics/${topicId}/load`).expect(201);
-    expect(res.body.progress).toMatchObject({ total: 3, running: true });
-    // 행을 먼저 만들어 두어 카드에 "초안 작성 중"이 바로 보인다 (가짜 AI가 빨라 이미 끝난 것도 있을 수 있다)
     expect(res.body.videos).toHaveLength(3);
-    expect(res.body.videos.every((v: Card) => v.draftState !== 'none')).toBe(
+    expect(res.body.videos.every((v: Card) => v.draftState === 'none')).toBe(
       true,
     );
+    expect(ctx.ai.gemini.calls).toHaveLength(0);
+    cards = Object.fromEntries(
+      res.body.videos.map((v: Card) => [v.youtubeId, v]),
+    );
 
-    // 쓰는 중에 다시 불러오면 막는다
-    await http().post(`/api/topics/${topicId}/load`).expect(409);
-
+    // ② 영상 선택에서 [초안 작성]: 누른 영상마다 쓴다 (차례로 하나씩)
+    for (const id of ['demo00000v1', 'demo00000v2', 'demo00000v3']) {
+      await http()
+        .post(`/api/topics/${topicId}/videos/${cards[id].id}/draft`)
+        .send({})
+        .expect(201);
+    }
     await queue.whenIdle();
-    const progress = await http()
-      .get(`/api/topics/${topicId}/drafts/progress`)
-      .expect(200);
-    expect(progress.body).toMatchObject({
-      total: 3,
-      done: 3,
-      failed: 1,
-      running: false,
-      currentVideoId: null,
-    });
-    expect(progress.body.lastError).toContain('테스트용 분석 실패');
 
     const list = await http().get(`/api/topics/${topicId}/videos`).expect(200);
     cards = Object.fromEntries(list.body.map((v: Card) => [v.youtubeId, v]));
@@ -248,14 +243,40 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(openaiCall.prompt).toContain('영상은 볼 수 없어');
   });
 
-  it('다시 불러오면 초안이 있는 영상은 건너뛰고, 작성에 실패한 영상만 다시 쓴다', async () => {
+  it('다시 불러와도 초안은 새로 쓰지 않는다 (있던 초안·실패 표시는 그대로)', async () => {
     const res = await http().post(`/api/topics/${topicId}/load`).expect(201);
-    // demo00000v3만 실패해 있었다 (가짜 AI는 이 영상의 분석을 늘 실패시킨다)
-    expect(res.body.progress).toMatchObject({ total: 1 });
-    await queue.whenIdle();
-    const again = await http().post(`/api/topics/${topicId}/load`).expect(201);
-    expect(again.body.progress).toMatchObject({ total: 1 });
-    await queue.whenIdle();
+    const byId = Object.fromEntries(
+      res.body.videos.map((v: Card) => [v.youtubeId, v]),
+    ) as Record<string, Card>;
+    expect(byId.demo00000v2.draftState).toBe('ready');
+    expect(byId.demo00000v3.draftState).toBe('error');
+    expect(Object.values(byId).some((v) => v.draftState === 'writing')).toBe(
+      false,
+    );
+  });
+
+  it('영상 보기 창: 인기 댓글을 주고, 댓글이 막힌 영상은 막혔다고 알린다', async () => {
+    const ok = await http()
+      .get(
+        `/api/topics/${topicId}/videos/${cards.demo00000v2.id}/comments?limit=10`,
+      )
+      .expect(200);
+    expect(ok.body).toMatchObject({
+      disabled: false,
+      comments: [
+        { author: '@시청자1', likeCount: 120, replyCount: 3 },
+        { author: '@시청자2' },
+      ],
+    });
+    const off = await http()
+      .get(`/api/topics/${topicId}/videos/${cards.demo00000v3.id}/comments`)
+      .expect(200);
+    expect(off.body).toEqual({ disabled: true, comments: [] });
+    await http()
+      .get(
+        `/api/topics/${topicId}/videos/${cards.demo00000v2.id}/comments?limit=500`,
+      )
+      .expect(400);
   });
 
   it('쓰는 중이면 [다시 생성]을 막고, 서버가 다시 뜨면 쓰다 멈춘 초안을 실패로 바꾼다', async () => {

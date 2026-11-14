@@ -123,40 +123,17 @@ export class DraftsService {
   ) {}
 
   /**
-   * [영상 불러오기]: 영상을 불러오고, 순위에 든 영상의 초안을 차례로 쓰기 시작한다.
-   * 이미 댓글을 단 영상과 초안이 있는 영상은 건너뛴다. 초안 작성에 실패한 영상은 다시 쓴다
-   * (AI 서버 과부하·크레딧 부족처럼 지나간 원인이면 다시 불러오기만으로 채워지게).
+   * [영상 불러오기]: 영상만 불러와 순위를 매긴다. 초안은 쓰지 않는다.
+   * 초안은 ② 영상 선택에서 [초안 작성]을 누를 때 그 영상 하나만 쓴다
+   * (영상을 많이·무제한으로 불러와도 AI 비용이 들지 않게).
    * @param topicId 주제 ID
    */
-  async load(
-    topicId: number,
-  ): Promise<{ videos: VideoItem[]; progress: DraftProgress | null }> {
-    if (this.queue.progressOf(topicId)?.running) {
-      throw new ConflictException(
-        '초안을 쓰는 중이에요 · 끝난 뒤 다시 불러와 주세요',
-      );
-    }
-    const list = await this.videos.fetchForTopic(topicId);
-    const targets = list
-      .filter(
-        (v) =>
-          v.rank !== null &&
-          !v.commented &&
-          (v.draftState === 'none' || v.draftState === DraftState.Error),
-      )
-      .map((v) => v.id);
-    await this.queue.enqueue(topicId, targets, {
-      reanalyze: false,
-      trackProgress: true,
-    });
-    return {
-      videos: await this.videos.listForTopic(topicId),
-      progress: this.queue.progressOf(topicId),
-    };
+  async load(topicId: number): Promise<{ videos: VideoItem[] }> {
+    return { videos: await this.videos.fetchForTopic(topicId) };
   }
 
   /**
-   * [다시 생성]: 초안을 새로 쓴다. reanalyze면 분석부터 다시 한다.
+   * [초안 작성]·[다시 생성]: 이 영상의 초안을 (새로) 쓴다. reanalyze면 분석부터 다시 한다.
    * @param topicId 주제 ID
    * @param videoId 영상 ID
    * @param reanalyze 분석부터 다시 할지
