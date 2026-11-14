@@ -19,6 +19,18 @@ describe('ViewerWorry (시청자 고민 한 줄, RD-32)', () => {
     expect(screen.getByRole('region', { name: '시청자 고민 한 줄' })).toBeInTheDocument();
     expect(screen.getByText('“썸만 3개월째인데 이 사람이 내 인연인지 모르겠어요”')).toBeInTheDocument();
     expect(screen.getByText('AI가 시청자 입장에서 꾸민 고민')).toBeInTheDocument();
+    // 글 모양이 없던 초안은 그 줄을 보이지 않는다
+    expect(screen.queryByText('글 모양')).toBeNull();
+  });
+
+  it('코드가 고른 글 모양을 한 줄로 보인다 (RD-33)', () => {
+    render(
+      <ViewerWorry
+        detail={detail({ worry: '썸만 3개월째예요', style: { summary: '20대 후반 직장인 · 반말 혼잣말 · 질문으로 시작 · 들은 말로 끝에 · 짧게' } })}
+      />,
+    );
+    expect(screen.getByText('글 모양')).toBeInTheDocument();
+    expect(screen.getByText(/20대 후반 직장인 · 반말 혼잣말/)).toBeInTheDocument();
   });
 
   it('기능 전에 쓴 초안(빈 글)이면 [다시 생성]으로 생긴다고 알린다', () => {

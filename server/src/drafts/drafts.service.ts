@@ -22,6 +22,7 @@ import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { TOPIC_MATCH_THRESHOLD } from '../settings/setting-definitions.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AnalysisService } from './analysis.service.js';
+import { recentDraftsOf } from './variety/recent-drafts.js';
 import {
   DraftQueueService,
   type DraftProgress,
@@ -279,8 +280,16 @@ export class DraftsService {
       topic.adDisclosure,
       !!video && myChannels.has(video.channelId),
     );
+    // 같은 주제의 최근 초안과 너무 비슷하거나 말버릇이 겹치면 검사에서 걸린다 (RD-33)
+    const recent = await recentDraftsOf(this.drafts, draft.topicId, draft.id);
     const report = this.checks.run(
-      checkContextOf(text, topic, analysis as VideoAnalysis | null, disclosure),
+      checkContextOf(
+        text,
+        topic,
+        analysis as VideoAnalysis | null,
+        disclosure,
+        recent.map((r) => r.text),
+      ),
     );
     await this.drafts.update(draftId, {
       text,

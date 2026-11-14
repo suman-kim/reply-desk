@@ -233,6 +233,16 @@ export interface Draft {
   state: DraftState;
   /** 시청자 고민 한 줄: AI가 꾸민 시청자 입장의 고민. 이 사람처럼 댓글을 쓴다. 이 기능 전 초안은 빈 글 — RD-32 */
   worry: string;
+  /** 코드가 고른 글 모양 (누가·말투·시작·브랜드 꺼내는 방식·자리·길이). summary는 화면용 한 줄. 이 기능 전 초안은 빈 값 — RD-33 */
+  style: {
+    persona?: string;
+    tone?: string;
+    opening?: string;
+    brandWay?: string;
+    brandSpot?: string;
+    length?: 'short' | 'medium' | 'long';
+    summary?: string;
+  };
   /** 지금 글 */
   text: string;
   /** AI 원본 */

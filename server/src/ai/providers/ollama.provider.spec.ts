@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AiError } from '../ai-provider.js';
-import { OllamaAiProvider } from './ollama.provider.js';
+import { OllamaAiProvider, samplingOptions } from './ollama.provider.js';
 
 const schema = z.object({ text: z.string() });
 const settings = async () => ({
@@ -39,6 +39,28 @@ describe('OllamaAiProvider', () => {
       think: false,
       options: { num_ctx: 16384 },
       format: { type: 'object', required: ['text'] },
+    });
+  });
+
+  it('생성 성향 (RD-33): 초안은 온도를 올리고 반복을 줄이고 매번 다른 seed, 분석은 온도를 낮춘다', async () => {
+    expect(samplingOptions('creative', () => 0.5)).toEqual({
+      temperature: 0.95,
+      top_p: 0.95,
+      repeat_penalty: 1.15,
+      seed: 1_073_741_823,
+    });
+    expect(samplingOptions('precise')).toEqual({ temperature: 0.3 });
+    expect(samplingOptions(undefined)).toEqual({ temperature: 0.7 });
+
+    const { fn, calls } = fakeFetch(200, {
+      message: { content: '{"text":"안녕"}' },
+    });
+    await new OllamaAiProvider(settings, fn).generateJson({
+      ...req,
+      creativity: 'creative',
+    });
+    expect(calls[0].body).toMatchObject({
+      options: { num_ctx: 16384, temperature: 0.95, repeat_penalty: 1.15 },
     });
   });
 

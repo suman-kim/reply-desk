@@ -157,9 +157,24 @@ export class FakeYoutube implements YoutubeClient {
  * - demo00000v3 영상의 분석은 실패한다 (실패 표시 확인용)
  * - 분석 답에는 원문에 없는 인용을 하나 섞는다 (코드가 버리는지 확인용)
  */
+/**
+ * 가짜 AI가 돌아가며 쓰는 초안 (모두 자동 검사를 통과하는 서로 다른 글: 장면 단어 '스토리'·'미련', 운명원 한 번, 40~120자).
+ * 첫 글은 예전 테스트들이 기대하는 글이다.
+ */
+export const DRAFT_TEXTS = [
+  '스토리 계속 본다는 게 미련 신호라니 저도 매일 확인하는데… 운명원 연애사주로 재회운 본다던데 저도 궁금해지네요.',
+  '헤어지고 나서 스토리 몰래 보는 거 나만 그런 줄 알았네ㅋㅋ 친구가 운명원 얘기하던데 재회운도 나오려나',
+  '미련 남은 신호라는 말에 뜨끔했어요. 혹시 운명원에서 사주 봐 본 분 있나요? 다시 연락 올지 궁금해서요',
+  '와 스토리 확인하는 게 미련이었구나.. 검색하다 운명원 이름 봤는데 한번 볼까 고민 중',
+  '매일 스토리만 들여다보는 내가 보여서 좀 슬프다. 운명원 가면 우리 인연 끝난 건지 알 수 있으려나',
+  '미련 신호 얘기 듣고 바로 핸드폰 내려놨어요ㅠ 운명원 잘 본다던데 이번 주말에 알아봐야지',
+];
+
 export class FakeAi implements AiProvider {
   /** 받은 요청 (검증용) */
   readonly calls: { model: string; videoUrl?: string; prompt: string }[] = [];
+  /** 지금까지 쓴 초안 수 (돌아가며 다른 글을 쓴다) */
+  private draftCount = 0;
 
   /**
    * @param id 제공자 ID
@@ -201,9 +216,11 @@ export class FakeAi implements AiProvider {
     });
     // 작성 요청에만 [근거 장면]이 있다 (분석 요청에는 없다)
     if (req.prompt.includes('[근거 장면]')) {
+      // 진짜 AI처럼 매번 다른 글을 쓴다 (RD-33: 같은 글이 이어지면 '최근 초안과 다름' 검사에 걸린다)
+      const text = DRAFT_TEXTS[this.draftCount++ % DRAFT_TEXTS.length];
       return req.schema.parse({
         worry: '헤어진 지 석 달인데 아직도 그 사람 스토리를 몰래 봐요',
-        text: '스토리 계속 본다는 게 미련 신호라니 저도 매일 확인하는데… 운명원 연애사주로 재회운 본다던데 저도 궁금해지네요.',
+        text,
         reasons: [
           '영상 속 "스토리" 장면을 짚음',
           '재회 궁금증으로 운명원을 연결',

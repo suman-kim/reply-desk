@@ -124,14 +124,24 @@ describe('영상 분석·초안 작성 (e2e)', () => {
       edited: false,
       provider: 'claude',
     });
+    // 같은 주제에 앞서 쓴 초안이 있어 '최근 초안과 다름'까지 본다 (RD-33)
     expect(draft.checkResults.map((r: { code: string }) => r.code)).toEqual([
       'length',
       'scene_mention',
       'brand_mention',
       'no_link_hashtag',
       'no_fake_review',
+      'variety',
     ]);
     expect(status).toEqual({ code: 'pending', label: '게시 대기' });
+    // 코드가 고른 글 모양을 남기고, 그 모양을 프롬프트에 붙였다 (RD-33)
+    expect(draft.style).toMatchObject({
+      persona: expect.any(String),
+      tone: expect.any(String),
+      length: expect.stringMatching(/^(short|medium|long)$/),
+      summary: expect.stringContaining(' · '),
+    });
+    expect(ctx.ai.claude.calls.at(-1)!.prompt).toContain('[이번 글 모양]');
 
     // 작업 목록 행에도 매칭 퍼센트
     const rows = (

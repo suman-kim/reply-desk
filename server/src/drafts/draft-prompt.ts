@@ -4,6 +4,8 @@ import type { CheckResult } from '../checks/check.types.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
+import { styleBlock, type DraftStyle } from './variety/draft-style.js';
+import { avoidBlock } from './variety/recent-patterns.js';
 
 /** AI 답의 모양. 고민 한 줄을 먼저 꾸민 뒤 그 사람이 쓴 것처럼 댓글을 쓴다 (RD-32) */
 export const draftSchema = z.object({
@@ -38,11 +40,13 @@ export const DRAFT_SYSTEM = [
   '- 시청자 입장의 1인칭 한 문장으로 쓴다. 영상 내용과 이어지면 좋고, 이어지지 않아도 홍보 대상과 맞는 고민으로 만든다.',
   '그다음 그 고민을 가진 사람이 쓴 것처럼, 영상 속 장면에 공감하면서 그 궁금증이 홍보 대상으로 자연스럽게 이어지게 댓글을 쓴다.',
   '꼭 지킬 것:',
-  '- 영상 속 장면을 하나 짚는다 (시점이나 장면 속 말을 넣는다).',
+  '- 영상 속 장면을 하나 짚는다. 시점, 장면 속 말, 장면 묘사 중 하나면 되고 매번 시점으로 시작하지 않는다.',
   '- 브랜드 단어는 딱 한 번만 쓴다.',
   '- 링크, 해시태그, 이모지 남발을 쓰지 않는다.',
-  '- 브랜드를 직접 써 봤다거나 효과를 봤다고 지어내지 않는다. "잘 본다던데"처럼 들은 말이나 "궁금하다"처럼 바람으로 쓴다.',
-  '- 광고 문구가 아니라 시청자 혼잣말처럼 쓴다. 조회수 같은 숫자는 쓰지 않는다.',
+  '- 브랜드를 직접 써 봤다거나 효과를 봤다고 지어내지 않는다 (받아 봤다·다녀왔다·맞았다·후기 같은 말을 쓰지 않는다). 브랜드를 꺼내는 방식은 [이번 글 모양]을 따른다.',
+  '- 실제 유튜브 댓글처럼 쓴다. 광고처럼 정돈된 문장, 뻔한 공감 인사, "○○ 같은 곳에서 한번 확인해 보고 싶네요" 같은 판에 박힌 맺음말을 피한다. 문장이 짧게 끊기거나 맞춤법이 조금 느슨해도 된다.',
+  '- 조회수 같은 숫자는 쓰지 않는다.',
+  '- [이번 글 모양]과 [최근 초안에 자주 나온 말]이 있으면 꼭 따른다.',
   '- 글자 수 범위를 꼭 지킨다. 넘칠 것 같으면 문장을 줄인다.',
   '쓴 이유(reasons)는 한 줄 40자 안팎의 짧은 구로, 명사형으로 끝낸다. 예:',
   '- 04:12 "확신이 없어서" 대목을 시점과 함께 짚음',
@@ -92,7 +96,7 @@ export const DEFAULT_DRAFT_PROMPT = {
     '[근거 장면]',
     '{{근거 장면}}',
     '',
-    '먼저 이 영상을 본 시청자 한 사람의 고민을 한 줄로 지어내고, 그 사람이 쓴 것처럼 위 장면 하나를 짚어 공감하며 그 관심이 홍보 대상으로 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
+    '먼저 이 영상을 본 시청자 한 사람의 고민을 한 줄로 지어내고, 그 사람이 쓴 것처럼 아래 [이번 글 모양]대로 위 장면 하나를 짚으며 홍보 대상까지 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
   ].join('\n'),
   /** 자동 검사에 걸려 다시 쓸 때 자료 뒤에 덧붙이는 틀 */
   retry: [
@@ -161,24 +165,45 @@ export function draftRetryValues(retry: {
 }
 
 /**
+ * 장면 검사가 찾는 단어와 시점 (장면 핵심 단어 먼저, 그다음 시점)
+ * @param analysis 영상 분석
+ */
+export function sceneWordsOf(
+  analysis: Pick<VideoAnalysis, 'scenes'> &
+    Partial<Pick<VideoAnalysis, 'sceneKeywords'>>,
+): string[] {
+  const times = analysis.scenes.flatMap((s) => (s.time ? [s.time] : []));
+  return [...new Set([...(analysis.sceneKeywords ?? []), ...times])].filter(
+    (w) => w.trim().length > 0,
+  );
+}
+
+/**
  * 작성 프롬프트(자료)를 만든다.
  * @param topic 주제 (말투·글자 수·브랜드)
  * @param video 영상
  * @param analysis 영상 분석
  * @param retry 앞 시도가 검사에 걸렸으면 그 글과 걸린 이유
  * @param templates 자료 틀과 다시 쓸 때 틀 (설정 prompt.drafting)
+ * @param variety 이번 글 모양과 최근 초안에서 피할 말 (RD-33). 설정의 틀과 상관없이 코드가 붙인다
  */
 export function buildDraftPrompt(
   topic: Parameters<typeof draftPromptValues>[0],
   video: Pick<Video, 'title'>,
-  analysis: Pick<VideoAnalysis, 'scenes'>,
+  analysis: Pick<VideoAnalysis, 'scenes'> &
+    Partial<Pick<VideoAnalysis, 'sceneKeywords'>>,
   retry?: { text: string; failed: CheckResult[] },
   templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
+  variety: { style?: DraftStyle; avoid?: string[] } = {},
 ): string {
-  const body = renderTemplate(
-    templates.user,
-    draftPromptValues(topic, video, analysis),
-  );
-  if (!retry) return body;
-  return `${body}\n\n${renderTemplate(templates.retry, draftRetryValues(retry))}`;
+  // 자료 → 이번 글 모양 → 피할 말 → (다시 쓸 때) 고칠 점
+  const parts = [
+    renderTemplate(templates.user, draftPromptValues(topic, video, analysis)),
+    variety.style
+      ? styleBlock(variety.style, topic, sceneWordsOf(analysis))
+      : '',
+    avoidBlock(variety.avoid ?? []),
+    retry ? renderTemplate(templates.retry, draftRetryValues(retry)) : '',
+  ];
+  return parts.filter(Boolean).join('\n\n');
 }

@@ -89,6 +89,11 @@ export interface AiRequest<T> {
   videoUrl?: string;
   /** 제한 시간 (밀리초) */
   timeoutMs: number;
+  /**
+   * 생성 성향 (RD-33). precise: 사실을 정확히(분석), creative: 매번 다르게(초안 작성). 없으면 제공자 기본값.
+   * 지금은 Ollama만 반영한다 (Gemini 3은 기본 온도를 권하고, OpenAI 추론 모델은 온도를 받지 않는다).
+   */
+  creativity?: 'precise' | 'creative';
 }
 
 /** 모든 제공자가 구현할 기능 */

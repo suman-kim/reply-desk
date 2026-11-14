@@ -4,6 +4,7 @@ import type { DraftDetail } from '../api/types';
  * 시청자 고민 한 줄 (RD-32): AI가 시청자 입장에서 꾸민 고민. 이 고민을 가진 사람이 쓴 것처럼 댓글 초안을 쓴다.
  * 작업 상세 B칸에서 댓글 초안 바로 위에 둔다 (과제: 영상을 고르면 고민 한 줄과 초안이 함께 보인다).
  * 다 쓴 초안에만 보이고, 이 기능 전에 쓴 초안(빈 글)이면 [다시 생성]으로 생긴다고 알린다.
+ * 아래에 코드가 고른 글 모양(누가·말투·시작·브랜드 꺼내는 방식·길이)을 한 줄로 보인다 (RD-33).
  * @param props.detail 영상·초안
  */
 export function ViewerWorry({ detail }: { detail: DraftDetail }) {
@@ -28,6 +29,12 @@ export function ViewerWorry({ detail }: { detail: DraftDetail }) {
       </div>
       <p className="rd-worry-text text-body-strong">“{worry}”</p>
       <span className="text-caption rd-muted">이 고민을 가진 사람이 쓴 것처럼 아래 댓글을 썼어요</span>
+      {/* 코드가 초안마다 고른 글 모양 (최근 초안과 겹치지 않게, RD-33) */}
+      {draft.style?.summary ? (
+        <span className="text-caption rd-ink2 rd-worry-style">
+          <b>글 모양</b> {draft.style.summary}
+        </span>
+      ) : null}
     </section>
   );
 }

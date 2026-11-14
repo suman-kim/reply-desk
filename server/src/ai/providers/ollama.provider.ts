@@ -28,6 +28,30 @@ interface OllamaChatResponse {
  * - format — JSON 스키마를 넘겨 그 모양으로만 답하게 한다
  */
 /**
+ * 생성 성향 → Ollama 샘플링 옵션 (RD-33)
+ * - precise(분석): 온도를 낮춰 같은 영상이면 비슷하게, 사실을 정확히
+ * - creative(초안): 온도를 올리고 같은 말 반복을 줄이고, 매번 다른 seed로 다른 글이 나오게
+ * - 없음: 예전 값(0.7)
+ * @param creativity 생성 성향
+ * @param rng 무작위 함수 (테스트용)
+ */
+export function samplingOptions(
+  creativity: 'precise' | 'creative' | undefined,
+  rng: () => number = Math.random,
+): Record<string, number> {
+  if (creativity === 'precise') return { temperature: 0.3 };
+  if (creativity === 'creative') {
+    return {
+      temperature: 0.95,
+      top_p: 0.95,
+      repeat_penalty: 1.15,
+      seed: Math.floor(rng() * 2_147_483_647),
+    };
+  }
+  return { temperature: 0.7 };
+}
+
+/**
  * 주소의 포트 (터널 안내용). 없으면 Ollama 기본 11434
  * @param baseUrl Ollama 주소
  */
@@ -91,7 +115,7 @@ export class OllamaAiProvider implements AiProvider {
           stream: false,
           think: false,
           format: z.toJSONSchema(req.schema, { io: 'input' }),
-          options: { num_ctx: numCtx, temperature: 0.7 },
+          options: { num_ctx: numCtx, ...samplingOptions(req.creativity) },
           messages: [
             { role: 'system', content: req.system },
             { role: 'user', content: req.prompt },
