@@ -9,6 +9,7 @@ import {
   createTestApp,
   MY_CHANNEL,
   type FakeBrowser,
+  type TestContext,
 } from './support/test-app.js';
 
 /** 영상 카드 일부 */
@@ -24,6 +25,7 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
   let app: INestApplication<App>;
   let ds: DataSource;
   let browser: FakeBrowser;
+  let ai: TestContext['ai'];
   let publish: PublishService;
   let topicId: number;
   let p1: { id: number; folderPath: string };
@@ -32,7 +34,7 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
   const http = () => request(app.getHttpServer());
 
   beforeAll(async () => {
-    ({ app, ds, browser } = await createTestApp());
+    ({ app, ds, browser, ai } = await createTestApp());
     publish = app.get(PublishService);
     p1 = (
       await http().post('/api/profiles').send({ name: '유튜브1' }).expect(201)
@@ -234,6 +236,78 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       .patch(`/api/drafts/${o.draft.id}`)
       .send({ text: o.draft.aiText })
       .expect(200);
+  });
+
+  it('같은 영상에 한 번 더 (RD-27): 새 초안은 이미 단 댓글을 받아 다른 글로 쓰고, 다시 게시하면 기록이 둘 남는다', async () => {
+    const v = cards.demo00000v2.id;
+    const first = await http()
+      .get(`/api/topics/${topicId}/videos/${v}/draft`)
+      .expect(200);
+    expect(first.body.status.code).toBe('posted');
+    const firstText = first.body.draft.text as string;
+
+    // [새 초안 쓰고 한 번 더 달기] = 다시 생성
+    await http()
+      .post(`/api/topics/${topicId}/videos/${v}/draft`)
+      .send({})
+      .expect(201);
+    await app.get(DraftQueueService).whenIdle();
+    const fresh = await http()
+      .get(`/api/topics/${topicId}/videos/${v}/draft`)
+      .expect(200);
+    expect(fresh.body.status.code).toBe('pending');
+    expect(fresh.body.video).toMatchObject({
+      commented: false,
+      commentCount: 1,
+    });
+    expect(fresh.body.draft.text).not.toBe(firstText);
+    // AI에게 이미 단 댓글을 넘겼다 (설정에서 쓰는 모델이 무엇이든 마지막 작성 요청)
+    const draftCalls = Object.values(ai)
+      .flatMap((a) => a.calls)
+      .filter((c) => c.prompt.includes('[근거 장면]'));
+    expect(draftCalls.at(-1)!.prompt).toContain(
+      `[이미 이 영상에 단 댓글]\n- ${firstText}`,
+    );
+    expect(
+      fresh.body.draft.checkResults.find(
+        (r: { code: string }) => r.code === 'not_duplicate',
+      ),
+    ).toMatchObject({ passed: true });
+
+    // 이미 단 댓글과 같은 글로 고치면 검사에 걸린다
+    const same = await http()
+      .patch(`/api/drafts/${fresh.body.draft.id}`)
+      .send({ text: firstText })
+      .expect(200);
+    expect(same.body.checkPassed).toBe(false);
+    await http()
+      .patch(`/api/drafts/${fresh.body.draft.id}`)
+      .send({ text: fresh.body.draft.aiText })
+      .expect(200);
+
+    const res = await http()
+      .post(`/api/topics/${topicId}/videos/${v}/post`)
+      .send({})
+      .expect(201);
+    await publish.whenIdle();
+    expect(
+      (await http().get(`/api/posting/attempts/${res.body.id}`).expect(200))
+        .body.status,
+    ).toBe('success');
+
+    const after = await http()
+      .get(`/api/topics/${topicId}/videos/${v}/draft`)
+      .expect(200);
+    expect(after.body.status.code).toBe('posted');
+    expect(after.body.video).toMatchObject({
+      commented: true,
+      commentCount: 2,
+    });
+    expect(
+      after.body.attempts
+        .filter((a: { status: string }) => a.status === 'success')
+        .map((a: { commentText: string }) => a.commentText),
+    ).toEqual([fresh.body.draft.aiText, firstText]);
   });
 
   it('실패: 로그인이 풀렸으면 그 단계에서 멈추고, 캡처를 남기고, 프로필을 다시 로그인 필요로 바꾼다', async () => {

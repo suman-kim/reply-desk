@@ -10,6 +10,7 @@ import { requiredDisclosure } from '../checks/ad-disclosure.js';
 import { CheckRunnerService } from '../checks/check-runner.service.js';
 import { EventsService } from '../events/events.service.js';
 import { PostAttempt, PostStatus } from '../posting/post-attempt.entity.js';
+import { postedCommentsOf } from '../posting/posted-comments.js';
 import { ProfilesService } from '../profiles/profiles.service.js';
 import { TopicsService } from '../topics/topics.service.js';
 import { Video } from '../videos/video.entity.js';
@@ -296,13 +297,15 @@ export class DraftsService {
     );
     // 같은 주제의 최근 초안과 너무 비슷하거나 말버릇이 겹치면 검사에서 걸린다 (RD-33)
     const recent = await recentDraftsOf(this.drafts, draft.topicId, draft.id);
+    // 이 영상에 이미 단 댓글과 같은 글이면 검사에서 걸린다 (RD-27)
+    const posted = await postedCommentsOf(this.attempts, draft.videoId);
     const report = this.checks.run(
       checkContextOf(
         text,
         topic,
         analysis as VideoAnalysis | null,
         disclosure,
-        recent.map((r) => r.text),
+        { recentTexts: recent.map((r) => r.text), posted },
       ),
     );
     await this.drafts.update(draftId, {

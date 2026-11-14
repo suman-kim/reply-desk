@@ -24,6 +24,8 @@ export interface CheckContext {
    * texts: 최근 초안 본문(광고 표시 뺀 것), overused: 최근 초안 70% 이상에 나온 말버릇
    */
   recent: { texts: string[]; overused: string[] };
+  /** 이 영상에 이미 단 댓글 글 (최근 순, text처럼 광고 표시는 뺀 것). 없으면 빈 목록 → 중복 검사를 건너뛴다 (RD-27) */
+  postedTexts: string[];
   /** 주제 설정 중 검사에 쓰는 값 */
   topic: {
     /** 최소 글자 수 */
