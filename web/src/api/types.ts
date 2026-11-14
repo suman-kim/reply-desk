@@ -1,0 +1,397 @@
+/**
+ * 서버 응답 타입. server/src 의 같은 이름 타입을 화면에서 쓰는 만큼만 옮겼다.
+ * 서버를 고치면 여기도 함께 고친다.
+ */
+
+/** 프로필 로그인 상태 */
+export type LoginStatus = 'unknown' | 'ok' | 'needs_login';
+
+/** 주제 (GET /topics) */
+export interface Topic {
+  /** 주제 ID */
+  id: number;
+  /** 주제 이름 */
+  name: string;
+  /** 유도 대상 한 줄 */
+  brandTarget: string;
+  /** 브랜드 언급 검사 단어 */
+  brandWord: string;
+  /** 검색 키워드 */
+  keywords: string[];
+  /** 최근 며칠 */
+  videoWindowDays: number;
+  /** 정렬 기준 */
+  videoSortBy: 'view_count' | 'date';
+  /** 한 번에 불러올 영상 수 */
+  fetchLimit: number;
+  /** 댓글 말투 */
+  tone: string;
+  /** 최소 글자 수 */
+  minLength: number;
+  /** 최대 글자 수 */
+  maxLength: number;
+  /** 추가 금지 표현 */
+  bannedWords: string[];
+  /** 주제 하루 상한 */
+  dailyCap: number;
+  /** 상태 */
+  status: 'active' | 'paused';
+  /** 쓸 프로필 */
+  profiles: { id: number; name: string; loginStatus: LoginStatus }[];
+  /** 오늘 게시 수 */
+  postedToday: number;
+  /** 게시 대기 초안 수 */
+  pendingDrafts: number;
+}
+
+/** 주제 만들기·고치기 요청 */
+export type TopicInput = Pick<
+  Topic,
+  | 'name'
+  | 'brandTarget'
+  | 'brandWord'
+  | 'keywords'
+  | 'videoWindowDays'
+  | 'videoSortBy'
+  | 'fetchLimit'
+  | 'tone'
+  | 'minLength'
+  | 'maxLength'
+  | 'bannedWords'
+  | 'dailyCap'
+  | 'status'
+> & { profileIds: number[] };
+
+/** 프로필 (GET /profiles) */
+export interface Profile {
+  /** 프로필 ID */
+  id: number;
+  /** 이름 (유튜브1) */
+  name: string;
+  /** 폴더 이름 */
+  slug: string;
+  /** 폴더 경로 */
+  folderPath: string;
+  /** 가린 구글 계정 */
+  googleAccountMasked: string | null;
+  /** 채널 ID */
+  channelId: string | null;
+  /** 채널 이름 */
+  channelTitle: string | null;
+  /** 화면 언어 */
+  uiLanguage: string | null;
+  /** 로그인 상태 */
+  loginStatus: LoginStatus;
+  /** 마지막 확인 시각 */
+  lastCheckedAt: string | null;
+  /** 오늘 게시 수 */
+  postedToday: number;
+  /** 쓰는 주제 */
+  topics: { id: number; name: string }[];
+}
+
+/** 로그인 확인 결과 (POST /profiles/:id/check) */
+export interface LoginCheckView {
+  /** 고친 프로필 */
+  profile: Profile;
+  /** 결과 한 줄 */
+  message: string;
+  /** 경고인지 */
+  warning: boolean;
+}
+
+/** 초안 작성 상태 */
+export type DraftState = 'writing' | 'ready' | 'error';
+
+/** ① 영상 카드 (GET /topics/:id/videos) */
+export interface VideoItem {
+  /** 내부 영상 ID */
+  id: number;
+  /** 유튜브 영상 ID */
+  youtubeId: string;
+  /** 유튜브 주소 */
+  url: string;
+  /** 제목 */
+  title: string;
+  /** 채널 이름 */
+  channelTitle: string;
+  /** 올린 시각 */
+  publishedAt: string;
+  /** 조회수 */
+  viewCount: number;
+  /** 길이(초) */
+  durationSec: number;
+  /** 썸네일 */
+  thumbnailUrl: string | null;
+  /** 불러오기 순위 */
+  rank: number | null;
+  /** 들어온 경로 */
+  source: 'search' | 'manual';
+  /** 내 채널 영상 */
+  isMine: boolean;
+  /** 댓글 완료 */
+  commented: boolean;
+  /** 최근 초안 상태 */
+  draftState: DraftState | 'none';
+  /** 최근 초안 검사 통과 */
+  checkPassed: boolean;
+}
+
+/** 자동 작성 진행률 */
+export interface DraftProgress {
+  /** 묶음 영상 수 */
+  total: number;
+  /** 끝난 수 */
+  done: number;
+  /** 실패 수 */
+  failed: number;
+  /** 도는 중 */
+  running: boolean;
+  /** 지금 쓰는 영상 */
+  currentVideoId: number | null;
+  /** 마지막 실패 원인 */
+  lastError: string | null;
+}
+
+/** 근거 장면 */
+export interface EvidenceScene {
+  /** 시점 (04:12), 댓글이면 null */
+  time: string | null;
+  /** 인용 */
+  quote: string;
+  /** 출처 */
+  source: 'video' | 'comment';
+}
+
+/** 영상 분석 */
+export interface Analysis {
+  /** 분석 ID */
+  id: number;
+  /** 고민 한 줄 */
+  worry: string;
+  /** 고른 이유 */
+  pickReasons: string[];
+  /** 근거 장면 */
+  scenes: EvidenceScene[];
+  /** 분석한 AI */
+  provider: string;
+  /** 모델 */
+  model: string;
+}
+
+/** 자동 검사 결과 한 줄 */
+export interface CheckResult {
+  /** 검사 코드 */
+  code: string;
+  /** 검사 이름 */
+  label: string;
+  /** 통과 */
+  passed: boolean;
+  /** 결과 설명 */
+  detail: string;
+}
+
+/** 초안 */
+export interface Draft {
+  /** 초안 ID */
+  id: number;
+  /** 주제 ID */
+  topicId: number;
+  /** 영상 ID */
+  videoId: number;
+  /** 작성 상태 */
+  state: DraftState;
+  /** 지금 글 */
+  text: string;
+  /** AI 원본 */
+  aiText: string;
+  /** 쓴 이유 */
+  reasons: string[];
+  /** 사람이 고쳤는지 */
+  edited: boolean;
+  /** 검사 결과 */
+  checkResults: CheckResult[];
+  /** 검사 통과 */
+  checkPassed: boolean;
+  /** 쓴 AI */
+  provider: string | null;
+  /** 모델 */
+  model: string | null;
+  /** 작성 실패 원인 */
+  errorMessage: string | null;
+  /** 만든 시각 */
+  createdAt: string;
+  /** 고친 시각 */
+  updatedAt: string;
+}
+
+/** 초안 목록 상태 */
+export type DraftListStatus = 'pending' | 'failed' | 'check_failed' | 'posted' | 'draft_only' | 'writing' | 'error';
+
+/** 게시 결과 */
+export type PostStatus = 'running' | 'success' | 'failed';
+
+/** 게시 단계 */
+export type PostStep = 'open_profile' | 'find_comment_box' | 'type' | 'submit' | 'verify';
+
+/** ② 칸 / 초안 상세 (GET /topics/:id/videos/:videoId/draft) */
+export interface DraftDetail {
+  /** 영상 */
+  video: VideoItem;
+  /** 최근 분석 */
+  analysis: Analysis | null;
+  /** 최근 초안 */
+  draft: Draft | null;
+  /** 목록 상태 */
+  status: { code: DraftListStatus; label: string } | null;
+  /** 이 영상의 게시 기록 */
+  attempts: {
+    id: number;
+    status: PostStatus;
+    failedStep: PostStep | null;
+    failureReason: string | null;
+    startedAt: string;
+    commentUrl: string | null;
+  }[];
+}
+
+/** 진행 단계 한 줄 */
+export interface StepView {
+  /** 단계 */
+  step: PostStep;
+  /** 이름 */
+  label: string;
+  /** 상태 */
+  state: 'done' | 'running' | 'failed' | 'waiting';
+}
+
+/** 게시 상태 (GET /posting/attempts/:id) */
+export interface AttemptView {
+  /** 게시 시도 ID */
+  id: number;
+  /** 결과 */
+  status: PostStatus;
+  /** 프로필 이름 */
+  profileName: string | null;
+  /** 진행 5단계 */
+  steps: StepView[];
+  /** 입력 진행 */
+  typing: { typed: number; total: number } | null;
+  /** 실패 원인 */
+  failureReason: string | null;
+  /** 실패 캡처 있음 */
+  hasCapture: boolean;
+  /** 미리보기 있음 */
+  hasPreview: boolean;
+  /** 댓글 주소 */
+  commentUrl: string | null;
+  /** 시작 */
+  startedAt: string;
+  /** 끝 */
+  finishedAt: string | null;
+}
+
+/** 게시 판단 (GET /topics/:id/post-check) */
+export interface PostCheck {
+  /** 버튼 열림 */
+  allowed: boolean;
+  /** 막힌 사유 */
+  block: { code: string; message: string } | null;
+  /** 게시할 프로필 */
+  profile: { id: number; name: string } | null;
+  /** 자동 배정인지 */
+  autoAssigned: boolean;
+  /** 오늘 현황 */
+  today: { posted: number; cap: number; topicPosted: number; topicCap: number };
+}
+
+/** 오늘 게시 현황 (GET /posting/today) */
+export interface TodayQuota {
+  /** 오늘 전체 */
+  posted: number;
+  /** 전체 상한 */
+  cap: number;
+  /** 주제별 */
+  byTopic: Record<string, number>;
+}
+
+/** 게시 기록 한 행 (GET /posting/logs) */
+export interface PostLogRow {
+  /** 게시 시도 ID */
+  id: number;
+  /** 시작 */
+  startedAt: string;
+  /** 영상 */
+  video: { id: number; youtubeId: string; title: string } | null;
+  /** 주제 */
+  topic: { id: number; name: string } | null;
+  /** 프로필 이름 */
+  profileName: string | null;
+  /** 댓글 */
+  commentText: string;
+  /** 결과 */
+  status: PostStatus;
+  /** 실패 원인 */
+  failureReason: string | null;
+  /** 캡처 있음 */
+  hasScreenshot: boolean;
+  /** 댓글 주소 */
+  commentUrl: string | null;
+}
+
+/** 초안 목록 한 행 (GET /drafts) */
+export interface DraftListRow {
+  /** 초안 ID */
+  id: number;
+  /** 주제 */
+  topic: { id: number; name: string };
+  /** 영상 */
+  video: { id: number; youtubeId: string; title: string; channelTitle: string; isMine: boolean };
+  /** 글 */
+  text: string;
+  /** 고쳤는지 */
+  edited: boolean;
+  /** 상태 */
+  status: DraftListStatus;
+  /** 상태 이름 */
+  statusLabel: string;
+  /** 작성 실패 원인 */
+  errorMessage: string | null;
+  /** 고친 시각 */
+  updatedAt: string;
+}
+
+/** 설정 한 줄 (GET /settings) */
+export interface SettingView {
+  /** 키 */
+  key: string;
+  /** 이름 */
+  label: string;
+  /** 도움말 */
+  help: string;
+  /** 지금 값 */
+  value: unknown;
+  /** 기본값 */
+  defaultValue: unknown;
+  /** 기본값인지 */
+  isDefault: boolean;
+}
+
+/** AI 제공자 */
+export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'ollama';
+
+/** AI 제공자 안내 (GET /settings/ai/providers) */
+export interface AiProviderInfo {
+  /** ID */
+  id: AiProviderId;
+  /** 이름 */
+  label: string;
+  /** 쓸 수 있는지 */
+  ready: boolean;
+  /** 안내 */
+  note: string;
+  /** 영상을 직접 보는지 */
+  canWatchVideo: boolean;
+  /** 모델 예시 */
+  modelExamples: string[];
+}
