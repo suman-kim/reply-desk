@@ -189,12 +189,31 @@ export function TaskShellProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** 패널 거르기: 게시 대기 · 작성 중 · 확인 필요(실패·검사 미통과·작성 실패) · 전체 */
-const PANEL_GROUPS: Record<'pending' | 'writing' | 'attention' | 'all', DraftListStatus[] | null> = {
+/** 패널 거르기 (RD-31): 전체 · 게시 대기 · 작성 중 · 확인 필요(실패·검사 미통과·작성 실패) · 게시 완료. 값이 null이면 모든 상태 */
+const PANEL_GROUPS: Record<'all' | 'pending' | 'writing' | 'attention' | 'posted', DraftListStatus[] | null> = {
+  all: null,
   pending: ['pending'],
   writing: ['writing'],
   attention: ['failed', 'check_failed', 'error'],
-  all: null,
+  posted: ['posted'],
+};
+
+/** 패널 거르기 이름 (화면에 보이는 순서) */
+const PANEL_GROUP_LABELS: [keyof typeof PANEL_GROUPS, string][] = [
+  ['all', '전체'],
+  ['pending', '게시 대기'],
+  ['writing', '작성 중'],
+  ['attention', '확인 필요'],
+  ['posted', '게시 완료'],
+];
+
+/** 거른 칸이 비었을 때 한 줄 */
+const PANEL_EMPTY: Record<keyof typeof PANEL_GROUPS, string> = {
+  all: '아직 작업이 없어요 · 대시보드에서 영상을 골라 초안을 써 보세요',
+  pending: '게시를 기다리는 초안이 없어요',
+  writing: '지금 쓰는 초안이 없어요',
+  attention: '확인할 작업이 없어요',
+  posted: '아직 게시한 댓글이 없어요',
 };
 
 /** 패널에 한 번에 보이는 작업 수 (더 보려면 작업 목록으로) */
@@ -231,17 +250,12 @@ export function TaskPanel({ topic }: { topic: Topic }) {
         label="작업 거르기"
         value={group}
         onChange={(v) => setGroup(v as keyof typeof PANEL_GROUPS)}
-        options={[
-          { value: 'pending', label: `게시 대기 ${count('pending')}` },
-          { value: 'writing', label: `작성 중 ${count('writing')}` },
-          { value: 'attention', label: `확인 필요 ${count('attention')}` },
-          { value: 'all', label: '전체' },
-        ]}
+        options={PANEL_GROUP_LABELS.map(([value, label]) => ({ value, label: `${label} ${count(value)}` }))}
       />
       {drafts.isPending ? <LoadingBox>작업을 불러오는 중…</LoadingBox> : null}
       {drafts.error ? <ErrorBand error={drafts.error} onRetry={() => void drafts.refetch()} /> : null}
       {drafts.data && rows.length === 0 ? (
-        <EmptyBox>{group === 'writing' ? '지금 쓰는 초안이 없어요' : '이 칸에 해당하는 작업이 없어요'}</EmptyBox>
+        <EmptyBox>{PANEL_EMPTY[group]}</EmptyBox>
       ) : null}
       <div className="rd-stack">
         {rows.slice(0, PANEL_ROWS).map((r) => {
