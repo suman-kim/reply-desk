@@ -56,6 +56,19 @@ describe('AI 오류를 화면 한 줄로', () => {
     ).toContain('Claude 크레딧(잔액)이 없어요');
   });
 
+  it('제한 시간이 지나면 어느 모델인지와, 계속되면 다른 모델로 바꾸라고 안내한다', () => {
+    // 2026-11-13: gemini-3.8-flash가 붐빌 때 503도 없이 멈춰, 다시 눌러도 같은 모델로 또 기다렸다
+    const timeout = new DOMException(
+      'The operation was aborted due to timeout',
+      'TimeoutError',
+    );
+    const e = toAiError('Gemini', 'gemini-3.8-flash', timeout);
+    expect(e.message).toBe(
+      'Gemini의 "gemini-3.8-flash" 모델이 제한 시간 안에 답하지 않았어요 (붐빌 때는 답 없이 멈추기도 해요) · 잠시 뒤 [다시 생성]을 누르고, 계속되면 설정에서 다른 모델로 바꿔 주세요',
+    );
+    expect(e.retryable).toBe(true);
+  });
+
   it('사용 한도(429 quota)는 한도 안내', () => {
     expect(
       toAiError(
