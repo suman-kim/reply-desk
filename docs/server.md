@@ -48,7 +48,7 @@
 
 ## 크롬 로그인과 댓글 게시
 
-- **로그인**: 구글은 자동화 크롬에서 로그인을 막는다. 그래서 [크롬 열기](`POST /profiles/:id/login`)는 **일반 크롬**을 그 프로필 폴더로 열기만 한다(`open -na "Google Chrome" --args --user-data-dir=… --remote-debugging-port=0 --disable-blink-features=AutomationControlled`). 사람이 로그인하면 [연결 확인](`POST /profiles/:id/check`)이 로그인 여부, 채널 ID(`/account_advanced`), 채널 이름, 화면 언어를 읽는다. 다른 프로필이 이미 쓰는 채널이면 막는다.
+- **로그인**: 구글은 자동화 크롬에서 로그인을 막는다. 그래서 [크롬 열기](`POST /profiles/:id/login`)는 **일반 크롬**을 그 프로필 폴더로 열기만 한다(`open -na "Google Chrome" --args --user-data-dir=… --remote-debugging-port=0 --disable-blink-features=AutomationControlled`). 사람이 로그인하면 [연결 확인](`POST /profiles/:id/check`)이 로그인 여부, 채널 ID, 채널 이름, 화면 언어를 읽는다. 채널 ID는 `/profile`이 넘겨 주는 내 채널 주소(또는 canonical 링크)에서 읽고, 안 되면 `/account_advanced`의 읽기 전용 입력 칸 값에서 읽는다(이 화면은 ID를 입력 칸에 넣어 innerText로는 안 보인다). 다른 프로필이 이미 쓰는 채널이면 막는다.
 - **열어 둔 크롬에 붙기** (`browser/chrome-session.ts`): 로그인 창을 닫지 않아도 된다.
   - 크롬을 쓰기 전에 프로필 폴더의 `SingletonLock`(`컴퓨터이름-프로세스번호`)으로 그 폴더를 쓰는 크롬이 살아 있는지 본다.
   - 없으면 Playwright로 새로 띄운다(로그인 확인은 창 없이, 게시는 설정 `posting.headless`대로). 끝나면 닫는다.

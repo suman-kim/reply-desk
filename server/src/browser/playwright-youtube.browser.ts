@@ -83,35 +83,82 @@ export class PlaywrightYoutubeBrowser implements YoutubeBrowser {
           uiLanguage,
         };
 
-      // 채널 ID는 고급 계정 설정 화면에 나온다
-      await page.goto('https://www.youtube.com/account_advanced', {
-        waitUntil: 'domcontentloaded',
-        timeout: 30_000,
-      });
-      const body = await page
-        .locator('body')
-        .innerText({ timeout: 15_000 })
-        .catch(() => '');
-      const channelId = CHANNEL_ID_PATTERN.exec(body)?.[0] ?? null;
-
-      let channelTitle: string | null = null;
-      if (channelId) {
-        await page.goto(`https://www.youtube.com/channel/${channelId}`, {
-          waitUntil: 'domcontentloaded',
-          timeout: 30_000,
-        });
-        channelTitle =
-          (await page
-            .locator('meta[property="og:title"]')
-            .getAttribute('content', { timeout: 10_000 })
-            .catch(() => null)) ??
-          (await page.title()).replace(/\s*-\s*YouTube$/, '') ??
-          null;
-      }
+      const { channelId, channelTitle } = await this.readOwnChannel(page);
       return { loggedIn: true, channelId, channelTitle, uiLanguage };
     } finally {
       await session.close();
     }
+  }
+
+  /**
+   * 로그인한 계정의 유튜브 채널 ID·이름을 읽는다. 채널이 없으면 둘 다 null.
+   * 1. /profile: 채널이 있으면 내 채널 화면(/channel/UC… 또는 /@핸들)으로 넘어간다. 주소나 canonical 링크에서 ID를 읽는다.
+   * 2. 안 되면 /account_advanced: 채널 ID가 읽기 전용 입력 칸의 값으로 들어 있어 innerText로는 안 보인다 (2026-11 실제 계정에서 확인).
+   * @param page 로그인 확인 탭
+   */
+  private async readOwnChannel(
+    page: Page,
+  ): Promise<{ channelId: string | null; channelTitle: string | null }> {
+    await page.goto('https://www.youtube.com/profile', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    const canonical = await page
+      .locator('link[rel="canonical"]')
+      .first()
+      .getAttribute('href', { timeout: 10_000 })
+      .catch(() => null);
+    let channelId =
+      CHANNEL_ID_PATTERN.exec(page.url())?.[0] ??
+      CHANNEL_ID_PATTERN.exec(canonical ?? '')?.[0] ??
+      null;
+    if (channelId) {
+      // 지금 내 채널 화면이라 이름도 여기서 읽는다
+      return { channelId, channelTitle: await this.readChannelTitle(page) };
+    }
+
+    await page.goto('https://www.youtube.com/account_advanced', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    channelId = await page
+      .waitForFunction(
+        (source) => {
+          const pattern = new RegExp(source);
+          const inputs = Array.from(document.querySelectorAll('input')).map(
+            (i) => i.value,
+          );
+          for (const text of [...inputs, document.body?.innerText ?? '']) {
+            const hit = pattern.exec(text);
+            if (hit) return hit[0];
+          }
+          return null;
+        },
+        CHANNEL_ID_PATTERN.source,
+        { timeout: 10_000, polling: 500 },
+      )
+      .then((h) => h.jsonValue())
+      .catch(() => null);
+    if (!channelId) return { channelId: null, channelTitle: null };
+
+    await page.goto(`https://www.youtube.com/channel/${channelId}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    return { channelId, channelTitle: await this.readChannelTitle(page) };
+  }
+
+  /**
+   * 지금 열린 채널 화면의 채널 이름
+   * @param page 채널 화면 탭
+   */
+  private async readChannelTitle(page: Page): Promise<string | null> {
+    const og = await page
+      .locator('meta[property="og:title"]')
+      .first()
+      .getAttribute('content', { timeout: 10_000 })
+      .catch(() => null);
+    return og || (await page.title()).replace(/\s*-\s*YouTube$/, '') || null;
   }
 
   async openForManualLogin(
