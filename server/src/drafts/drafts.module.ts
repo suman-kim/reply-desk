@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiModule } from '../ai/ai.module.js';
 import { ChecksModule } from '../checks/checks.module.js';
 import { PostAttempt } from '../posting/post-attempt.entity.js';
+import { PromptsController } from '../prompts/prompts.controller.js';
+import { SettingsModule } from '../settings/settings.module.js';
 import { ProfilesModule } from '../profiles/profiles.module.js';
 import { Topic } from '../topics/topic.entity.js';
 import { TopicsModule } from '../topics/topics.module.js';
@@ -25,8 +27,9 @@ import { VideoAnalysis } from './video-analysis.entity.js';
     TopicsModule,
     VideosModule,
     ProfilesModule,
+    SettingsModule,
   ],
-  controllers: [DraftsController],
+  controllers: [DraftsController, PromptsController],
   providers: [
     AnalysisService,
     DraftingService,

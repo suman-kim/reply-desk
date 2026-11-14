@@ -1,3 +1,5 @@
+import type { SettingsService } from '../settings/settings.service.js';
+import { DEFAULT_DRAFT_PROMPT } from './draft-prompt.js';
 import type { AiService, ResolvedAi } from '../ai/ai.service.js';
 import { CheckRunnerService } from '../checks/check-runner.service.js';
 import { DEFAULT_CHECKS } from '../checks/draft-checks.js';
@@ -46,12 +48,17 @@ function fakeAi(answers: string[]) {
   return { ai: ai as unknown as AiService, prompts, generate: ai.generate };
 }
 
+/** 설정: 프롬프트는 기본값 (설정에서 고친 프롬프트는 e2e에서 본다) */
+const settings = {
+  get: async () => DEFAULT_DRAFT_PROMPT,
+} as unknown as SettingsService;
+
 describe('DraftingService', () => {
   const checks = new CheckRunnerService(DEFAULT_CHECKS);
 
   it('첫 초안이 검사를 통과하면 한 번에 끝난다', async () => {
     const { ai, generate } = fakeAi([GOOD]);
-    const r = await new DraftingService(ai, checks).write(
+    const r = await new DraftingService(ai, checks, settings).write(
       topic,
       video,
       analysis,
@@ -69,7 +76,7 @@ describe('DraftingService', () => {
 
   it('검사에 걸리면 걸린 이유를 붙여 한 번 더 쓴다', async () => {
     const { ai, prompts } = fakeAi([BAD, GOOD]);
-    const r = await new DraftingService(ai, checks).write(
+    const r = await new DraftingService(ai, checks, settings).write(
       topic,
       video,
       analysis,
@@ -83,7 +90,7 @@ describe('DraftingService', () => {
 
   it('두 번 다 걸리면 마지막 결과와 검사 결과를 그대로 준다 (사람이 고친다)', async () => {
     const { ai } = fakeAi([BAD, BAD]);
-    const r = await new DraftingService(ai, checks).write(
+    const r = await new DraftingService(ai, checks, settings).write(
       topic,
       video,
       analysis,
@@ -96,7 +103,7 @@ describe('DraftingService', () => {
 
   it('다른 채널 영상이면 광고 표시를 코드가 맨 앞에 붙이고 검사도 통과한다', async () => {
     const { ai } = fakeAi([GOOD]);
-    const r = await new DraftingService(ai, checks).write(
+    const r = await new DraftingService(ai, checks, settings).write(
       topic,
       video,
       analysis,

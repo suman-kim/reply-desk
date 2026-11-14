@@ -391,6 +391,25 @@ export interface SettingView {
 export type AiProviderId = 'gemini' | 'claude' | 'openai' | 'ollama';
 
 /** AI 제공자 안내 (GET /settings/ai/providers) */
+/** 역할별 프롬프트 안내 (GET /settings/prompts). 값은 설정 prompt.analysis·prompt.drafting */
+export interface PromptInfo {
+  /** 설정 키 */
+  key: string;
+  /** 덩이 (지시·자료 틀·다시 쓸 때) */
+  parts: {
+    /** 설정 값 안의 칸 이름 (system, user, retry) */
+    field: string;
+    /** 화면 이름 */
+    label: string;
+    /** 무엇을 쓰는 덩이인지 */
+    help: string;
+    /** 쓸 수 있는 {{자리}} */
+    vars: { name: string; help: string }[];
+  }[];
+  /** AI에게 함께 보내는 답의 모양 (읽기만) */
+  response: { name: string; description: string }[];
+}
+
 /** 영상 보기 창의 인기 댓글 (GET /topics/:id/videos/:videoId/comments) */
 export interface VideoComments {
   /** 댓글이 막힌 영상인지 */

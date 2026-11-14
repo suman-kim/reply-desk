@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { renderTemplate, type PromptVar } from '../prompts/prompt-template.js';
 import type { CheckResult } from '../checks/check.types.js';
 import type { Topic } from '../topics/topic.entity.js';
 import type { Video } from '../videos/video.entity.js';
@@ -40,12 +41,74 @@ export const DRAFT_SYSTEM = [
   '- "이 사람이 내 인연인지" 궁금증으로 브랜드를 연결',
 ].join('\n');
 
+/** 작성 자료 틀에서 쓸 수 있는 자리 (설정 화면 안내) */
+export const DRAFT_PROMPT_VARS: PromptVar[] = [
+  { name: '홍보 대상', help: '주제의 한 줄 설명' },
+  {
+    name: '브랜드 단어',
+    help: '주제의 브랜드 단어 (비어 있으면 그 줄을 뺀다)',
+  },
+  {
+    name: '말투',
+    help: '주제의 댓글 말투 (비어 있으면 "20~30대 시청자, 공감형 구어체")',
+  },
+  { name: '최소 글자 수', help: '주제의 최소 글자 수' },
+  { name: '최대 글자 수', help: '주제의 최대 글자 수' },
+  { name: '금지 표현', help: '주제의 추가 금지 표현 (없으면 그 줄을 뺀다)' },
+  { name: '영상 제목', help: '영상 제목' },
+  { name: '시청자 고민', help: '분석에서 뽑은 고민 한 줄' },
+  {
+    name: '근거 장면',
+    help: '분석에서 고른 근거 장면, 한 줄씩 "- 시점 "인용" (영상/인기 댓글)"',
+  },
+];
+
+/** 다시 쓸 때 덧붙이는 틀에서 쓸 수 있는 자리 */
+export const DRAFT_RETRY_VARS: PromptVar[] = [
+  { name: '앞서 쓴 글', help: '자동 검사에 걸린 앞선 초안' },
+  { name: '고칠 점', help: '걸린 검사와 이유, 한 줄씩 "- 검사: 이유"' },
+];
+
+/** 기본 작성 프롬프트 (설정에서 고칠 수 있고, [기본값으로]로 되돌린다) */
+export const DEFAULT_DRAFT_PROMPT = {
+  /** 시스템 지시 (AI의 역할과 규칙) */
+  system: DRAFT_SYSTEM,
+  /** 자료 틀 ({{자리}}를 코드가 채운다) */
+  user: [
+    '[홍보 대상] {{홍보 대상}}',
+    '[브랜드 단어] {{브랜드 단어}} (딱 한 번)',
+    '[말투] {{말투}}',
+    '[글자 수] {{최소 글자 수}}~{{최대 글자 수}}자',
+    '[쓰면 안 되는 말] {{금지 표현}}',
+    '[영상 제목] {{영상 제목}}',
+    '[시청자 고민] {{시청자 고민}}',
+    '[근거 장면]',
+    '{{근거 장면}}',
+    '',
+    '위 장면 하나를 짚어 공감하고, 고민이 홍보 대상으로 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
+  ].join('\n'),
+  /** 자동 검사에 걸려 다시 쓸 때 자료 뒤에 덧붙이는 틀 */
+  retry: [
+    '[앞서 쓴 글] {{앞서 쓴 글}}',
+    '[고칠 점]',
+    '{{고칠 점}}',
+    '고칠 점을 모두 고쳐서 다시 써 줘.',
+  ].join('\n'),
+};
+
+/** 작성 프롬프트 설정 값 */
+export type DraftPromptTemplates = Pick<
+  typeof DEFAULT_DRAFT_PROMPT,
+  'user' | 'retry'
+>;
+
 /**
- * 작성 프롬프트를 만든다.
+ * 작성 프롬프트(자료)를 만든다.
  * @param topic 주제 (말투·글자 수·브랜드)
  * @param video 영상
  * @param analysis 영상 분석
  * @param retry 앞 시도가 검사에 걸렸으면 그 글과 걸린 이유
+ * @param templates 자료 틀과 다시 쓸 때 틀 (설정 prompt.drafting)
  */
 export function buildDraftPrompt(
   topic: Pick<
@@ -60,6 +123,7 @@ export function buildDraftPrompt(
   video: Pick<Video, 'title'>,
   analysis: Pick<VideoAnalysis, 'worry' | 'scenes'>,
   retry?: { text: string; failed: CheckResult[] },
+  templates: DraftPromptTemplates = DEFAULT_DRAFT_PROMPT,
 ): string {
   const scenes = analysis.scenes
     .map(
@@ -67,29 +131,21 @@ export function buildDraftPrompt(
         `- ${s.time ? `${s.time} ` : ''}"${s.quote}" (${s.source === 'comment' ? '인기 댓글' : '영상'})`,
     )
     .join('\n');
-  const lines: (string | null)[] = [
-    `[홍보 대상] ${topic.brandTarget}`,
-    topic.brandWord.trim()
-      ? `[브랜드 단어] ${topic.brandWord} (딱 한 번)`
-      : null,
-    `[말투] ${topic.tone || '20~30대 시청자, 공감형 구어체'}`,
-    `[글자 수] ${topic.minLength}~${topic.maxLength}자`,
-    topic.bannedWords.length > 0
-      ? `[쓰면 안 되는 말] ${topic.bannedWords.join(', ')}`
-      : null,
-    `[영상 제목] ${video.title}`,
-    `[시청자 고민] ${analysis.worry}`,
-    `[근거 장면]\n${scenes}`,
-    '',
-    '위 장면 하나를 짚어 공감하고, 고민이 홍보 대상으로 자연스럽게 이어지는 댓글 한 개와 그렇게 쓴 이유를 줘.',
-  ];
-  if (retry) {
-    lines.push(
-      '',
-      `[앞서 쓴 글] ${retry.text}`,
-      `[고칠 점]\n${retry.failed.map((f) => `- ${f.label}: ${f.detail}`).join('\n')}`,
-      '고칠 점을 모두 고쳐서 다시 써 줘.',
-    );
-  }
-  return lines.filter((l): l is string => l !== null).join('\n');
+  const body = renderTemplate(templates.user, {
+    '홍보 대상': topic.brandTarget,
+    '브랜드 단어': topic.brandWord.trim(),
+    말투: topic.tone || '20~30대 시청자, 공감형 구어체',
+    '최소 글자 수': String(topic.minLength),
+    '최대 글자 수': String(topic.maxLength),
+    '금지 표현': topic.bannedWords.join(', '),
+    '영상 제목': video.title,
+    '시청자 고민': analysis.worry,
+    '근거 장면': scenes,
+  });
+  if (!retry) return body;
+  const again = renderTemplate(templates.retry, {
+    '앞서 쓴 글': retry.text,
+    '고칠 점': retry.failed.map((f) => `- ${f.label}: ${f.detail}`).join('\n'),
+  });
+  return `${body}\n\n${again}`;
 }

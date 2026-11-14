@@ -301,4 +301,44 @@ describe('영상 분석·초안 작성 (e2e)', () => {
     expect(after.state).toBe('error');
     expect(after.errorMessage).toContain('서버가 다시 시작돼');
   });
+
+  it('설정에서 고친 작성 프롬프트로 쓰고, 모르는 자리는 막고, 기본값으로 되돌린다', async () => {
+    const info = await http().get('/api/settings/prompts').expect(200);
+    expect(info.body.map((p: { key: string }) => p.key)).toEqual([
+      'prompt.analysis',
+      'prompt.drafting',
+    ]);
+    expect(info.body[1].response.map((f: { name: string }) => f.name)).toEqual([
+      'text',
+      'reasons',
+    ]);
+
+    const current = (await http().get('/api/settings').expect(200)).body.find(
+      (s: { key: string }) => s.key === 'prompt.drafting',
+    ).value;
+    const bad = await http()
+      .put('/api/settings/prompt.drafting')
+      .send({ value: { ...current, user: '{{없는 자리}} 로 써 줘 (테스트)' } })
+      .expect(400);
+    expect(JSON.stringify(bad.body)).toContain('{{없는 자리}}');
+
+    await http()
+      .put('/api/settings/prompt.drafting')
+      .send({
+        value: { ...current, user: `[고친 틀] {{영상 제목}}\n${current.user}` },
+      })
+      .expect(200);
+    await http()
+      .post(`/api/topics/${topicId}/videos/${cards.demo00000v2.id}/draft`)
+      .send({})
+      .expect(201);
+    await queue.whenIdle();
+    // 앞선 시험이 작성 AI를 바꿔 두었을 수 있어 모든 가짜 AI의 요청에서 찾는다
+    const prompts = Object.values(ctx.ai).flatMap((a) =>
+      a.calls.map((c) => c.prompt),
+    );
+    expect(prompts.some((p) => p.startsWith('[고친 틀] '))).toBe(true);
+
+    await http().delete('/api/settings/prompt.drafting').expect(200);
+  });
 });
