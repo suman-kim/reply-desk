@@ -3,7 +3,7 @@
  * - 녹화 시작 직후의 자홍색 화면으로 녹화 시각과 스크립트 시각을 맞춘다
  * - 기다리는 구간(wait)은 3초로 줄이고, 잘라 낼 구간(cut)은 뺀다
  * - 장면이 내레이션보다 짧으면 마지막 화면을 늘이고, 많이 길면 조금 빠르게 한다 (게시 장면은 거의 그대로)
- * - 처음·끝은 제목 카드
+ * - 처음은 제목 카드, 끝은 작동 방식·기획 의도 그림 장면 (scenes.mjs의 card)
  * 사용: node edit.mjs <out 폴더>
  */
 import { execFileSync } from 'node:child_process';
@@ -79,7 +79,8 @@ function buildScene(scene, index) {
   const n = narration[scene.id];
   const file = join(parts, `${String(index).padStart(2, '0')}-${scene.id}.mp4`);
   const rec = timeline.scenes.find((s) => s.id === scene.id && s.end);
-  const card = scene.id === 'intro' ? 'card-intro.png' : scene.id === 'outro' ? 'card-outro.png' : null;
+  // 그림 장면: 처음 카드와 엔딩(작동 방식·기획 의도). scenes.mjs의 card 그림을 쓴다
+  const card = scene.card ?? (scene.id === 'intro' ? 'card-intro.png' : null);
   const target = n.duration + TAIL;
   const inputs = [];
   const filters = [];
