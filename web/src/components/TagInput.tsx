@@ -1,5 +1,5 @@
 import { useState, type KeyboardEvent } from 'react';
-import { Badge, Button, Field } from '../ds/inyeon';
+import { Badge, Button, Field } from '../ds';
 
 /**
  * 하나씩 넣는 목록 입력 (예: 검색 키워드).

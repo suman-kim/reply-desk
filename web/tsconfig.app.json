@@ -6,7 +6,6 @@
     "module": "esnext",
     "types": ["vite/client", "vitest/globals"],
     "paths": {
-      "@inyeon/*": ["../design/inyeon-design-system/*"],
       "react": ["./node_modules/@types/react"]
     },
     "allowArbitraryExtensions": true,
@@ -26,5 +25,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "../design/inyeon-design-system/components/index.d.ts"]
+  "include": ["src"]
 }

@@ -14,7 +14,7 @@ import { PostControl } from '../components/PostControl';
 import { VideoModal, type ModalVideo } from '../components/VideoModal';
 import { VideoThumb } from '../components/VideoThumb';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, Button, Field, Panel, StatPill, VideoCard } from '../ds/inyeon';
+import { Badge, Button, Field, Panel, StatPill, VideoCard } from '../ds';
 import { formatDuration, formatViews, relativeTime } from '../lib/format';
 import { searchRunText, searchStatusText } from '../lib/search-text';
 import { paths } from '../nav/paths';
@@ -135,7 +135,7 @@ function TopicWorkspace({
         </div>
         <div className="rd-row">
           <StatPill label="이 주제 오늘" value={topic.postedToday} max={topic.dailyCap} />
-          <Link to={paths.topic(topic.id, 'settings')} className="iy-btn iy-btn-secondary iy-btn-md">
+          <Link to={paths.topic(topic.id, 'settings')} className="dk-btn dk-btn-secondary dk-btn-md">
             주제 설정
           </Link>
         </div>

@@ -1,9 +1,10 @@
 import { Link } from 'react-router';
 import { useDraftDetail, useTopics } from '../api/queries';
-import { Badge } from '../ds/inyeon';
+import { Badge } from '../ds';
 import { formatDuration, formatLogTime, relativeTime } from '../lib/format';
 import { paths } from '../nav/paths';
-import { POST_RESULT, STATUS_TONE } from './badges';
+import { POST_RESULT } from './badges';
+import { StatusBadge } from './StatusBadge';
 import { DraftReview } from './DraftReview';
 import { Modal } from './Modal';
 import { PostControl } from './PostControl';
@@ -37,7 +38,7 @@ export function DraftDetailModal({ sel, onClose }: { sel: TaskRef; onClose: () =
       badges={
         d ? (
           <>
-            {d.status ? <Badge tone={STATUS_TONE[d.status.code]}>{d.status.label}</Badge> : null}
+            {d.status ? <StatusBadge status={d.status.code} label={d.status.label} /> : null}
             {d.video.isMine ? <Badge tone="rose">내 채널</Badge> : null}
           </>
         ) : undefined
@@ -45,7 +46,7 @@ export function DraftDetailModal({ sel, onClose }: { sel: TaskRef; onClose: () =
       subtitle={d ? `${d.video.channelTitle} · ${topic?.name ?? ''}` : undefined}
       actions={
         d ? (
-          <a href={d.video.url} target="_blank" rel="noreferrer" className="iy-btn iy-btn-ghost iy-btn-sm">
+          <a href={d.video.url} target="_blank" rel="noreferrer" className="dk-btn dk-btn-ghost dk-btn-sm">
             유튜브에서 보기
           </a>
         ) : undefined

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useActions } from '../api/queries';
 import type { DraftDetail, Topic } from '../api/types';
-import { Button, CheckList, Field, ReasonBox } from '../ds/inyeon';
+import { Button, CheckList, Field, ReasonBox } from '../ds';
 import { countChars } from '../lib/format';
 import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
 import { TopicMatchBox } from './TopicMatchBox';

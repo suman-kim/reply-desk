@@ -1,5 +1,5 @@
 import type { DraftListStatus, PostStatus, PostStep, TopicMatch, VideoItem } from '../api/types';
-import type { Tone, VideoBadge } from '../ds/inyeon';
+import type { Tone, VideoBadge } from '../ds';
 
 /**
  * ① 영상 카드 배지 (계획서: 초안 작성 중, 초안 준비됨, 내 채널, 댓글 완료)
@@ -9,22 +9,22 @@ import type { Tone, VideoBadge } from '../ds/inyeon';
 export function videoBadges(v: VideoItem): VideoBadge[] {
   const out: VideoBadge[] = [];
   if (v.commented) out.push({ tone: 'success', label: '댓글 완료' });
-  else if (v.draftState === 'writing') out.push({ label: '초안 작성 중', loading: true });
+  else if (v.draftState === 'writing') out.push({ tone: 'info', label: '초안 작성 중', loading: true });
   else if (v.draftState === 'error') out.push({ tone: 'danger', label: '작성 실패' });
   else if (v.draftState === 'ready') {
-    out.push(v.checkPassed ? { tone: 'accent', label: '초안 준비됨' } : { tone: 'warning', label: '검사 미통과' });
+    out.push(v.checkPassed ? { tone: 'neutral', label: '초안 준비됨', dot: true } : { tone: 'warning', label: '검사 미통과' });
   }
-  if (v.isMine) out.push({ tone: 'rose', label: '내 채널' });
+  if (v.isMine) out.push({ tone: 'accent', label: '내 채널' });
   return out;
 }
 
-/** 작업 목록 상태 → 배지 색 (프로토타입 Drafts와 같다) */
+/** 작업 목록 상태 → 배지 색 (색 규칙: 성공 · 주의 · 실패 · 진행 · 중립). 게시 대기는 문제가 아니라 할 일이라 중립 */
 export const STATUS_TONE: Record<DraftListStatus, Tone> = {
-  pending: 'accent',
+  pending: 'neutral',
   failed: 'danger',
   check_failed: 'warning',
   posted: 'success',
-  writing: 'neutral',
+  writing: 'info',
   error: 'danger',
 };
 
@@ -51,7 +51,7 @@ export const POST_STEP_LABELS: Record<PostStep, string> = {
 export const POST_RESULT: Record<PostStatus, { tone: Tone; label: string }> = {
   success: { tone: 'success', label: '성공' },
   failed: { tone: 'danger', label: '실패' },
-  running: { tone: 'neutral', label: '게시 중' },
+  running: { tone: 'info', label: '게시 중' },
 };
 
 /**

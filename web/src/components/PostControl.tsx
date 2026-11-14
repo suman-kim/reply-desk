@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { keys, useActions, useAttempt, usePostCheck } from '../api/queries';
 import type { DraftDetail, Topic, VideoItem } from '../api/types';
-import { Badge, BrowserFrame, Button, Segmented, Spinner, StepList, type StepItem } from '../ds/inyeon';
+import { Badge, BrowserFrame, Button, Segmented, Spinner, StepList, type StepItem } from '../ds';
 import { paths } from '../nav/paths';
 
 /** 서버 단계 상태 → 디자인 시스템 StepList 상태 */

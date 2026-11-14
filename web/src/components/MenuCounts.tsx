@@ -7,12 +7,13 @@ import type { Topic } from '../api/types';
  * 메뉴 옆 숫자 모양
  * @param props.n 숫자 (0 이하면 숨긴다)
  * @param props.warn 주의 색(노랑)으로 보일지
+ * @param props.soft 옅은 회색으로 보일지 (고르지 않은 주제)
  * @param props.title 숫자의 뜻 (마우스를 올리면 보이고, 읽기 프로그램이 읽는다)
  */
-export function CountBubble({ n, warn, title }: { n: number; warn?: boolean; title: string }) {
+export function CountBubble({ n, warn, soft, title }: { n: number; warn?: boolean; soft?: boolean; title: string }) {
   if (n <= 0) return null;
   return (
-    <span className={`rd-tab-count${warn ? ' is-warn' : ''}`} title={title} aria-label={title}>
+    <span className={`rd-tab-count${warn ? ' is-warn' : ''}${soft ? ' is-soft' : ''}`} title={title} aria-label={title}>
       {n}
     </span>
   );

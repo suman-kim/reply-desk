@@ -17,7 +17,7 @@ import { CUSTOM_MODEL, ModelSelect } from "../components/ModelSelect";
 import { PageHeader } from "../components/PageHeader";
 import { PromptSettings } from "../components/PromptSettings";
 import { ErrorBand, LoadingBox } from "../components/StateBox";
-import { Badge, Button, Field, Panel, Segmented } from "../ds/inyeon";
+import { Badge, Button, Field, Panel, Segmented } from '../ds';
 
 /** 역할별 AI 선택 값 */
 interface AiChoice {
@@ -197,9 +197,9 @@ function ModelPicker({
 
   return (
     <div className="rd-stack-8">
-      <div className="iy-field">
-        <div className="iy-field-top">
-          <label className="iy-field-label" htmlFor={id}>
+      <div className="dk-field">
+        <div className="dk-field-top">
+          <label className="dk-field-label" htmlFor={id}>
             모델
           </label>
           <button
@@ -232,22 +232,22 @@ function ModelPicker({
           }}
         />
         {models.data?.source === "recommended" && !ready ? (
-          <span className="iy-field-hint">
+          <span className="dk-field-hint">
             추천 목록이에요 ·{" "}
             {provider === "ollama"
               ? "연결되면 받아 둔 모델이 모두 보여요"
               : "키를 넣으면 쓸 수 있는 모델이 모두 보여요"}
           </span>
         ) : models.data?.note ? (
-          <span className="iy-field-hint">{models.data.note}</span>
+          <span className="dk-field-hint">{models.data.note}</span>
         ) : null}
         {models.error ? (
-          <span className="iy-field-error">
+          <span className="dk-field-error">
             모델 목록을 불러오지 못했어요 · [목록 새로 받기]를 눌러 주세요
           </span>
         ) : null}
         {!custom && error ? (
-          <span className="iy-field-error">{error}</span>
+          <span className="dk-field-error">{error}</span>
         ) : null}
       </div>
       {custom ? (

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useActions, usePromptInfo, usePromptPreview } from "../api/queries";
 import type { PromptInfo, SettingView } from "../api/types";
-import { Button, Panel, Segmented } from "../ds/inyeon";
+import { Button, Panel, Segmented } from '../ds';
 import { ErrorBand, LoadingBox } from "./StateBox";
 
 /** 프롬프트 설정 값 (덩이 이름 → 글) */
@@ -308,26 +308,26 @@ function PromptPart({
   };
 
   return (
-    <div className="iy-field">
-      <div className="iy-field-top">
-        <span className="iy-field-label">
+    <div className="dk-field">
+      <div className="dk-field-top">
+        <span className="dk-field-label">
           {label}
           {changed ? <span className="rd-changed"> · 고침</span> : null}
         </span>
-        <span className="iy-field-counter">
+        <span className="dk-field-counter">
           {text.length.toLocaleString("ko-KR")} / 8,000자
         </span>
       </div>
       <textarea
         ref={ref}
-        className="iy-input iy-textarea rd-prompt"
+        className="dk-input dk-textarea rd-prompt"
         aria-label={label}
         value={text}
         rows={Math.min(22, Math.max(6, text.split("\n").length + 1))}
         spellCheck={false}
         onChange={(e) => onChange(e.target.value)}
       />
-      <span className="iy-field-hint">{help}</span>
+      <span className="dk-field-hint">{help}</span>
       {vars.length > 0 ? (
         <div className="rd-slots" aria-label={`${label}에 넣을 수 있는 자리`}>
           {vars.map((v) => (

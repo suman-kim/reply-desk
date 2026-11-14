@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router';
 import { api } from '../api/http';
 import { useDrafts } from '../api/queries';
 import type { DraftListStatus, Topic, VideoItem } from '../api/types';
-import { Badge, Button, Segmented } from '../ds/inyeon';
+import { Badge, Button, Glyph, Segmented } from '../ds';
 import { formatLogTime } from '../lib/format';
 import type { LiveEvent } from '../live/apply-event';
 import { NoticeRules, type Notice } from '../live/notify-rules';
 import { paths } from '../nav/paths';
-import { STATUS_TONE, topicMatchBadge } from './badges';
+import { topicMatchBadge } from './badges';
 import { DraftDetailModal, type TaskRef } from './DraftDetailModal';
+import { StatusBadge } from './StatusBadge';
 import { EmptyBox, ErrorBand, LoadingBox } from './StateBox';
 import { TaskShellContext, useTaskShell, type BrowserNotify, type TaskShellValue } from './task-shell-context';
 
@@ -154,6 +155,9 @@ export function TaskShellProvider({ children }: { children: ReactNode }) {
       <div className="rd-toasts" role="status" aria-live="polite">
         {notices.map((n) => (
           <div key={n.id} className={`rd-toast rd-toast-${n.tone}`}>
+            <span className="rd-toast-mark" aria-hidden="true">
+              <Glyph name={n.tone === 'success' ? 'check' : n.tone === 'danger' ? 'x' : 'alert'} size={13} />
+            </span>
             <span className="text-body-strong">{n.title}</span>
             {n.subject ? <span className="text-body-sm rd-clamp">{n.subject}</span> : null}
             <span className="text-caption rd-muted">{n.body}</span>
@@ -248,7 +252,7 @@ export function TaskPanel({ topic }: { topic: Topic }) {
               onClick={() => shell.openTask({ topicId: r.topic.id, videoId: r.video.id })}
             >
               <span className="rd-row-tight">
-                <Badge tone={STATUS_TONE[r.status]}>{r.statusLabel}</Badge>
+                <StatusBadge status={r.status} label={r.statusLabel} />
                 {match ? <Badge tone={match.tone}>{match.label}</Badge> : null}
               </span>
               <span className="text-body-sm rd-clamp">{r.video.title}</span>

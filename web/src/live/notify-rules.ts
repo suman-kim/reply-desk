@@ -1,4 +1,4 @@
-import type { Tone } from '../ds/inyeon';
+import type { Tone } from '../ds';
 import type { LiveEvent } from './apply-event';
 import { paths } from '../nav/paths';
 

@@ -7,7 +7,7 @@ import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
 import { PostLogDetail } from '../components/PostLogDetail';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
-import { Badge, Panel, Segmented, StatPill } from '../ds/inyeon';
+import { Badge, Panel, Segmented, StatPill } from '../ds';
 import { formatDateTime, formatElapsed, formatLogTime, shortWatchUrl } from '../lib/format';
 import { paths } from '../nav/paths';
 import { useRouteTopic } from '../nav/route-topic';
@@ -43,7 +43,7 @@ export function LogsPage() {
       <Panel>
         <div className="rd-log-filters">
           <div className="rd-stack-8">
-            <span className="iy-field-label">결과</span>
+            <span className="dk-field-label">결과</span>
             <Segmented
               label="결과"
               value={result}
@@ -101,7 +101,7 @@ export function LogsPage() {
         subtitle={open ? `${formatDateTime(open.startedAt)} · ${open.profileName ?? '지운 프로필'}` : undefined}
         actions={
           open?.video ? (
-            <a href={open.video.url} target="_blank" rel="noreferrer" className="iy-btn iy-btn-ghost iy-btn-sm">
+            <a href={open.video.url} target="_blank" rel="noreferrer" className="dk-btn dk-btn-ghost dk-btn-sm">
               유튜브에서 보기
             </a>
           ) : undefined

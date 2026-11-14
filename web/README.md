@@ -1,6 +1,6 @@
 # reply-desk 대시보드 화면
 
-유튜브 댓글 에이전트의 관리 화면입니다. Vite + React 19 + TypeScript, 디자인 시스템은 `../design/inyeon-design-system`(Inyeon)을 복사하지 않고 그대로 불러옵니다.
+유튜브 댓글 에이전트의 관리 화면입니다. Vite + React 19 + TypeScript, 디자인 시스템은 `src/ds`의 **Desk**입니다(2026-11 리디자인, 예전 Inyeon을 대신함). 글꼴 파일만 `../design/inyeon-design-system/fonts`에서 그대로 읽습니다.
 
 ## 실행
 
@@ -43,7 +43,7 @@ npm run dev        # http://127.0.0.1:5173
 
 | 폴더 | 하는 일 |
 | --- | --- |
-| `src/ds` | 디자인 시스템 불러오기 (React 전역 → tokens.css → bundle.css → bundle.js) |
+| `src/ds` | 디자인 시스템 Desk: 토큰(`tokens.css`), 부품 모양(`components.css`), 부품(`components.tsx`: Button · Badge · Field · Segmented · Tabs · Chips · MatchBar 등) |
 | `src/api` | 서버 타입, 호출(`api`, `ApiError`), 데이터 훅(TanStack Query) |
 | `src/live` | 실시간 이벤트(EventSource) → 데이터 캐시 반영, 알림 규칙 |
 | `src/nav` | 화면 주소 만들기·읽기(`paths`), 고른 주제(`SelectedTopicProvider`, 마지막 주제 기억), 주제 화면의 주제(`useRouteTopic`) |

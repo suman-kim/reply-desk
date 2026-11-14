@@ -90,7 +90,7 @@ describe('왼쪽 사이드 메뉴', () => {
     expect(nav.getByRole('link', { name: '설정' })).toHaveAttribute('href', '/settings');
     expect(screen.queryByRole('button', { name: /작업/ })).not.toBeInTheDocument();
     // 본문: 주제 카드로 고른다
-    expect(screen.getByRole('heading', { name: '주제 고르기' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '어느 주제부터 볼까요?' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: '주제 카드' })).toBeInTheDocument();
     expect(screen.getByText('로그인이 필요한 계정이 있어요 · 개인계정')).toBeInTheDocument();
   });
@@ -125,7 +125,7 @@ describe('왼쪽 사이드 메뉴', () => {
   it('기억한 주제가 지워졌으면 홈에 머문다', () => {
     renderAt('/', 9);
     expect(screen.getByRole('status', { name: '지금 주소' })).toHaveTextContent('/');
-    expect(screen.getByRole('heading', { name: '주제 고르기' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '어느 주제부터 볼까요?' })).toBeInTheDocument();
   });
 
   it('예전 주소(/?topic=)는 새 주소로 넘긴다', () => {

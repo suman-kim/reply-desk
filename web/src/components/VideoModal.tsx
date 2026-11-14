@@ -1,5 +1,5 @@
 import { useVideoComments } from '../api/queries';
-import { Spinner } from '../ds/inyeon';
+import { Spinner } from '../ds';
 import { formatViews, relativeTime } from '../lib/format';
 import { Modal } from './Modal';
 import { ErrorBand } from './StateBox';
@@ -39,7 +39,7 @@ export function VideoModal({ topicId, video, onClose }: { topicId: number; video
       title={video?.title}
       subtitle={video ? `${video.channelTitle} · ${relativeTime(video.publishedAt)} · ${formatViews(video.viewCount)}` : undefined}
       actions={
-        <a href={watchUrl} target="_blank" rel="noreferrer" className="iy-btn iy-btn-ghost iy-btn-sm">
+        <a href={watchUrl} target="_blank" rel="noreferrer" className="dk-btn dk-btn-ghost dk-btn-sm">
           유튜브에서 보기
         </a>
       }
