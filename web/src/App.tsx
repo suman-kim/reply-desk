@@ -9,6 +9,7 @@ import { TopBar } from './components/TopBar';
 import { useLiveEvents } from './live/useLiveEvents';
 import { COMMON_MENU, TOPIC_MENU } from './menu';
 import { legacyPath, paths } from './nav/paths';
+import { useScrollMemory } from './nav/scroll-memory';
 import { useSelectedTopic } from './nav/selected-topic';
 import { SelectedTopicProvider } from './nav/SelectedTopicProvider';
 import { HomePage } from './pages/HomePage';
@@ -53,6 +54,8 @@ function Routed() {
   const shell = useTaskShell();
   const { topic } = useSelectedTopic();
   const nav = useNavDrawer();
+  // 작업 상세는 맨 위에서, 목록으로 돌아오면 보던 곳에서 (RD-29)
+  useScrollMemory();
   // 모든 주제의 이벤트를 받아 데이터를 맞추고, 끝난 초안·게시는 알림으로 띄운다 (알림은 모든 주제)
   const live = useLiveEvents(null, shell.onLiveEvent);
   // 작업 패널은 고른 주제만 보여 준다. 주제를 고르기 전에는 열지 않는다
