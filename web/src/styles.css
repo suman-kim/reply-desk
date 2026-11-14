@@ -298,6 +298,9 @@ a:hover { color: var(--ink); }
 .rd-log-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
 .rd-log-topic { flex: 0 1 320px; }
 
+/* ① 검색 안내: 지금 누르면 검색하는지 + [새로 검색] */
+.rd-search-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+
 /* ① 카드 + [영상 보기] (카드 전체는 고르기 버튼이라, 보기 버튼은 위에 겹쳐 둔다) */
 .rd-video-cell { position: relative; min-width: 0; }
 .rd-video-watch {

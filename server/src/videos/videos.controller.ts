@@ -21,7 +21,8 @@ const addVideoSchema = z.object({
 /**
  * 주제별 영상 API (① 칸, ②의 링크 직접 입력).
  * - GET  /api/topics/:topicId/videos           영상 목록 (배지 포함)
- * - POST /api/topics/:topicId/videos/fetch     [영상 불러오기] (YouTube 검색 → 정렬 → 저장)
+ * - GET  /api/topics/:topicId/videos/search-status  [영상 불러오기]를 누르면 할 검색 방식, 마지막 검색 시각, 기준 시간
+ * - POST /api/topics/:topicId/videos/fetch     [영상 불러오기] (YouTube 검색 → 정렬 → 저장, 최근에 검색했으면 저장된 목록)
  * - POST /api/topics/:topicId/videos           링크 직접 추가 { url }
  * - GET  /api/topics/:topicId/videos/:videoId  영상 하나
  * - GET  /api/topics/:topicId/videos/:videoId/comments?limit=30  영상 보기 창의 인기 댓글 (할당량 1, 5분 받아 둠)
@@ -37,6 +38,15 @@ export class VideosController {
   @Get()
   list(@Param('topicId', { schema: idParam }) topicId: number) {
     return this.videos.listForTopic(topicId);
+  }
+
+  /**
+   * [영상 불러오기]를 누르기 전의 검색 상태 (':videoId'보다 앞에 둬야 주소가 겹치지 않는다)
+   * @param topicId 주제 ID
+   */
+  @Get('search-status')
+  searchStatus(@Param('topicId', { schema: idParam }) topicId: number) {
+    return this.videos.searchStatus(topicId);
   }
 
   /**

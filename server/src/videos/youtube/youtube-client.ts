@@ -35,13 +35,22 @@ export interface YoutubeSearchParams {
   maxResults: number;
 }
 
+/** 검색 결과 */
+export interface YoutubeSearchResult {
+  /** 찾은 영상 ID (겹치지 않게) */
+  ids: string[];
+  /** 받은 검색 쪽 수 (한 쪽에 할당량 100) */
+  pages: number;
+}
+
 /** YouTube API 클라이언트 */
 export interface YoutubeClient {
   /**
    * 조건에 맞는 영상 ID 후보를 찾는다 (search.list, 한 쪽에 할당량 100 사용)
    * @param params 검색 조건
+   * @returns 영상 ID와 받은 쪽 수 (쓴 할당량을 알리는 데 쓴다)
    */
-  searchVideoIds(params: YoutubeSearchParams): Promise<string[]>;
+  searchVideoIds(params: YoutubeSearchParams): Promise<YoutubeSearchResult>;
   /**
    * 영상 ID로 자세한 정보를 읽는다 (videos.list, 할당량 1 사용). 없는 영상은 빠진다.
    * @param ids 유튜브 영상 ID 목록 (최대 50)

@@ -20,6 +20,9 @@ import {
   type YoutubeVideoInfo,
 } from './youtube/youtube-client.js';
 import { parseYoutubeVideoId, watchUrl } from './youtube/youtube-parsers.js';
+import { YOUTUBE_SEARCH_CACHE_MINUTES } from '../settings/setting-definitions.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { conditionsKey, planSearch, type SearchMode } from './search-plan.js';
 
 /** ① 칸 영상 카드 한 장 */
 export interface VideoItem {
@@ -57,6 +60,57 @@ export interface VideoItem {
   checkPassed: boolean;
 }
 
+/** 이번 [영상 불러오기]의 검색 정보 (화면 ①이 결과 띠에 보인다) */
+export interface SearchRun {
+  /** 검색 방식: cached(검색 안 함, 저장된 목록) · incremental(새로 올라온 영상만) · full(기간 전체) */
+  mode: SearchMode;
+  /** 이 주제를 마지막으로 검색한 시각 (이번 검색 포함) */
+  lastSearchedAt: Date | null;
+  /** 이 시각 전에 다시 누르면 저장된 목록을 쓴다 (기준 시간이 0이면 null) */
+  nextSearchAt: Date | null;
+  /** 이번에 쓴 유튜브 할당량 (검색 한 쪽 100 + 영상 정보 50개에 1) */
+  quotaUsed: number;
+  /** 이번에 이 주제에 새로 들어온 영상 수 */
+  newVideos: number;
+}
+
+/** [영상 불러오기] 결과 */
+export interface LoadResult {
+  /** 주제의 영상 목록 (순위 순) */
+  videos: VideoItem[];
+  /** 검색 정보 */
+  search: SearchRun;
+}
+
+/** [영상 불러오기]를 누르기 전의 검색 상태 */
+export interface SearchStatus {
+  /** 지금 누르면 할 검색 방식 */
+  nextMode: SearchMode;
+  /** 마지막 검색 시각 (한 번도 안 했으면 null) */
+  lastSearchedAt: Date | null;
+  /** 이 시각부터 다시 검색한다 (지금 누르면 저장된 목록일 때만) */
+  nextSearchAt: Date | null;
+  /** 다시 검색하기 전 기다리는 시간 (분, 설정) */
+  cacheMinutes: number;
+}
+
+/** 검색 한 쪽(50개)이 쓰는 유튜브 할당량 */
+export const SEARCH_PAGE_QUOTA = 100;
+
+/**
+ * 주제의 기간 시작 ('올린 날짜' 며칠 이내). 0일이면 제한 없음(null)
+ * @param topic 주제
+ * @param now 지금
+ */
+function windowStartOf(
+  topic: Pick<Topic, 'videoWindowDays'>,
+  now: Date,
+): Date | null {
+  return topic.videoWindowDays > 0
+    ? new Date(now.getTime() - topic.videoWindowDays * 24 * 60 * 60 * 1000)
+    : null;
+}
+
 /** 검색 후보를 넉넉히 받아 코드가 다시 정렬한다 (API의 정렬은 근사치라서) */
 const CANDIDATE_MULTIPLIER = 5;
 
@@ -83,6 +137,7 @@ export class VideosService {
    * @param dataSource 트랜잭션·집계 쿼리용
    * @param topics 주제 서비스
    * @param profiles 프로필 서비스 (내 채널 목록)
+   * @param settings 공용 설정 (검색을 다시 하기 전 기다리는 시간)
    */
   constructor(
     @Inject(YOUTUBE_CLIENT) private readonly youtube: YoutubeClient,
@@ -94,7 +149,15 @@ export class VideosService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly topics: TopicsService,
     private readonly profiles: ProfilesService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /**
+   * 주제마다 마지막 검색에 쓴 검색 조건 (키워드·기간·정렬·불러올 수).
+   * 이 조건이 바뀔 때만 기간 전체를 다시 검색한다(말투·이름을 고쳐도 다시 검색하지 않게).
+   * 메모리에 두므로 서버를 다시 띄우면 비고, 그때는 '주제를 고친 시각이 지난 검색보다 뒤인지'로 본다.
+   */
+  private readonly lastConditions = new Map<number, string>();
 
   /** 영상별로 받아 둔 댓글과 받은 시각 (창을 다시 열 때 할당량을 아낀다) */
   private readonly commentCache = new Map<
@@ -123,25 +186,82 @@ export class VideosService {
   }
 
   /**
-   * [영상 불러오기]: 주제 키워드로 최근 영상을 찾고, 정렬해서 상위 fetchLimit개(0이면 무제한)를 목록에 넣는다.
-   * 다시 불러오면 순위를 새로 매기고, 이번에 빠진 영상은 순위만 지운다(초안·기록은 남는다).
+   * [영상 불러오기]의 지금 검색 상태 (누르기 전에 화면 ①이 본다)
    * @param topicId 주제 ID
    * @param now 기준 시각 (테스트용)
    */
-  async fetchForTopic(
+  async searchStatus(
     topicId: number,
     now: Date = new Date(),
-  ): Promise<VideoItem[]> {
+  ): Promise<SearchStatus> {
     const topic = await this.topics.findOrFail(topicId);
-    // 0일이면 기간 제한 없음
-    const publishedAfter =
-      topic.videoWindowDays > 0
-        ? new Date(now.getTime() - topic.videoWindowDays * 24 * 60 * 60 * 1000)
-        : null;
+    const [lastSearchedAt, cacheMinutes] = await Promise.all([
+      this.lastSearchedAt(topicId),
+      this.settings.get(YOUTUBE_SEARCH_CACHE_MINUTES),
+    ]);
+    const plan = planSearch({
+      now,
+      lastSearchedAt,
+      conditionsChanged: this.conditionsChanged(topic, lastSearchedAt),
+      windowStart: windowStartOf(topic, now),
+      cacheMinutes,
+      force: false,
+    });
+    return {
+      nextMode: plan.mode,
+      lastSearchedAt,
+      nextSearchAt: plan.mode === 'cached' ? plan.nextSearchAt : null,
+      cacheMinutes,
+    };
+  }
 
-    const ids = await this.youtube.searchVideoIds({
+  /**
+   * [영상 불러오기]: 주제 키워드로 최근 영상을 찾고, 정렬해서 상위 fetchLimit개(0이면 무제한)를 목록에 넣는다.
+   * 다시 불러오면 순위를 새로 매기고, 이번에 빠진 영상은 순위만 지운다(초안·기록은 남는다).
+   * 할당량을 아끼려고 검색 방식을 고른다(search-plan.ts):
+   * - 기준 시간(설정 youtube.searchCacheMinutes) 안에 다시 누르면 검색하지 않고 저장된 목록 (할당량 0)
+   * - 기준 시간이 지났거나 [새로 검색]이면 지난 검색 뒤 올라온 영상만 검색하고, 이미 있는 영상은 정보만 다시 받는다
+   * - 처음이거나 주제 설정을 바꿨으면 기간 전체 검색
+   * @param topicId 주제 ID
+   * @param opts.force [새로 검색]: 기준 시간을 무시하고 검색한다
+   * @param now 기준 시각 (테스트용)
+   */
+  async loadForTopic(
+    topicId: number,
+    opts: { force?: boolean } = {},
+    now: Date = new Date(),
+  ): Promise<LoadResult> {
+    const topic = await this.topics.findOrFail(topicId);
+    const windowStart = windowStartOf(topic, now);
+    const [lastSearchedAt, cacheMinutes] = await Promise.all([
+      this.lastSearchedAt(topicId),
+      this.settings.get(YOUTUBE_SEARCH_CACHE_MINUTES),
+    ]);
+    const plan = planSearch({
+      now,
+      lastSearchedAt,
+      conditionsChanged: this.conditionsChanged(topic, lastSearchedAt),
+      windowStart,
+      cacheMinutes,
+      force: !!opts.force,
+    });
+
+    if (plan.mode === 'cached') {
+      return {
+        videos: await this.listForTopic(topicId),
+        search: {
+          mode: 'cached',
+          lastSearchedAt,
+          nextSearchAt: plan.nextSearchAt,
+          quotaUsed: 0,
+          newVideos: 0,
+        },
+      };
+    }
+
+    const found = await this.youtube.searchVideoIds({
       keywords: topic.keywords,
-      publishedAfter,
+      publishedAfter: plan.publishedAfter,
       order: topic.videoSortBy === VideoSortBy.Date ? 'date' : 'viewCount',
       // 무제한이면 검색 결과 끝까지(최대 500개), 아니면 정렬용 후보를 넉넉히 (최대 50개, 검색 한 쪽)
       maxResults:
@@ -149,9 +269,16 @@ export class VideosService {
           ? Math.min(50, topic.fetchLimit * CANDIDATE_MULTIPLIER)
           : UNLIMITED_MAX_VIDEOS,
     });
+    // 새 영상만 검색했으면, 기간 안의 이미 있는 영상도 조회수를 다시 받아 함께 순위를 매긴다 (50개에 할당량 1)
+    const known =
+      plan.mode === 'incremental'
+        ? await this.knownSearchVideoIds(topicId, windowStart)
+        : [];
+    const ids = [...new Set([...found.ids, ...known])];
     const infos = await this.youtube.getVideos(ids);
-    const picked = rankVideos(infos, topic, publishedAfter);
+    const picked = rankVideos(infos, topic, windowStart);
 
+    let newVideos = 0;
     await this.dataSource.transaction(async (m) => {
       const saved = await this.upsertVideos(
         m.getRepository(Video),
@@ -169,6 +296,7 @@ export class VideosService {
         if (existing) {
           await tv.update(existing.id, { rank: i + 1, fetchedAt: now });
         } else {
+          newVideos += 1;
           await tv.insert({
             topicId,
             videoId,
@@ -179,7 +307,92 @@ export class VideosService {
         }
       }
     });
-    return this.listForTopic(topicId);
+
+    // 결과가 하나도 없으면 검색 시각이 남지 않아(불러온 시각으로 센다) 다음에 다시 검색한다
+    const searchedAt = picked.length > 0 ? now : lastSearchedAt;
+    if (picked.length > 0)
+      this.lastConditions.set(topicId, conditionsKey(topic));
+    return {
+      videos: await this.listForTopic(topicId),
+      search: {
+        mode: plan.mode,
+        lastSearchedAt: searchedAt,
+        nextSearchAt:
+          searchedAt && cacheMinutes > 0
+            ? new Date(searchedAt.getTime() + cacheMinutes * 60 * 1000)
+            : null,
+        quotaUsed: found.pages * SEARCH_PAGE_QUOTA + Math.ceil(ids.length / 50),
+        newVideos,
+      },
+    };
+  }
+
+  /**
+   * [영상 불러오기] 영상 목록만 (POST /topics/:id/videos/fetch)
+   * @param topicId 주제 ID
+   * @param now 기준 시각 (테스트용)
+   */
+  async fetchForTopic(
+    topicId: number,
+    now: Date = new Date(),
+  ): Promise<VideoItem[]> {
+    return (await this.loadForTopic(topicId, {}, now)).videos;
+  }
+
+  /**
+   * 지난 검색 뒤 검색 조건(키워드·기간·정렬·불러올 수)이 바뀌었는지.
+   * 기억해 둔 조건이 있으면 그것과 비교하고, 없으면(서버를 다시 띄움) 주제를 고친 시각이 지난 검색보다 뒤인지로 본다.
+   * 바뀌지 않았다고 본 조건은 기억해 두어, 다음부터는 정확히 비교한다.
+   * @param topic 주제
+   * @param lastSearchedAt 마지막 검색 시각
+   */
+  private conditionsChanged(
+    topic: Topic,
+    lastSearchedAt: Date | null,
+  ): boolean {
+    const key = conditionsKey(topic);
+    const remembered = this.lastConditions.get(topic.id);
+    if (remembered !== undefined) return remembered !== key;
+    const changed = !!lastSearchedAt && topic.updatedAt > lastSearchedAt;
+    if (lastSearchedAt && !changed) this.lastConditions.set(topic.id, key);
+    return changed;
+  }
+
+  /**
+   * 이 주제를 마지막으로 검색한 시각 = 검색으로 들어온 영상의 가장 최근 '불러온 시각'.
+   * 따로 칸을 두지 않고 topic_video.fetched_at으로 센다 (링크 추가는 검색 영상의 시각을 바꾸지 않는다)
+   * @param topicId 주제 ID
+   */
+  private async lastSearchedAt(topicId: number): Promise<Date | null> {
+    const row = await this.topicVideos
+      .createQueryBuilder('tv')
+      .select('MAX(tv.fetched_at)', 'last')
+      .where('tv.topic_id = :topicId AND tv.source = :source', {
+        topicId,
+        source: TopicVideoSource.Search,
+      })
+      .getRawOne<{ last: Date | null }>();
+    return row?.last ? new Date(row.last) : null;
+  }
+
+  /**
+   * 검색으로 들어온 이 주제의 영상 중 기간 안의 것 (새 영상만 검색할 때 조회수를 다시 받을 대상)
+   * @param topicId 주제 ID
+   * @param windowStart 기간 시작 (null이면 모두)
+   */
+  private async knownSearchVideoIds(
+    topicId: number,
+    windowStart: Date | null,
+  ): Promise<string[]> {
+    const rows = await this.topicVideos.find({
+      where: { topicId, source: TopicVideoSource.Search },
+      relations: { video: true },
+    });
+    return rows
+      .filter(
+        (r) => r.video && (!windowStart || r.video.publishedAt >= windowStart),
+      )
+      .map((r) => r.video!.youtubeId);
   }
 
   /**
@@ -211,7 +424,9 @@ export class VideosService {
     )!;
     const existing = await this.topicVideos.findOneBy({ topicId, videoId });
     if (existing) {
-      await this.topicVideos.update(existing.id, { fetchedAt: now });
+      // 검색으로 들어온 영상의 시각은 '마지막 검색 시각'으로 쓰므로 링크 추가로는 바꾸지 않는다
+      if (existing.source === TopicVideoSource.Manual)
+        await this.topicVideos.update(existing.id, { fetchedAt: now });
     } else {
       await this.topicVideos.insert({
         topicId,

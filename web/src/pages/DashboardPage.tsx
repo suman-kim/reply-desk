@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router';
 import {
   useActions,
   useDraftDetail,
+  useSearchStatus,
   useToday,
   useTopics,
   useVideos,
@@ -15,6 +16,7 @@ import { VideoModal, type ModalVideo } from '../components/VideoModal';
 import { EmptyBox, ErrorBand, LoadingBox } from '../components/StateBox';
 import { Badge, Button, Field, Panel, StatPill, TopicItem, VideoCard } from '../ds/inyeon';
 import { formatDuration, formatViews, relativeTime } from '../lib/format';
+import { searchRunText, searchStatusText } from '../lib/search-text';
 
 /** ①②③ 단계 번호 */
 type Step = 1 | 2 | 3;
@@ -322,6 +324,15 @@ function LoadPanel({
 }) {
   const { load, addVideo } = useActions();
   const videos = useVideos(topic.id);
+  /** 누르기 전 검색 상태 (저장된 목록인지, 새 영상만 찾는지) */
+  const searchStatus = useSearchStatus(topic.id);
+  /** 마지막 [영상 불러오기]의 검색 결과 (방식·새 영상 수·쓴 할당량) */
+  const lastRun = load.data?.search ?? null;
+  /**
+   * [영상 불러오기] (force면 [새로 검색])
+   * @param force 최근에 검색했어도 다시 검색할지
+   */
+  const runLoad = (force: boolean) => load.mutate({ topicId: topic.id, force }, { onSuccess: () => setShown(PAGE_SIZE) });
   const [shown, setShown] = useState(PAGE_SIZE);
   /** 링크로 추가할 주소 (검색에 안 걸린 영상) */
   const [link, setLink] = useState('');
@@ -354,10 +365,26 @@ function LoadPanel({
         fullWidth
         loading={load.isPending}
         disabled={topic.status === 'paused'}
-        onClick={() => load.mutate(topic.id, { onSuccess: () => setShown(PAGE_SIZE) })}
+        onClick={() => runLoad(false)}
       >
         {label}
       </Button>
+      {/* 유튜브 할당량: 지금 누르면 검색하는지 미리 알리고, 저장된 목록일 때는 [새로 검색]을 둔다 */}
+      {searchStatus.data && !load.isPending ? (
+        <div className="rd-search-note text-caption">
+          <span className="rd-muted">{searchStatusText(searchStatus.data)}</span>
+          {searchStatus.data.nextMode === 'cached' && topic.status !== 'paused' ? (
+            <button type="button" className="rd-link-button" onClick={() => runLoad(true)}>
+              새로 검색
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {lastRun && !load.isPending ? (
+        <div className={`rd-band ${lastRun.mode === 'cached' ? 'rd-band-accent' : 'rd-band-success'}`} role="status">
+          <span className="text-body-sm">{searchRunText(lastRun)}</span>
+        </div>
+      ) : null}
       {topic.status === 'paused' ? <span className="text-caption rd-block-reason">일시정지된 주제예요 · 다시 시작하면 불러올 수 있어요</span> : null}
       {load.error ? <ErrorBand error={load.error} /> : null}
       <Field

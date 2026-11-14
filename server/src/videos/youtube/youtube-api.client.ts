@@ -5,6 +5,7 @@ import { parseIsoDuration } from './youtube-parsers.js';
 import type {
   YoutubeClient,
   YoutubeSearchParams,
+  YoutubeSearchResult,
   YoutubeVideoContext,
   YoutubeVideoInfo,
   YoutubeComments,
@@ -75,11 +76,15 @@ export class YoutubeApiClient implements YoutubeClient {
    */
   constructor(private readonly config: ConfigService<Env, true>) {}
 
-  async searchVideoIds(params: YoutubeSearchParams): Promise<string[]> {
+  async searchVideoIds(
+    params: YoutubeSearchParams,
+  ): Promise<YoutubeSearchResult> {
     // 한 쪽에 50개까지라 더 원하면 다음 쪽(pageToken)을 이어 받는다
     const ids: string[] = [];
     let pageToken: string | undefined;
+    let pages = 0;
     do {
+      pages += 1;
       const body = await this.call<SearchResponse>('search', {
         part: 'id',
         type: 'video',
@@ -100,7 +105,7 @@ export class YoutubeApiClient implements YoutubeClient {
       pageToken = body.nextPageToken;
     } while (pageToken && ids.length < params.maxResults);
     // 한 쪽이 요청보다 많이 와도 원한 수만큼만
-    return ids.slice(0, params.maxResults);
+    return { ids: ids.slice(0, params.maxResults), pages };
   }
 
   async getVideos(ids: string[]): Promise<YoutubeVideoInfo[]> {

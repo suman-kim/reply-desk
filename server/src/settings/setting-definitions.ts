@@ -89,6 +89,15 @@ export const OLLAMA_NUM_CTX = define({
   defaultValue: 16384,
 });
 
+/** 영상 검색을 다시 하기 전 기다리는 시간 (분) */
+export const YOUTUBE_SEARCH_CACHE_MINUTES = define({
+  key: 'youtube.searchCacheMinutes',
+  label: '영상 검색을 다시 하는 간격 (분)',
+  help: '이 시간 안에 [영상 불러오기]를 다시 누르면 유튜브 검색을 하지 않고 저장된 목록을 보여 줘요(할당량 0). 시간이 지나면 지난 검색 뒤 올라온 영상만 찾아요. [새로 검색]을 누르면 바로 찾고, 0이면 매번 찾아요.',
+  schema: z.number().int().min(0).max(1440),
+  defaultValue: 60,
+});
+
 /** 주제 매칭 기준 (%) */
 export const TOPIC_MATCH_THRESHOLD = define({
   key: 'analysis.topicMatchThreshold',
@@ -127,6 +136,7 @@ export const PROMPT_DRAFTING = define({
 export const SETTING_DEFINITIONS: SettingDefinition<unknown>[] = [
   DAILY_CAP_TOTAL,
   POSTING_HEADLESS,
+  YOUTUBE_SEARCH_CACHE_MINUTES,
   AI_ANALYSIS,
   AI_DRAFTING,
   OLLAMA_BASE_URL,
