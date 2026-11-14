@@ -316,7 +316,7 @@ function TopicForm({ topicId, initial }: { topicId: number | null; initial: Form
         </Panel>
 
         {topicId ? (
-          <Panel title="주제 지우기" hint="영상 목록·분석·초안이 함께 지워져요. 게시 기록은 남아요.">
+          <Panel title="주제 지우기" hint="영상 목록·분석·초안이 함께 지워져요. 댓글 게시 목록은 남아요.">
             {confirmDelete ? (
               <div className="rd-row">
                 <Button

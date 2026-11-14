@@ -64,3 +64,36 @@ export function countChars(text: string): number {
   for (const _ of segmenter.segment(text.trim())) n++;
   return n;
 }
+
+/**
+ * 걸린 시간 (예: 16초, 1분 5초, 2분)
+ * @param startIso 시작 시각
+ * @param endIso 끝난 시각 (아직이면 null → '진행 중')
+ */
+export function formatElapsed(startIso: string, endIso: string | null): string {
+  if (!endIso) return '진행 중';
+  const sec = Math.max(0, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 1000));
+  if (sec < 60) return `${sec}초`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s ? `${m}분 ${s}초` : `${m}분`;
+}
+
+/**
+ * 화면에 보일 짧은 유튜브 주소 (예: youtu.be/F-f0fODJLXA). 링크(href)는 서버가 준 전체 주소를 건다
+ * @param youtubeId 유튜브 영상 ID
+ */
+export function shortWatchUrl(youtubeId: string): string {
+  return `youtu.be/${youtubeId}`;
+}
+
+/**
+ * 날짜와 시각 (예: 2026. 11. 13. 17:48, 한국 시간)
+ * @param iso 시각
+ */
+export function formatDateTime(iso: string): string {
+  const opts: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Seoul' };
+  const date = new Date(iso).toLocaleDateString('ko-KR', opts);
+  const time = new Date(iso).toLocaleTimeString('ko-KR', { ...opts, hour: '2-digit', minute: '2-digit', hour12: false });
+  return `${date} ${time}`;
+}

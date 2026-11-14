@@ -24,6 +24,7 @@ import {
   DraftListStatus,
   draftListStatus,
 } from './draft-status.js';
+import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { Draft, DraftState } from './draft.entity.js';
 import { checkContextOf } from './drafting.service.js';
 import type { VideoAnalysis } from './video-analysis.entity.js';
@@ -58,14 +59,33 @@ export interface DraftListRow {
   topic: { id: number; name: string };
   /** 영상 */
   video: {
+    /** 내부 영상 ID */
     id: number;
+    /** 유튜브 영상 ID */
     youtubeId: string;
+    /** 유튜브 보기 주소 */
+    url: string;
+    /** 제목 */
     title: string;
+    /** 채널 이름 */
     channelTitle: string;
+    /** 내 채널 영상인지 */
     isMine: boolean;
+    /** 조회수 */
+    viewCount: number;
+    /** 올린 시각 */
+    publishedAt: Date;
+    /** 영상 길이 (초) */
+    durationSec: number;
   };
   /** 초안 글 */
   text: string;
+  /** 초안을 쓴 AI 제공자 (작성 실패·작성 중이면 null) */
+  provider: string | null;
+  /** 초안을 쓴 모델 */
+  model: string | null;
+  /** 게시된 댓글 주소 (게시 완료일 때) */
+  commentUrl: string | null;
   /** 사람이 고쳤는지 */
   edited: boolean;
   /** 상태 */
@@ -294,12 +314,19 @@ export class DraftsService {
       this.profiles.myChannelIds(),
       this.dataSource.query(
         `SELECT DISTINCT ON (video_id) video_id, status,
-                EXISTS (SELECT 1 FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success') AS commented
+                EXISTS (SELECT 1 FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success') AS commented,
+                (SELECT s.comment_url FROM post_attempt s WHERE s.video_id = a.video_id AND s.status = 'success'
+                  ORDER BY s.started_at DESC, s.id DESC LIMIT 1) AS comment_url
          FROM post_attempt a WHERE video_id = ANY($1)
          ORDER BY video_id, started_at DESC, id DESC`,
         [videoIds],
       ) as Promise<
-        { video_id: number; status: PostStatus; commented: boolean }[]
+        {
+          video_id: number;
+          status: PostStatus;
+          commented: boolean;
+          comment_url: string | null;
+        }[]
       >,
     ]);
     const postBy = new Map(attempts.map((a) => [Number(a.video_id), a]));
@@ -329,11 +356,18 @@ export class DraftsService {
         video: {
           id: d.video!.id,
           youtubeId: d.video!.youtubeId,
+          url: watchUrl(d.video!.youtubeId),
           title: d.video!.title,
           channelTitle: d.video!.channelTitle,
           isMine,
+          viewCount: d.video!.viewCount,
+          publishedAt: d.video!.publishedAt,
+          durationSec: d.video!.durationSec,
         },
         text: d.text,
+        provider: d.provider,
+        model: d.model,
+        commentUrl: post?.comment_url ?? null,
         edited: d.edited,
         status,
         statusLabel: DRAFT_STATUS_LABELS[status],

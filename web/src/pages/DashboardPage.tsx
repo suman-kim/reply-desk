@@ -28,7 +28,7 @@ const STEPS: { n: Step; title: string; hint: string }[] = [
 
 /**
  * 대시보드: 주제 사이드바 · ①②③ 단계(한 번에 한 화면, 이전·다음으로 넘김) (계획서 '화면 구조').
- * 게시 기록은 따로 '게시 기록' 메뉴(LogsPage)에 둔다.
+ * 댓글 게시 결과는 따로 '댓글 게시 목록' 메뉴(LogsPage)에 둔다.
  * 고른 주제·영상·단계는 주소(?topic=&video=&step=)에 담아, 새로 고쳐도 같은 화면이 열린다.
  */
 export function DashboardPage() {
@@ -115,7 +115,7 @@ export function DashboardPage() {
 }
 
 /**
- * 고른 주제의 일하는 자리: 주제 머리 · 운영 규칙 · 단계 표시줄 · 지금 단계 화면 · 이전/다음 (게시 기록은 '게시 기록' 메뉴)
+ * 고른 주제의 일하는 자리: 주제 머리 · 운영 규칙 · 단계 표시줄 · 지금 단계 화면 · 이전/다음 (게시 결과는 '댓글 게시 목록' 메뉴)
  * @param props.topic 주제
  * @param props.videoId 고른 영상
  * @param props.step 지금 단계

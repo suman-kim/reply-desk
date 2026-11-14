@@ -26,12 +26,12 @@
 | `videos` | YouTube 검색 → 코드가 정렬 → 저장, 링크 직접 추가, 카드 배지 | 완료 |
 | `checks` | 자동 검사 6종 (전략 패턴: 검사 1개 = 클래스 1개) | 완료 |
 | `rules` | 게시 차단 사유 (책임 연쇄: 계획서 1~6 순서 + 일시정지·게시 중·프로필), 자동 배정 | 완료 |
-| `posting` | 오늘 게시 현황, 게시 기록 | 완료 |
+| `posting` | 오늘 게시 현황, 댓글 게시 목록 | 완료 |
 | `browser` | 크롬 조작 인터페이스(`YoutubeBrowser`·`YoutubePage`, 어댑터)와 Playwright 구현, 프로필 잠금 | 완료 |
-| `publish` | [댓글 달기]: 규칙 재확인 → 게시 중 행 → 5단계(단계마다 객체), 미리보기·실패 캡처 | 완료 |
+| `publish` | [댓글 달기]: 규칙 재확인 → 게시 중 행 → 5단계(단계마다 객체), 미리보기·게시 결과 캡처(성공·실패) | 완료 |
 | `events` | 실시간 이벤트(관찰자 패턴, rxjs `Subject`)와 SSE `GET /events?topicId=` | 완료 |
 | `ai` | 제공자 어댑터 4개(`AiProvider`, 어댑터 패턴), 역할별 선택(`AiService`) | 완료 |
-| `drafts` | 영상 분석 → 초안 작성 → 자동 검사, 작성 대기열(차례로 하나씩), 다시 생성, 고치기, 초안 목록 | 완료 |
+| `drafts` | 영상 분석 → 초안 작성 → 자동 검사, 작성 대기열(차례로 하나씩), 다시 생성, 고치기, 작업 목록 | 완료 |
 
 ## 다른 채널 영상 게시와 광고 표시
 
@@ -41,7 +41,7 @@
 - 초안 작성: AI에게 맡기지 않고 코드가 맨 앞에 붙인다(`checks/ad-disclosure.ts`). 글 안 다른 곳에 있던 표시는 빼고 한 번만 둔다.
 - 자동 검사 `ad_disclosure`: 다른 채널 영상이면 맨 앞에 표시가 있어야 통과한다. 길이·해시태그 등 다른 검사는 표시를 뺀 본문만 본다(`#광고`로 정해도 해시태그 검사에 걸리지 않는다).
 - 차단 규칙 4번 `ad_disclosure_missing`(예전 `not_my_channel` 자리): 게시 직전에 글을 다시 본다. 검사 뒤에 프로필이 지워져 '내 채널'이 바뀐 경우까지 막는다.
-- 초안 목록의 "초안만" 상태는 없앴다. 영상당 1개·하루 상한·사람 확인은 그대로다.
+- 작업 목록의 "초안만" 상태는 없앴다. 영상당 1개·하루 상한·사람 확인은 그대로다.
 
 ## 영상 분석과 초안 작성
 
@@ -75,6 +75,7 @@
   - 같은 영상 동시 게시와 영상당 1개는 DB 부분 유일 인덱스가 마지막으로 막는다.
   - 5단계(프로필 열기 → 댓글 창 찾기 → 한 글자씩 입력 → 게시 → 내 댓글 확인)는 뒤에서 돈다. 화면은 `GET /posting/attempts/:id`로 단계·글자 수를, `/preview`로 1.5초마다 찍은 크롬 화면을 본다.
   - 실패하면 그 단계와 원인을 남기고, 캡처를 `SCREENSHOTS_DIR`에 저장한다(`/capture`). 로그인이 풀린 것이 원인이면 프로필을 "다시 로그인 필요"로 바꿔 자동 배정과 게시에서 뺀다.
+  - 성공하면 내 댓글을 찾은 뒤 그 댓글을 화면 가운데로 내려 찍은 화면을 `SCREENSHOTS_DIR/attempt-<번호>-success.png`로 남긴다(같은 `screenshot_path` 칸·같은 `/capture` 주소). 댓글 게시 목록에서 작은 그림으로, 행을 누르면 창에서 크게 본다. 한 장에 약 1MB이고 지우는 기능은 아직 없다(하루 상한 30개면 하루 최대 약 30MB).
   - 서버가 다시 뜨면 running으로 남은 행을 실패로 바꾸고, 유튜브에서 직접 확인하라고 남긴다.
 - **설정 `posting.headless`**: 기본은 꺼짐이다. 시연할 때 크롬 창이 떠서 한 글자씩 입력하는 모습이 보인다.
 - **화면 요소 규칙**: `browser/youtube-selectors.ts`에 모았다. 유튜브가 화면을 바꾸면 여기만 고친다.
@@ -96,7 +97,7 @@
 - ①의 링크 추가로 영상을 넣자 내 채널 영상(`isMine`)으로 잡혔다.
 - ②의 [초안 작성]: `gemini-3.5-flash`가 영상을 직접 보고 분석해(01:10 "매일 자정에 새로 골라 드려요" 인용) 초안까지 23초에 썼다. 자동 검사 5개(길이 116/120자, 장면 언급, 브랜드 1번, 링크·해시태그 없음, 지어낸 후기 없음)를 모두 통과했다.
 - ③의 [댓글 달기](서버 `POST …/post`): 차단 규칙 통과 → 5단계 16초, 116/116자 입력, 댓글 주소를 게시 기록(#5)에 남겼다. 로그인하지 않은 크롬에서도 보였다.
-- 게시 뒤: 오늘 게시 1/30, 영상 카드 '댓글 완료', 초안 목록 '게시 완료', 같은 영상에 다시 누르면 `already_commented`(영상당 1개)로 막혔다. 열린 크롬에는 탭이 남지 않았다.
+- 게시 뒤: 오늘 게시 1/30, 영상 카드 '댓글 완료', 작업 목록 '게시 완료', 같은 영상에 다시 누르면 `already_commented`(영상당 1개)로 막혔다. 열린 크롬에는 탭이 남지 않았다.
 - **Gemini 모델 주의**: 이날 `gemini-3.8-flash`(설정 기본값)는 글만 보내도 60·240초 동안 답이 없었다(503도 없이 멈춤). `gemini-3.7-flash`·`gemini-flash-latest`는 503(붐빔), `gemini-3.5-flash`(영상 분석 8.4초)·`gemini-3.1-flash-lite`는 됐다. 그래서 그때까지 Gemini 초안이 모두 실패했다(#45 붐빔, #46·#47 시간 초과). 시간 초과 안내에 모델 이름과 '계속되면 다른 모델로'를 넣었다(RD-14). 시험은 설정을 잠시 3.5-flash로 바꿔 했고, 끝난 뒤 원래 값(3.8-flash)으로 되돌렸다.
   - **크레딧·결제 문제가 아니다** (RD-15, REST로 직접 확인): 같은 키로 3.5-flash는 1초(서버 처리 0.8초)에 답했고, 3.8-flash도 모델 정보·토큰 세기는 0.1초에 200이었다. 3.8-flash 생성 요청 하나는 102초 기다린 뒤 **200으로 정상 답**(생각 0·출력 16토큰, `server-timing` 102초)을 줬고, 다른 하나는 103초 뒤 503, 동시에 보낸 3개는 170초 동안 머리도 없었다. 크레딧·한도 문제면 1초 안에 429/403과 이유가 온다(앱도 '크레딧이 없어요'·'사용 한도'로 따로 보인다). 즉 Google 쪽 3.8-flash 용량 부족으로 차례를 기다리다 503이 되거나 멈춘 것이다. Google 개발자 포럼에도 2026-10 말~11 초 3.8-flash의 503·90초 무응답 보고가 여럿 있고, "503 errors are due to our services being temporarily overloaded"라는 답이 달렸다. 이 키의 프로젝트가 무료·유료 등급인지는 확인하지 못했다(AI Studio 결제 화면에서 본다).
 
@@ -115,6 +116,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 ```
 
 - 댓글 문구는 `LIVE_TEXT`로 정한다. 없으면 시각을 붙인 시험 문구라 매번 달라 내 댓글을 정확히 찾는다.
+- **이미 단 댓글을 찾기만**: `LIVE_FIND_TEXT='댓글 전문'`을 주면 입력·게시 없이 댓글 창까지 내려가 그 댓글을 찾고, 가운데로 내린 화면을 캡처한다(게시 결과 캡처 확인용, 2026-11-13 확인: 3.9초에 찾고 댓글이 화면 가운데에 찍힘).
 - 단계별 시간, 마지막 화면 캡처 경로(`LIVE_OUT_DIR`, 기본은 임시 폴더/reply-desk-live), 결과(댓글 주소)를 출력한다.
 - 프로필 폴더는 계정 관리의 폴더 경로다. 열어 둔 로그인 크롬이 있으면 거기에 새 탭으로 붙고, 없으면 새로 띄운다(`LIVE_HEADLESS=1`이면 창 없이).
 
@@ -125,10 +127,10 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | 이벤트 | 언제 | 화면 |
 | --- | --- | --- |
 | `draft.progress` | 자동 작성이 시작·한 편 끝·모두 끝날 때 | ① 버튼 "초안 자동 작성 중 (2/5)" |
-| `draft.updated` | 초안이 작성 중·준비됨·실패로 바뀌거나 사람이 고칠 때 | ① 카드 배지, ② 칸 새로 읽기, 초안 목록 |
+| `draft.updated` | 초안이 작성 중·준비됨·실패로 바뀌거나 사람이 고칠 때 | ① 카드 배지, ② 칸 새로 읽기, 작업 목록 |
 | `post.progress` | 게시 단계가 바뀔 때, 입력 글자 수(0.15초마다·마지막 글자) | ③ 진행 5단계, "한 글자씩 입력 중 (34/91자)" |
 | `post.preview` | 크롬 화면을 새로 찍었을 때 (1.5초마다) | ③ 크롬 미리보기 (`/posting/attempts/:id/preview?seq=`로 다시 받기) |
-| `post.finished` | 게시가 끝났을 때 (성공·실패, 원인, 캡처 여부, 댓글 주소) | ③ 게시 완료 띠·실패 원인, 게시 기록 |
+| `post.finished` | 게시가 끝났을 때 (성공·실패, 원인, 캡처 여부, 댓글 주소) | ③ 게시 완료 띠·실패 원인, 댓글 게시 목록 |
 | `quota.updated` | 게시에 성공했을 때 | 헤더 "오늘 게시 n/10" |
 | `profile.updated` | [로그인 확인]이나 게시 중 로그인이 풀린 것을 알았을 때 | 헤더 "유튜브2 로그인 필요", 계정 관리 경고 띠 |
 
@@ -151,7 +153,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `topic_video` | 주제별 영상 목록과 불러오기 순위, 들어온 경로(검색·직접) |
 | `video_analysis` | AI 분석: 고민 한 줄, 고른 이유[], 근거 장면[], 장면 핵심 단어[] |
 | `draft` | 초안: 글, AI 원본, 쓴 이유[], 고쳤는지, 검사 결과, 작성 상태 |
-| `post_attempt` | 게시 기록: 결과, 실패 단계·원인, 캡처, 댓글 주소 |
+| `post_attempt` | 게시 기록(댓글 게시 목록): 결과, 실패 단계·원인, 게시 결과 캡처(성공·실패), 댓글 주소 |
 | `app_setting` | 공용 설정 (키-값) |
 
 운영 규칙을 DB가 직접 막는 곳:
@@ -182,7 +184,7 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `GET /topics` | 사이드바 | 주제 목록 (오늘 n/상한, 초안 대기, 상태, 프로필) |
 | `POST /topics` | 새 주제 | 만들기 (계획서 예시 값이 기본값) |
 | `PATCH /topics/:id` | 주제 설정 | 보낸 값만 고치기, `profileIds`는 통째로 바꿈 |
-| `DELETE /topics/:id` | 주제 설정 | 지우기 (게시 기록은 남음) |
+| `DELETE /topics/:id` | 주제 설정 | 지우기 (댓글 게시 목록은 남음) |
 | `GET /topics/:id/videos` | ① | 영상 카드 (순위, 내 채널, 댓글 완료, 초안 상태) |
 | `POST /topics/:id/videos/fetch` | ① | [영상 불러오기] |
 | `POST /topics/:id/videos` `{ url }` | ② | 링크 직접 추가 |
@@ -191,19 +193,19 @@ LIVE_PROFILE_DIR=… LIVE_VIDEO_ID=… LIVE_SUBMIT=1 npm run test:live
 | `POST /topics/:id/load` | ① | [영상 불러오기] (영상만, 초안은 쓰지 않음) |
 | `GET /topics/:id/videos/:videoId/comments?limit=` | ① 영상 보기 창 | 인기 댓글(쓴 사람·좋아요·답글 수, 관련성 순). 댓글이 막힌 영상은 `disabled: true`. 할당량 1, 5분 받아 둔다 |
 | `GET /topics/:id/drafts/progress` | ① | 자동 작성 진행률 (total·done·failed·running·lastError) |
-| `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·초안·검사·상태·게시 기록 |
+| `GET /topics/:id/videos/:videoId/draft` | ② | 영상·분석·초안·검사·상태·이 영상의 댓글 게시 |
 | `POST /topics/:id/videos/:videoId/draft` `{ reanalyze? }` | ② | [다시 생성] (쓰는 중이면 409) |
-| `PATCH /drafts/:id` `{ text }` | ②·초안 목록 | 고치기 → 바로 다시 검사 |
-| `GET /drafts?status=&topicId=&q=` | 초안 목록 | 영상마다 최근 초안, 상태별 개수 (게시 대기·실패·검사 미통과·게시 완료·작성 중·작성 실패) |
+| `PATCH /drafts/:id` `{ text }` | ②·작업 목록 | 고치기 → 바로 다시 검사 |
+| `GET /drafts?status=&topicId=&q=` | 작업 목록 | 영상마다 최근 초안, 상태별 개수 (게시 대기·실패·검사 미통과·게시 완료·작성 중·작성 실패). 행마다 유튜브 주소·조회수·올린 때·길이, 쓴 AI 모델, 게시된 댓글 주소 |
 | `POST /profiles/:id/login` | 계정 관리 | [크롬 열고 직접 로그인] (일반 크롬을 그 프로필로 연다) |
 | `POST /profiles/:id/check` | 계정 관리 | [로그인 확인] (채널 ID·이름·화면 언어 저장, 결과 한 줄과 경고 여부) |
 | `POST /topics/:id/videos/:videoId/post` `{ profileId? }` | ③ | [댓글 달기]. 막히면 409 `{ code, message }` |
 | `GET /posting/attempts/:id` | ③ | 진행 5단계(done·running·failed·waiting), 입력 글자 수, 결과, 댓글 주소 |
 | `GET /posting/attempts/:id/preview` | ③ | 크롬 화면 미리보기 (게시 중·끝난 뒤 10분) |
-| `GET /posting/attempts/:id/capture` | 게시 기록 | 실패 캡처 ([캡처 보기]) |
+| `GET /posting/attempts/:id/capture` | 댓글 게시 목록 | 게시 결과 캡처 (성공: 게시된 댓글 화면, 실패: 실패 순간) |
 | `GET /posting/today` | 헤더 | 오늘 게시 n/상한, 주제별 수 |
 | `GET /events?topicId=` | 모든 화면 | 실시간 이벤트 (SSE, 위 '실시간 이벤트' 절) |
-| `GET /posting/logs?topicId=&limit=` | 게시 기록 | 최근 순 기록 |
+| `GET /posting/logs?topicId=&limit=` | 댓글 게시 목록 | 최근 순 기록. 영상 채널·유튜브 주소, 끝난 시각(걸린 시간), 멈춘 단계, 캡처 여부, 댓글 주소 |
 
 ## 남은 것
 

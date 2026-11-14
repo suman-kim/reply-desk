@@ -1,4 +1,4 @@
-import type { DraftListStatus, VideoItem } from '../api/types';
+import type { DraftListStatus, PostStatus, PostStep, VideoItem } from '../api/types';
 import type { Tone, VideoBadge } from '../ds/inyeon';
 
 /**
@@ -18,7 +18,7 @@ export function videoBadges(v: VideoItem): VideoBadge[] {
   return out;
 }
 
-/** 초안 목록 상태 → 배지 색 (프로토타입 Drafts와 같다) */
+/** 작업 목록 상태 → 배지 색 (프로토타입 Drafts와 같다) */
 export const STATUS_TONE: Record<DraftListStatus, Tone> = {
   pending: 'accent',
   failed: 'danger',
@@ -28,7 +28,7 @@ export const STATUS_TONE: Record<DraftListStatus, Tone> = {
   error: 'danger',
 };
 
-/** 초안 목록 상태 이름 (필터 순서) */
+/** 작업 목록 상태 이름 (필터 순서) */
 export const STATUS_LABELS: [DraftListStatus, string][] = [
   ['pending', '게시 대기'],
   ['failed', '실패'],
@@ -37,3 +37,19 @@ export const STATUS_LABELS: [DraftListStatus, string][] = [
   ['writing', '작성 중'],
   ['error', '작성 실패'],
 ];
+
+/** 게시 단계 이름 (서버 POST_STEP_LABELS와 같다). 댓글 게시 목록의 '멈춘 단계'에 쓴다 */
+export const POST_STEP_LABELS: Record<PostStep, string> = {
+  open_profile: '프로필 여는 중',
+  find_comment_box: '댓글 창 찾는 중',
+  type: '한 글자씩 입력 중',
+  submit: '게시',
+  verify: '내 댓글 확인',
+};
+
+/** 게시 결과 → 배지 색·이름 (댓글 게시 목록, 작업 상세의 이 영상 댓글 게시) */
+export const POST_RESULT: Record<PostStatus, { tone: Tone; label: string }> = {
+  success: { tone: 'success', label: '성공' },
+  failed: { tone: 'danger', label: '실패' },
+  running: { tone: 'neutral', label: '게시 중' },
+};

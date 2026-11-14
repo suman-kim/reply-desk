@@ -19,7 +19,7 @@ import {
   type YoutubeComments,
   type YoutubeVideoInfo,
 } from './youtube/youtube-client.js';
-import { parseYoutubeVideoId } from './youtube/youtube-parsers.js';
+import { parseYoutubeVideoId, watchUrl } from './youtube/youtube-parsers.js';
 
 /** ① 칸 영상 카드 한 장 */
 export interface VideoItem {
@@ -314,7 +314,7 @@ export class VideosService {
       return {
         id: v.id,
         youtubeId: v.youtubeId,
-        url: `https://www.youtube.com/watch?v=${v.youtubeId}`,
+        url: watchUrl(v.youtubeId),
         title: v.title,
         channelId: v.channelId,
         channelTitle: v.channelTitle,

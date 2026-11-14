@@ -153,7 +153,13 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
       commentUrl: 'https://www.youtube.com/watch?v=demo00000v2&lc=fake',
       failureReason: null,
       hasPreview: true,
+      // 게시된 댓글이 보이는 화면을 로컬에 저장한다 (댓글 게시 목록의 캡처)
+      hasCapture: true,
     });
+    const successCapture = await http()
+      .get(`/api/posting/attempts/${res.body.id}/capture`)
+      .expect(200);
+    expect(successCapture.headers['content-type']).toBe('image/png');
     expect(
       done.body.steps.map(
         (s: { label: string; state: string }) => `${s.label}:${s.state}`,
@@ -187,6 +193,18 @@ describe('로그인 확인과 댓글 게시 (e2e)', () => {
     expect(
       drafts.body.rows.map((r: { video: Card }) => r.video.youtubeId),
     ).toEqual(['demo00000v2']);
+    // 작업 목록에 더 보이는 정보: 유튜브 주소·조회수·올린 날짜·길이, 쓴 AI, 댓글 주소
+    expect(drafts.body.rows[0]).toMatchObject({
+      video: {
+        url: 'https://www.youtube.com/watch?v=demo00000v2',
+        viewCount: expect.any(Number),
+        publishedAt: expect.any(String),
+        durationSec: expect.any(Number),
+      },
+      provider: expect.any(String),
+      model: expect.any(String),
+      commentUrl: 'https://www.youtube.com/watch?v=demo00000v2&lc=fake',
+    });
   });
 
   it('막힐 때는 409와 차단 사유 한 줄', async () => {

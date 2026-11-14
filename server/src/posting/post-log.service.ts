@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { PostAttempt } from './post-attempt.entity.js';
 
-/** 게시 기록 표의 한 행 */
+/** 댓글 게시 목록의 한 행 */
 export interface PostLogRow {
   /** 게시 시도 ID */
   id: number;
@@ -11,8 +12,19 @@ export interface PostLogRow {
   startedAt: Date;
   /** 끝난 시각 */
   finishedAt: Date | null;
-  /** 영상 (제목·유튜브 ID) */
-  video: { id: number; youtubeId: string; title: string } | null;
+  /** 영상 (지운 영상이면 null) */
+  video: {
+    /** 내부 영상 ID */
+    id: number;
+    /** 유튜브 영상 ID */
+    youtubeId: string;
+    /** 유튜브 보기 주소 */
+    url: string;
+    /** 제목 */
+    title: string;
+    /** 채널 이름 */
+    channelTitle: string;
+  } | null;
   /** 주제 */
   topic: { id: number; name: string } | null;
   /** 프로필 이름 (지운 프로필이면 null) */
@@ -25,13 +37,13 @@ export interface PostLogRow {
   failedStep: PostAttempt['failedStep'];
   /** 실패 원인 */
   failureReason: string | null;
-  /** 캡처가 있는지 ([캡처 보기]) */
+  /** 게시 결과 캡처가 있는지 (성공: 게시된 댓글 화면, 실패: 실패 순간) */
   hasScreenshot: boolean;
   /** 댓글 주소 ([댓글 보기]) */
   commentUrl: string | null;
 }
 
-/** 게시 기록 조회 (주제별 보기·전체 보기). 최근 항목이 위에 온다 */
+/** 댓글 게시 목록 조회 (주제별 보기·전체 보기). 최근 항목이 위에 온다 */
 @Injectable()
 export class PostLogService {
   /**
@@ -62,7 +74,13 @@ export class PostLogService {
       startedAt: a.startedAt,
       finishedAt: a.finishedAt,
       video: a.video
-        ? { id: a.video.id, youtubeId: a.video.youtubeId, title: a.video.title }
+        ? {
+            id: a.video.id,
+            youtubeId: a.video.youtubeId,
+            url: watchUrl(a.video.youtubeId),
+            title: a.video.title,
+            channelTitle: a.video.channelTitle,
+          }
         : null,
       topic: a.topic ? { id: a.topic.id, name: a.topic.name } : null,
       profileName: a.profile?.name ?? null,

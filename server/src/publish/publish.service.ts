@@ -78,7 +78,7 @@ export interface AttemptView {
   typing: { typed: number; total: number } | null;
   /** 실패 원인 */
   failureReason: string | null;
-  /** 실패 캡처가 있는지 */
+  /** 게시 결과 캡처가 있는지 (성공: 게시된 댓글 화면, 실패: 실패 순간) */
   hasCapture: boolean;
   /** 미리보기가 있는지 */
   hasPreview: boolean;
@@ -351,9 +351,14 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
       if (lastImage) this.setPreview(attemptId, lastImage);
 
       if (outcome.ok) {
+        // 내 댓글을 찾은 뒤 그 댓글을 화면 가운데에 둔 채 찍은 화면이라, 게시 증거로 로컬에 남긴다
+        const screenshotPath = lastImage
+          ? await this.saveCapture(attemptId, 'success', lastImage)
+          : null;
         await this.attempts.update(attemptId, {
           status: PostStatus.Success,
           commentUrl: outcome.commentUrl,
+          screenshotPath,
           finishedAt: new Date(),
         });
         this.emitFinished(
@@ -361,7 +366,7 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
           PostStatus.Success,
           null,
           null,
-          false,
+          !!screenshotPath,
           outcome.commentUrl,
         );
         this.events.emit({
@@ -451,7 +456,7 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
    * @param status 결과
    * @param failedStep 실패한 단계
    * @param failureReason 실패 원인
-   * @param hasCapture 실패 캡처가 있는지
+   * @param hasCapture 게시 결과 캡처가 있는지 (성공·실패)
    * @param commentUrl 댓글 주소
    */
   private emitFinished(
@@ -477,16 +482,22 @@ export class PublishService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  /** 실패 캡처를 파일로 남긴다 */
+  /**
+   * 게시 결과 화면 캡처를 파일로 남긴다 (SCREENSHOTS_DIR/attempt-<번호>-<이름>.png)
+   * @param attemptId 게시 시도 ID
+   * @param name 파일 이름 끝: 성공이면 'success', 실패면 멈춘 단계
+   * @param image 캡처 (png)
+   * @returns 저장한 경로 (저장하지 못하면 null)
+   */
   private async saveCapture(
     attemptId: number,
-    step: PostStep,
+    name: PostStep | 'success',
     image: Buffer,
   ): Promise<string | null> {
     try {
       const dir = this.config.get('SCREENSHOTS_DIR', { infer: true });
       await mkdir(dir, { recursive: true });
-      const file = join(dir, `attempt-${attemptId}-${step}.png`);
+      const file = join(dir, `attempt-${attemptId}-${name}.png`);
       await writeFile(file, image);
       return file;
     } catch (err) {

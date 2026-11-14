@@ -359,6 +359,8 @@ class PlaywrightYoutubePage implements YoutubePage {
             const t = (el.textContent ?? '').replace(/\s+/g, ' ').trim();
             if (t !== target) continue;
             const thread = el.closest(threadSel);
+            // 게시 결과 캡처에 내 댓글이 담기도록 화면 가운데로 내린다
+            (thread ?? el).scrollIntoView({ block: 'center' });
             const a = thread?.querySelector(
               linkSel,
             ) as HTMLAnchorElement | null;
@@ -375,9 +377,10 @@ class PlaywrightYoutubePage implements YoutubePage {
         { timeout: timeoutMs, polling: 500 },
       )
       .catch(() => null);
-    return handle
-      ? ((await handle.jsonValue()) as { url: string | null })
-      : null;
+    if (!handle) return null;
+    // 내린 화면(작성자 사진 등)이 그려질 틈을 준다
+    await this.page.waitForTimeout(500);
+    return (await handle.jsonValue()) as { url: string | null };
   }
 
   async screenshot(type: 'jpeg' | 'png'): Promise<Buffer> {

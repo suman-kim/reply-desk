@@ -50,9 +50,9 @@ export const keys = {
   profiles: ['profiles'] as const,
   /** 오늘 게시 현황 */
   today: ['today'] as const,
-  /** 게시 기록 (주제 ID 또는 전체) */
+  /** 댓글 게시 목록 (주제 ID 또는 전체) */
   logs: (topicId: number | null) => ['logs', topicId] as const,
-  /** 초안 목록 */
+  /** 작업 목록 */
   drafts: (filter: object) => ['drafts', filter] as const,
   /** 설정 */
   settings: ['settings'] as const,
@@ -178,7 +178,7 @@ export const useProfiles = () => useQuery({ queryKey: keys.profiles, queryFn: ()
 export const useToday = () => useQuery({ queryKey: keys.today, queryFn: () => api<TodayQuota>('GET', '/posting/today') });
 
 /**
- * 게시 기록
+ * 댓글 게시 목록
  * @param topicId 주제 ID (null이면 전체)
  */
 export const useLogs = (topicId: number | null) =>
@@ -187,7 +187,7 @@ export const useLogs = (topicId: number | null) =>
     queryFn: () => api<PostLogRow[]>('GET', `/posting/logs${topicId ? `?topicId=${topicId}` : ''}`),
   });
 
-/** 초안 목록 조건 */
+/** 작업 목록 조건 */
 export interface DraftFilter {
   /** 상태 */
   status?: DraftListStatus;
@@ -198,7 +198,7 @@ export interface DraftFilter {
 }
 
 /**
- * 초안 목록
+ * 작업 목록
  * @param filter 조건
  */
 export const useDrafts = (filter: DraftFilter) =>

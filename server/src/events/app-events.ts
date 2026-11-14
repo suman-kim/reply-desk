@@ -95,7 +95,7 @@ export interface PostFinishedEvent {
   steps: StepView[];
   /** 실패 원인 */
   failureReason: string | null;
-  /** 실패 캡처가 있는지 */
+  /** 게시 결과 캡처가 있는지 (성공: 게시된 댓글 화면, 실패: 실패 순간) */
   hasCapture: boolean;
   /** 댓글 주소 */
   commentUrl: string | null;

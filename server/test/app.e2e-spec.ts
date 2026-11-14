@@ -201,8 +201,14 @@ describe('reply-desk API (e2e)', () => {
     expect(logs.body[0]).toMatchObject({
       profileName: '유튜브1',
       status: 'success',
-      video: { youtubeId: 'demo00000v2' },
+      // 댓글 게시 목록에 더 보이는 정보: 채널·유튜브 주소 (캡처는 publish e2e가 실제 게시로 본다)
+      video: {
+        youtubeId: 'demo00000v2',
+        url: 'https://www.youtube.com/watch?v=demo00000v2',
+        channelTitle: expect.any(String),
+      },
     });
+    expect(logs.body[0].finishedAt).toEqual(expect.any(String));
     expect(
       (await http().get('/api/posting/today').expect(200)).body,
     ).toMatchObject({ posted: 1, cap: 10 });

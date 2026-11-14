@@ -42,7 +42,7 @@ export interface YoutubePage {
    */
   submit(): Promise<boolean>;
   /**
-   * 방금 단 내 댓글을 찾는다
+   * 방금 단 내 댓글을 찾는다. 찾으면 그 댓글을 화면 가운데로 내린다 (게시 결과 캡처에 담기도록)
    * @param text 단 댓글
    * @param timeoutMs 제한 시간
    * @returns 찾으면 댓글 주소(못 읽으면 null)를 담은 값, 못 찾으면 null

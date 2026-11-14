@@ -18,6 +18,7 @@ import {
   verifyKeywords,
   verifyScenes,
 } from './analysis-prompt.js';
+import { watchUrl } from '../videos/youtube/youtube-parsers.js';
 import { VideoAnalysis } from './video-analysis.entity.js';
 
 /** 분석 제한 시간 (영상을 직접 보면 오래 걸린다) */
@@ -84,9 +85,7 @@ export class AnalysisService {
           prompt.user,
         ),
         schema: analysisSchema,
-        videoUrl: watchesVideo
-          ? `https://www.youtube.com/watch?v=${video.youtubeId}`
-          : undefined,
+        videoUrl: watchesVideo ? watchUrl(video.youtubeId) : undefined,
         timeoutMs: ANALYSIS_TIMEOUT_MS,
       },
       `analysis topic=${topic.id} video=${video.id}`,

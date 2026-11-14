@@ -150,12 +150,13 @@ export class PostAttempt {
   })
   failureReason: string | null;
 
-  /** 실패 순간 화면 캡처 경로 */
+  /** 게시 결과 화면 캡처 경로 (성공: 게시된 내 댓글이 보이는 화면, 실패: 실패 순간) */
   @Column({
     name: 'screenshot_path',
     type: 'text',
     nullable: true,
-    comment: '실패 순간 화면 캡처 파일 경로',
+    comment:
+      '게시 결과 화면 캡처 파일 경로 (성공: 게시된 내 댓글이 보이는 화면, 실패: 실패 순간)',
   })
   screenshotPath: string | null;
 

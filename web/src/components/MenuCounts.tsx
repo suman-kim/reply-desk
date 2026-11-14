@@ -12,7 +12,7 @@ function CountBubble({ n, warn, title }: { n: number; warn?: boolean; title: str
   );
 }
 
-/** 초안 목록 탭 숫자: 게시 대기 초안 */
+/** 작업 목록 탭 숫자: 게시 대기 초안 */
 export function PendingDraftsCount() {
   const topics = useTopics();
   const n = topics.data?.reduce((sum, t) => sum + t.pendingDrafts, 0) ?? 0;
