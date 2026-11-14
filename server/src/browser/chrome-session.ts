@@ -138,39 +138,59 @@ export async function quitChrome(
   return !alive();
 }
 
+/** 원격 연결은 됐는데 붙지 못했을 때 안내 (원격 연결로 떴지만 응답이 이상한 크롬) */
+const ATTACH_FAILED =
+  '열려 있는 이 프로필의 크롬에 연결하지 못했어요 · 그 크롬을 ⌘Q로 종료한 뒤 [크롬 열기]를 다시 눌러 주세요';
+
 /**
- * 이미 열려 있는 크롬에 원격 연결로 붙어 새 탭을 연다.
+ * 이미 열려 있는 크롬에 원격 연결로 붙어 일할 탭을 연다.
+ * 맥은 창을 모두 닫아도 크롬이 남는데, 창이 하나도 없으면 크롬이 프로필을 내려놓아
+ * 원격 연결이 "Browser context management is not supported"로 실패한다.
+ * 그래서 탭이 없으면 빈 탭을 먼저 하나 열어(프로필을 다시 올림) 그 탭에서 일한다. 끝나면 그 탭을 닫아 창 없는 상태로 되돌린다.
  * @param profileDir 크롬 프로필 폴더
  * @param pid 그 크롬의 프로세스 번호
  */
 async function attach(profileDir: string, pid: number): Promise<ChromeSession> {
   if (!(await isAttachable(pid))) throw new ProfileInUseError();
 
-  const endpoint = await readFile(
-    join(profileDir, 'DevToolsActivePort'),
-    'utf8',
-  )
+  const active = await readFile(join(profileDir, 'DevToolsActivePort'), 'utf8')
     .then((text) => {
-      const [port, path] = text.split('\n');
-      return port && path
-        ? `ws://127.0.0.1:${port.trim()}${path.trim()}`
-        : null;
+      const [port, path] = text.split('\n').map((l) => l.trim());
+      return port && path ? { port, path } : null;
     })
     .catch(() => null);
-  if (!endpoint) throw new ProfileInUseError();
+  if (!active) throw new ProfileInUseError(ATTACH_FAILED);
+  const http = `http://127.0.0.1:${active.port}`;
 
-  let browser: Browser;
   try {
-    browser = await chromium.connectOverCDP(endpoint, { timeout: 10_000 });
-  } catch {
-    throw new ProfileInUseError();
+    // 탭이 하나도 없으면 빈 탭을 연다 (크롬 111+는 /json/new에 PUT만 받는다)
+    const targets = (await (await fetch(`${http}/json/list`)).json()) as {
+      type: string;
+    }[];
+    const opened = targets.some((t) => t.type === 'page')
+      ? null
+      : ((await (
+          await fetch(`${http}/json/new?about:blank`, { method: 'PUT' })
+        ).json()) as { id: string });
+
+    const browser = await chromium.connectOverCDP(
+      `ws://127.0.0.1:${active.port}${active.path}`,
+      { timeout: 10_000 },
+    );
+    const context = browser.contexts()[0];
+    if (!context) {
+      await browser.close().catch(() => undefined);
+      throw new Error('기본 브라우저 문맥이 없어요');
+    }
+    // 방금 연 빈 탭이 있으면 그 탭을 쓰고, 아니면 새 탭을 연다
+    const page =
+      (opened && context.pages().find((p) => p.url() === 'about:blank')) ||
+      (await context.newPage());
+    return new AttachedSession(browser, page);
+  } catch (err) {
+    if (err instanceof ProfileInUseError) throw err;
+    throw new ProfileInUseError(ATTACH_FAILED, err);
   }
-  const context = browser.contexts()[0];
-  if (!context) {
-    await browser.close().catch(() => undefined);
-    throw new ProfileInUseError();
-  }
-  return new AttachedSession(browser, await context.newPage());
 }
 
 /**
